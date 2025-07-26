@@ -90,10 +90,10 @@ export function VideoGenerationForm() {
   const promptTips = [
     "Be specific about what you want to see in your video",
     "Describe the scene, actions, and visual style clearly",
-    "Include camera movements like 'close-up', 'wide shot', or 'zoom in'",
-    "Mention lighting and mood: 'bright daylight', 'cinematic lighting', 'warm tones'",
-    "For dialogue, use format: 'A person says: Hello, world!'",
-    "Add '(no subtitles)' to avoid unwanted text overlays"
+    "Include camera movements like &apos;close-up&apos;, &apos;wide shot&apos;, or &apos;zoom in&apos;",
+    "Mention lighting and mood: &apos;bright daylight&apos;, &apos;cinematic lighting&apos;, &apos;warm tones&apos;",
+                    "For dialogue, use format: &apos;A person says: Hello, world!&apos;",
+    "Add &apos;(no subtitles)&apos; to avoid unwanted text overlays"
   ];
 
   return (
@@ -298,7 +298,7 @@ export function VideoGenerationForm() {
                 <p><strong>Standard quality:</strong> 2-5 minutes</p>
                 <p><strong>High quality:</strong> 3-7 minutes</p>
                 <p className="text-xs text-gray-500 mt-3">
-                  You'll receive real-time updates on the generation progress.
+                  You&apos;ll receive real-time updates on the generation progress.
                 </p>
               </div>
             </CardContent>

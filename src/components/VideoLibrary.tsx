@@ -85,7 +85,11 @@ export function VideoLibrary() {
     }
   };
 
-  const getEstimatedTime = (video: any) => {
+  const getEstimatedTime = (video: {
+    status: string;
+    processingStartedAt?: number;
+    quality: string;
+  }) => {
     if (video.status === "processing" && video.processingStartedAt) {
       const processingTime = Date.now() - video.processingStartedAt;
       const estimatedTotal = video.quality === "high" ? 300000 : 180000; // 5min or 3min

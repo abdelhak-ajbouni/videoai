@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { VideoLibrary } from "@/components/VideoLibrary";
 import { Button } from "@/components/ui/button";
-import { User, CreditCard, Video, Plus } from "lucide-react";
+import { CreditCard, Video, Plus } from "lucide-react";
 import { useState } from "react";
 
 export default function Dashboard() {

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { PlayCircle, Sparkles, Zap } from "lucide-react";
 
 export default function Home() {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isSignedIn, user } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
 
   if (isSignedIn && currentUser) {
