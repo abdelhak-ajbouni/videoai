@@ -4,12 +4,22 @@ import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { Loading } from "@/components/ui/loading";
 import Link from "next/link";
 import { PlayCircle, Sparkles, Zap } from "lucide-react";
 
 export default function Home() {
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn, user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
+
+  // Show loading state while Clerk or Convex data is loading
+  if (!isLoaded || (isSignedIn && currentUser === undefined)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <Loading />
+      </div>
+    );
+  }
 
   if (isSignedIn && currentUser) {
     return (

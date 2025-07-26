@@ -473,7 +473,9 @@ export const getGenerationJobByReplicateId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("generationJobs")
-      .withIndex("by_replicate_job_id", (q) => q.eq("replicateJobId", args.replicateJobId))
+      .withIndex("by_replicate_job_id", (q) =>
+        q.eq("replicateJobId", args.replicateJobId)
+      )
       .first();
   },
 });
@@ -493,7 +495,7 @@ export const downloadAndStoreVideo = action({
       }
 
       const blob = await response.blob();
-      
+
       // Store the video file in Convex file storage
       const fileId = await ctx.storage.store(blob);
 
@@ -508,16 +510,19 @@ export const downloadAndStoreVideo = action({
       return fileId;
     } catch (error) {
       console.error("Error downloading and storing video:", error);
-      
+
       // Mark as failed and refund credits
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : "Failed to download video",
+        errorMessage:
+          error instanceof Error ? error.message : "Failed to download video",
       });
 
-      await ctx.runMutation(api.videos.refundCredits, { videoId: args.videoId });
-      
+      await ctx.runMutation(api.videos.refundCredits, {
+        videoId: args.videoId,
+      });
+
       throw error;
     }
   },
