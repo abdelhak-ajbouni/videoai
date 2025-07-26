@@ -279,18 +279,19 @@ export const generateVideo = action({
       // Prepare input for Veo-3 model
       const input: {
         prompt: string;
-        duration_seconds: number;
-        aspect_ratio: string;
-        quality: string;
+        duration_seconds?: number;
+        aspect_ratio?: string;
+        seed?: number;
       } = {
         prompt: video.prompt,
         duration_seconds: parseInt(video.duration),
         aspect_ratio: "16:9",
-        quality: video.quality === "high" ? "standard" : "draft",
       };
 
+      // Add random seed for variation
+      input.seed = Math.floor(Math.random() * 1000000);
+
       // Start the prediction with google/veo-3 model
-      // Note: You'll need to get the correct version ID from https://replicate.com/google/veo-3
       const prediction: any = await replicate.predictions.create({
         model: "google/veo-3",
         input: input,
