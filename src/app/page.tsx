@@ -1,22 +1,52 @@
 "use client";
 
 import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import Link from "next/link";
 import { PlayCircle, Sparkles, Zap } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function Home() {
   const { isSignedIn, user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
+  const createUser = useMutation(api.users.createUser);
+  const router = useRouter();
+
+  // Handle user creation after signup
+  useEffect(() => {
+    if (isSignedIn && user && currentUser === null && isLoaded) {
+      // User is signed in but doesn't exist in our database
+      // This handles cases where the webhook might have failed
+      const createUserRecord = async () => {
+        try {
+          await createUser({
+            clerkId: user.id,
+            email: user.primaryEmailAddress?.emailAddress || "",
+            name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || undefined,
+            imageUrl: user.imageUrl || undefined,
+          });
+          toast.success("Welcome to VideoAI! You've received 10 free credits.");
+          router.push("/dashboard");
+        } catch (error) {
+          console.error("Error creating user:", error);
+          toast.error("Welcome to VideoAI! Please refresh the page if you don't see your dashboard.");
+        }
+      };
+
+      createUserRecord();
+    }
+  }, [isSignedIn, user, currentUser, isLoaded, createUser, router]);
 
   // Show loading state while Clerk or Convex data is loading
   if (!isLoaded || (isSignedIn && currentUser === undefined)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Loading />
+        <Loading text={isSignedIn ? "Setting up your account..." : "Loading..."} />
       </div>
     );
   }
@@ -66,16 +96,34 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <SignUpButton mode="modal">
-              <Button size="lg" className="text-lg px-8 py-3">
+            <SignUpButton
+              mode="modal"
+              forceRedirectUrl="/dashboard"
+            >
+              <Button size="lg" className="text-lg px-8 py-3 bg-blue-600 hover:bg-blue-700">
+                <Sparkles className="mr-2 h-5 w-5" />
                 Start Creating Free
               </Button>
             </SignUpButton>
-            <SignInButton mode="modal">
+            <SignInButton
+              mode="modal"
+              forceRedirectUrl="/dashboard"
+            >
               <Button variant="outline" size="lg" className="text-lg px-8 py-3">
                 Sign In
               </Button>
             </SignInButton>
+          </div>
+
+          {/* Value Proposition */}
+          <div className="mb-12 p-6 bg-white/50 rounded-xl border border-blue-100">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              <span className="font-semibold text-blue-600">Free Starter Credits</span>
+            </div>
+            <p className="text-gray-700">
+              Get <strong>10 free credits</strong> when you sign up — enough to create multiple videos and explore our platform!
+            </p>
           </div>
 
           {/* Features */}
