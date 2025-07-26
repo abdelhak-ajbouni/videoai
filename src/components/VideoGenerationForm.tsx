@@ -19,29 +19,58 @@ import {
   AlertCircle,
   Loader2,
   Video,
-  Info
+  Info,
+  Crown,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
   const [title, setTitle] = useState("");
-  const [quality, setQuality] = useState<"standard" | "high">("standard");
-  const [duration, setDuration] = useState<"5" | "10">("5");
+  const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
+  const [duration, setDuration] = useState<"15" | "30" | "60">("15");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
 
   // Calculate credit cost based on quality and duration
-  const calculateCreditCost = (quality: "standard" | "high", duration: "5" | "10"): number => {
-    const baseCost = duration === "5" ? 5 : 10;
-    const qualityMultiplier = quality === "high" ? 2 : 1;
-    return baseCost * qualityMultiplier;
+  const calculateCreditCost = (quality: "standard" | "high" | "ultra", duration: "15" | "30" | "60"): number => {
+    const durationMultiplier = {
+      "15": 1,
+      "30": 2,
+      "60": 4
+    };
+
+    const qualityMultiplier = {
+      "standard": 1,
+      "high": 2,
+      "ultra": 4
+    };
+
+    const baseCost = 5; // Base cost per 15 seconds
+    return baseCost * durationMultiplier[duration] * qualityMultiplier[quality];
   };
 
   const creditsCost = calculateCreditCost(quality, duration);
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
+
+  // Check if user can access quality tiers based on subscription
+  const canAccessQuality = (qualityTier: string) => {
+    if (!currentUser) return false;
+
+    switch (qualityTier) {
+      case "standard":
+        return true; // Available to all
+      case "high":
+        return ["starter", "pro", "business"].includes(currentUser.subscriptionTier);
+      case "ultra":
+        return ["business"].includes(currentUser.subscriptionTier);
+      default:
+        return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +90,11 @@ export function VideoGenerationForm() {
       return;
     }
 
+    if (!canAccessQuality(quality)) {
+      toast.error("Your subscription plan doesn't support this quality tier");
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -77,7 +111,7 @@ export function VideoGenerationForm() {
       setPrompt("");
       setTitle("");
       setQuality("standard");
-      setDuration("5");
+      setDuration("15");
 
     } catch (error) {
       console.error("Error creating video:", error);
@@ -90,11 +124,28 @@ export function VideoGenerationForm() {
   const promptTips = [
     "Be specific about what you want to see in your video",
     "Describe the scene, actions, and visual style clearly",
-    "Include camera movements like &apos;close-up&apos;, &apos;wide shot&apos;, or &apos;zoom in&apos;",
-    "Mention lighting and mood: &apos;bright daylight&apos;, &apos;cinematic lighting&apos;, &apos;warm tones&apos;",
-                    "For dialogue, use format: &apos;A person says: Hello, world!&apos;",
-    "Add &apos;(no subtitles)&apos; to avoid unwanted text overlays"
+    "Include camera movements like 'close-up', 'wide shot', or 'zoom in'",
+    "Mention lighting and mood: 'bright daylight', 'cinematic lighting', 'warm tones'",
+    "For dialogue, use format: 'A person says: Hello, world!'",
+    "Add '(no subtitles)' to avoid unwanted text overlays"
   ];
+
+  const getQualityBadge = (qualityTier: string, available: boolean) => {
+    if (!available) {
+      return <Badge variant="secondary" className="opacity-50">Upgrade Required</Badge>;
+    }
+
+    switch (qualityTier) {
+      case "standard":
+        return <Badge variant="secondary">720p</Badge>;
+      case "high":
+        return <Badge className="bg-blue-100 text-blue-800">1080p HD</Badge>;
+      case "ultra":
+        return <Badge className="bg-purple-100 text-purple-800">4K Ultra</Badge>;
+      default:
+        return <Badge variant="secondary">{qualityTier}</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -194,45 +245,70 @@ export function VideoGenerationForm() {
                     {/* Quality */}
                     <div className="space-y-2">
                       <Label>Quality</Label>
-                      <Select value={quality} onValueChange={(value: "standard" | "high") => setQuality(value)}>
+                      <Select value={quality} onValueChange={(value: "standard" | "high" | "ultra") => setQuality(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="standard">
                             <div className="flex items-center justify-between w-full">
-                              <span>Standard (720p)</span>
-                              <Badge variant="secondary" className="ml-2">1x cost</Badge>
+                              <div className="flex items-center space-x-2">
+                                <span>Standard (720p)</span>
+                                {getQualityBadge("standard", canAccessQuality("standard"))}
+                              </div>
                             </div>
                           </SelectItem>
-                          <SelectItem value="high">
+                          <SelectItem value="high" disabled={!canAccessQuality("high")}>
                             <div className="flex items-center justify-between w-full">
-                              <span>High (1080p)</span>
-                              <Badge variant="secondary" className="ml-2">2x cost</Badge>
+                              <div className="flex items-center space-x-2">
+                                <Zap className="h-4 w-4 text-blue-500" />
+                                <span>High (1080p)</span>
+                                {getQualityBadge("high", canAccessQuality("high"))}
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="ultra" disabled={!canAccessQuality("ultra")}>
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center space-x-2">
+                                <Crown className="h-4 w-4 text-purple-500" />
+                                <span>Ultra (4K)</span>
+                                {getQualityBadge("ultra", canAccessQuality("ultra"))}
+                              </div>
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      {!canAccessQuality(quality) && (
+                        <p className="text-xs text-amber-600">
+                          Upgrade your subscription to access this quality
+                        </p>
+                      )}
                     </div>
 
                     {/* Duration */}
                     <div className="space-y-2">
                       <Label>Duration</Label>
-                      <Select value={duration} onValueChange={(value: "5" | "10") => setDuration(value)}>
+                      <Select value={duration} onValueChange={(value: "15" | "30" | "60") => setDuration(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="5">
+                          <SelectItem value="15">
                             <div className="flex items-center justify-between w-full">
-                              <span>5 seconds</span>
+                              <span>15 seconds</span>
                               <Badge variant="secondary" className="ml-2">Base cost</Badge>
                             </div>
                           </SelectItem>
-                          <SelectItem value="10">
+                          <SelectItem value="30">
                             <div className="flex items-center justify-between w-full">
-                              <span>10 seconds</span>
+                              <span>30 seconds</span>
                               <Badge variant="secondary" className="ml-2">2x cost</Badge>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="60">
+                            <div className="flex items-center justify-between w-full">
+                              <span>60 seconds</span>
+                              <Badge variant="secondary" className="ml-2">4x cost</Badge>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -246,7 +322,7 @@ export function VideoGenerationForm() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={!prompt.trim() || !title.trim() || !hasEnoughCredits || isGenerating}
+                  disabled={!prompt.trim() || !title.trim() || !hasEnoughCredits || isGenerating || !canAccessQuality(quality)}
                 >
                   {isGenerating ? (
                     <>
@@ -295,14 +371,35 @@ export function VideoGenerationForm() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm text-gray-600">
-                <p><strong>Standard quality:</strong> 2-5 minutes</p>
-                <p><strong>High quality:</strong> 3-7 minutes</p>
+                <p><strong>Standard (720p):</strong> 2-5 minutes</p>
+                <p><strong>High (1080p):</strong> 3-7 minutes</p>
+                <p><strong>Ultra (4K):</strong> 5-10 minutes</p>
                 <p className="text-xs text-gray-500 mt-3">
                   You&apos;ll receive real-time updates on the generation progress.
                 </p>
               </div>
             </CardContent>
           </Card>
+
+          {/* Subscription Upgrade Prompt */}
+          {currentUser?.subscriptionTier === "free" && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-blue-700">
+                  <Crown className="h-5 w-5" />
+                  <span>Upgrade for More</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-blue-600 mb-3">
+                  Unlock HD quality, longer durations, and more credits with a subscription.
+                </p>
+                <Button size="sm" className="w-full">
+                  View Plans
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

@@ -6,13 +6,16 @@ import { api } from "../../../convex/_generated/api";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { VideoLibrary } from "@/components/VideoLibrary";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
-import { CreditCard, Video, Plus } from "lucide-react";
+import { CreditCard, Video, Plus, User, Settings, TrendingUp, Clock } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Dashboard() {
   const { user } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
+  const recentVideos = useQuery(api.videos.getVideosByStatus, { status: "completed" });
   const [activeTab, setActiveTab] = useState("generate");
 
   if (!currentUser) {
@@ -22,6 +25,9 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  // Get recent videos (last 3)
+  const recentCompletedVideos = recentVideos?.slice(0, 3) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,14 +50,71 @@ export default function Dashboard() {
                   {currentUser.credits}
                 </p>
               </div>
-              <Button variant="outline" size="sm">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Buy Credits
-              </Button>
+              <Link href="/dashboard/billing">
+                <Button variant="outline" size="sm">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Buy Credits
+                </Button>
+              </Link>
+              <Link href="/dashboard/profile">
+                <Button variant="outline" size="sm">
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Quick Stats */}
+      {activeTab === "generate" && (
+        <div className="bg-white border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700">Available Credits</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{currentUser.credits}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Video className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">Videos Created</span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{recentVideos?.length || 0}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-purple-50 border-purple-200">
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-700">Total Credits Used</span>
+                  </div>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{currentUser.totalCreditsUsed}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Settings className="h-5 w-5 text-amber-600" />
+                    <span className="text-sm font-medium text-amber-700">Current Plan</span>
+                  </div>
+                  <p className="text-lg font-bold text-amber-600 mt-1 capitalize">{currentUser.subscriptionTier}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
@@ -84,8 +147,57 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         {activeTab === "generate" && (
-          <div className="max-w-4xl mx-auto">
-            <VideoGenerationForm />
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3">
+              <VideoGenerationForm />
+            </div>
+
+            {/* Recent Videos Sidebar */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5" />
+                    <span>Recent Videos</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentCompletedVideos.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No completed videos yet
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentCompletedVideos.map((video) => (
+                        <div key={video._id} className="border rounded-lg p-3">
+                          <h4 className="font-medium text-sm line-clamp-1">{video.title}</h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {video.duration}s • {video.quality} • {video.creditsCost} credits
+                          </p>
+                          {video.videoUrl && (
+                            <video
+                              className="w-full h-16 object-cover rounded mt-2"
+                              poster={video.thumbnailUrl}
+                              muted
+                            >
+                              <source src={video.videoUrl} type="video/mp4" />
+                            </video>
+                          )}
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setActiveTab("library")}
+                      >
+                        View All Videos
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 

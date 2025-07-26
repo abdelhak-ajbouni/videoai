@@ -92,8 +92,12 @@ export const createVideo = mutation({
   args: {
     title: v.string(),
     prompt: v.string(),
-    quality: v.union(v.literal("standard"), v.literal("high")),
-    duration: v.union(v.literal("5"), v.literal("10")),
+    quality: v.union(
+      v.literal("standard"),
+      v.literal("high"),
+      v.literal("ultra")
+    ),
+    duration: v.union(v.literal("15"), v.literal("30"), v.literal("60")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -108,6 +112,17 @@ export const createVideo = mutation({
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Check subscription tier access for quality
+    const hasQualityAccess = checkQualityAccess(
+      user.subscriptionTier,
+      args.quality
+    );
+    if (!hasQualityAccess) {
+      throw new Error(
+        "Your subscription plan doesn't support this quality tier"
+      );
     }
 
     // Calculate credit cost based on quality and duration
@@ -530,10 +545,38 @@ export const downloadAndStoreVideo = action({
 
 // Helper function to calculate credit cost
 function calculateCreditCost(
-  quality: "standard" | "high",
-  duration: "5" | "10"
+  quality: "standard" | "high" | "ultra",
+  duration: "15" | "30" | "60"
 ): number {
-  const baseCost = duration === "5" ? 5 : 10;
-  const qualityMultiplier = quality === "high" ? 2 : 1;
-  return baseCost * qualityMultiplier;
+  const durationMultiplier = {
+    "15": 1,
+    "30": 2,
+    "60": 4,
+  };
+
+  const qualityMultiplier = {
+    standard: 1,
+    high: 2,
+    ultra: 4,
+  };
+
+  const baseCost = 5; // Base cost per 15 seconds
+  return baseCost * durationMultiplier[duration] * qualityMultiplier[quality];
+}
+
+// Helper function to check quality access based on subscription
+function checkQualityAccess(
+  subscriptionTier: string,
+  quality: string
+): boolean {
+  switch (quality) {
+    case "standard":
+      return true; // Available to all
+    case "high":
+      return ["starter", "pro", "business"].includes(subscriptionTier);
+    case "ultra":
+      return ["business"].includes(subscriptionTier);
+    default:
+      return false;
+  }
 }

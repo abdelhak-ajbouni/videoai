@@ -4,6 +4,77 @@ import { api } from "./_generated/api";
 
 const http = httpRouter();
 
+// Clerk webhook handler for user creation
+http.route({
+  path: "/api/webhooks/clerk",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.text();
+      const payload = JSON.parse(body);
+
+      console.log("Clerk webhook received:", payload.type);
+
+      // Handle user creation
+      if (payload.type === "user.created") {
+        const { id, email_addresses, first_name, last_name, image_url } =
+          payload.data;
+
+        const primaryEmail = email_addresses.find(
+          (email: any) => email.id === payload.data.primary_email_address_id
+        );
+
+        if (!primaryEmail) {
+          console.error("No primary email found for user:", id);
+          return new Response("No primary email", { status: 400 });
+        }
+
+        // Create user in our database with 10 free credits
+        await ctx.runMutation(api.users.createUser, {
+          clerkId: id,
+          email: primaryEmail.email_address,
+          name:
+            first_name && last_name
+              ? `${first_name} ${last_name}`
+              : first_name || undefined,
+          imageUrl: image_url || undefined,
+        });
+
+        console.log("User created successfully:", id);
+      }
+
+      // Handle user updates
+      if (payload.type === "user.updated") {
+        const { id, email_addresses, first_name, last_name, image_url } =
+          payload.data;
+
+        const primaryEmail = email_addresses.find(
+          (email: any) => email.id === payload.data.primary_email_address_id
+        );
+
+        if (primaryEmail) {
+          await ctx.runMutation(api.users.updateUser, {
+            clerkId: id,
+            email: primaryEmail.email_address,
+            name:
+              first_name && last_name
+                ? `${first_name} ${last_name}`
+                : first_name || undefined,
+            imageUrl: image_url || undefined,
+          });
+
+          console.log("User updated successfully:", id);
+        }
+      }
+
+      return new Response("OK", { status: 200 });
+    } catch (error) {
+      console.error("Error processing Clerk webhook:", error);
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  }),
+});
+
 // Replicate webhook handler
 http.route({
   path: "/api/webhooks/replicate",

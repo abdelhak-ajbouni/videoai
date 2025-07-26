@@ -50,8 +50,12 @@ export default defineSchema({
     prompt: v.string(),
 
     // Generation settings
-    quality: v.union(v.literal("standard"), v.literal("high")),
-    duration: v.union(v.literal("5"), v.literal("10")),
+    quality: v.union(
+      v.literal("standard"),
+      v.literal("high"),
+      v.literal("ultra")
+    ),
+    duration: v.union(v.literal("15"), v.literal("30"), v.literal("60")),
 
     // Status and processing
     status: v.union(

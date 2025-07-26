@@ -1,10 +1,12 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Download,
   Trash2,
@@ -14,12 +16,93 @@ import {
   Loader2,
   Play,
   Calendar,
-  Timer
+  Timer,
+  Search,
+  Filter
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useState, useMemo } from "react";
+import { toast } from "sonner";
 
 export function VideoLibrary() {
   const videos = useQuery(api.videos.getUserVideos);
+  const deleteVideo = useMutation(api.videos.deleteVideo);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [qualityFilter, setQualityFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+
+  // Filter and sort videos
+  const filteredAndSortedVideos = useMemo(() => {
+    if (!videos) return [];
+
+    let filtered = videos.filter((video) => {
+      const matchesSearch =
+        video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" || video.status === statusFilter;
+      const matchesQuality = qualityFilter === "all" || video.quality === qualityFilter;
+
+      return matchesSearch && matchesStatus && matchesQuality;
+    });
+
+    // Sort videos
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return b.createdAt - a.createdAt;
+        case "oldest":
+          return a.createdAt - b.createdAt;
+        case "most-credits":
+          return b.creditsCost - a.creditsCost;
+        case "title":
+          return a.title.localeCompare(b.title);
+        default:
+          return b.createdAt - a.createdAt;
+      }
+    });
+
+    return filtered;
+  }, [videos, searchQuery, statusFilter, qualityFilter, sortBy]);
+
+  const handleDownload = async (video: any) => {
+    if (!video.videoUrl) {
+      toast.error("Video not ready for download");
+      return;
+    }
+
+    try {
+      // Create a temporary link to download the video
+      const link = document.createElement('a');
+      link.href = video.videoUrl;
+      link.download = `${video.title}.mp4`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Download started");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download video");
+    }
+  };
+
+  const handleDelete = async (videoId: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteVideo({ videoId });
+      toast.success("Video deleted successfully");
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete video");
+    }
+  };
 
   if (videos === undefined) {
     return (
@@ -102,106 +185,184 @@ export function VideoLibrary() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header and Filters */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-900">My Videos</h2>
           <p className="text-gray-600 mt-1">
-            {videos.length} {videos.length === 1 ? 'video' : 'videos'} in your library
+            {filteredAndSortedVideos.length} of {videos.length} {videos.length === 1 ? 'video' : 'videos'}
           </p>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search videos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full sm:w-64"
+            />
+          </div>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={qualityFilter} onValueChange={setQualityFilter}>
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue placeholder="Quality" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Quality</SelectItem>
+              <SelectItem value="standard">Standard</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-full sm:w-32">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="most-credits">Most Credits</SelectItem>
+              <SelectItem value="title">Title A-Z</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Video Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {videos.map((video) => (
-          <Card key={video._id} className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <CardTitle className="text-lg line-clamp-2">
-                  {video.title}
-                </CardTitle>
-                {getStatusBadge(video.status)}
-              </div>
-            </CardHeader>
+      {filteredAndSortedVideos.length === 0 ? (
+        <div className="text-center py-12">
+          <Filter className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            No videos match your filters
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Try adjusting your search or filter criteria
+          </p>
+          <Button variant="outline" onClick={() => {
+            setSearchQuery("");
+            setStatusFilter("all");
+            setQualityFilter("all");
+          }}>
+            Clear Filters
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedVideos.map((video) => (
+            <Card key={video._id} className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <CardTitle className="text-lg line-clamp-2">
+                    {video.title}
+                  </CardTitle>
+                  {getStatusBadge(video.status)}
+                </div>
+              </CardHeader>
 
-            <CardContent className="space-y-4">
-              {/* Video Preview Area */}
-              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                {video.status === "completed" && video.videoUrl ? (
-                  <video
-                    className="w-full h-full object-cover rounded-lg"
-                    controls
-                    poster={video.thumbnailUrl}
+              <CardContent className="space-y-4">
+                {/* Video Preview Area */}
+                <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                  {video.status === "completed" && video.videoUrl ? (
+                    <video
+                      className="w-full h-full object-cover rounded-lg"
+                      controls
+                      poster={video.thumbnailUrl}
+                    >
+                      <source src={video.videoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <Play className="h-8 w-8 mx-auto mb-2" />
+                      <p className="text-sm">
+                        {video.status === "processing" ? "Generating..." : "Preview unavailable"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Details */}
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p className="line-clamp-2">{video.prompt}</p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <span className="flex items-center">
+                        <Timer className="h-4 w-4 mr-1" />
+                        {video.duration}s
+                      </span>
+                      <span className="capitalize">
+                        {video.quality}
+                      </span>
+                    </div>
+                    <span className="text-blue-600 font-medium">
+                      {video.creditsCost} credits
+                    </span>
+                  </div>
+
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {formatDistanceToNow(new Date(video.createdAt), { addSuffix: true })}
+                  </div>
+
+                  {/* Processing Status */}
+                  {video.status === "processing" && (
+                    <div className="text-xs text-blue-600 font-medium">
+                      {getEstimatedTime(video)}
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {video.status === "failed" && video.errorMessage && (
+                    <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                      {video.errorMessage}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex space-x-2 pt-2">
+                  {video.status === "completed" && video.videoUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleDownload(video)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(video._id, video.title)}
                   >
-                    <source src={video.videoUrl} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <div className="text-center text-gray-500">
-                    <Play className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">
-                      {video.status === "processing" ? "Generating..." : "Preview unavailable"}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Video Details */}
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="line-clamp-2">{video.prompt}</p>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <span className="flex items-center">
-                      <Timer className="h-4 w-4 mr-1" />
-                      {video.duration}s
-                    </span>
-                    <span className="capitalize">
-                      {video.quality}
-                    </span>
-                  </div>
-                  <span className="text-blue-600 font-medium">
-                    {video.creditsCost} credits
-                  </span>
-                </div>
-
-                <div className="flex items-center text-xs text-gray-500">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {formatDistanceToNow(new Date(video.createdAt), { addSuffix: true })}
-                </div>
-
-                {/* Processing Status */}
-                {video.status === "processing" && (
-                  <div className="text-xs text-blue-600 font-medium">
-                    {getEstimatedTime(video)}
-                  </div>
-                )}
-
-                {/* Error Message */}
-                {video.status === "failed" && video.errorMessage && (
-                  <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
-                    {video.errorMessage}
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex space-x-2 pt-2">
-                {video.status === "completed" && video.videoUrl && (
-                  <Button size="sm" variant="outline" className="flex-1">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 
