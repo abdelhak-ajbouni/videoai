@@ -5,7 +5,6 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import Link from "next/link";
 import { PlayCircle, Sparkles, Zap } from "lucide-react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -17,63 +16,45 @@ export default function Home() {
   const createUser = useMutation(api.users.createUser);
   const router = useRouter();
 
-  // Handle user creation after signup
+  // Handle user creation after signup and redirect existing users
   useEffect(() => {
-    if (isSignedIn && user && currentUser === null && isLoaded) {
-      // User is signed in but doesn't exist in our database
-      // This handles cases where the webhook might have failed
-      const createUserRecord = async () => {
-        try {
-          await createUser({
-            clerkId: user.id,
-            email: user.primaryEmailAddress?.emailAddress || "",
-            name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || undefined,
-            imageUrl: user.imageUrl || undefined,
-          });
-          toast.success("Welcome to VideoAI! You've received 10 free credits.");
-          router.push("/dashboard");
-        } catch (error) {
-          console.error("Error creating user:", error);
-          toast.error("Welcome to VideoAI! Please refresh the page if you don't see your dashboard.");
-        }
-      };
+    if (isSignedIn && user && isLoaded) {
+      if (currentUser === null) {
+        // User is signed in but doesn't exist in our database
+        // This handles cases where the webhook might have failed
+        const createUserRecord = async () => {
+          try {
+            await createUser({
+              clerkId: user.id,
+              email: user.primaryEmailAddress?.emailAddress || "",
+              name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || undefined,
+              imageUrl: user.imageUrl || undefined,
+            });
+            toast.success("Welcome to VideoAI! You've received 10 free credits.");
+            router.push("/dashboard");
+          } catch (error) {
+            console.error("Error creating user:", error);
+            toast.error("Welcome to VideoAI! Please refresh the page if you don't see your dashboard.");
+          }
+        };
 
-      createUserRecord();
+        createUserRecord();
+      } else if (currentUser) {
+        // Existing user - redirect to dashboard automatically
+        router.push("/dashboard");
+      }
     }
   }, [isSignedIn, user, currentUser, isLoaded, createUser, router]);
 
-  // Show loading state while Clerk or Convex data is loading
-  if (!isLoaded || (isSignedIn && currentUser === undefined)) {
+  // Show loading state while Clerk or Convex data is loading, or redirecting signed-in users
+  if (!isLoaded || (isSignedIn && currentUser === undefined) || (isSignedIn && currentUser)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Loading text={isSignedIn ? "Setting up your account..." : "Loading..."} />
-      </div>
-    );
-  }
-
-  if (isSignedIn && currentUser) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="text-xl text-gray-600 mb-8">
-              Ready to create amazing videos with AI?
-            </p>
-            <div className="space-y-4">
-              <Link href="/dashboard">
-                <Button size="lg" className="text-lg px-8 py-3">
-                  Go to Dashboard
-                </Button>
-              </Link>
-              <div className="text-sm text-gray-500">
-                Credits remaining: {currentUser.credits}
-              </div>
-            </div>
-          </div>
-        </div>
+        <Loading text={
+          isSignedIn && currentUser ? "Redirecting to dashboard..." :
+            isSignedIn ? "Setting up your account..." :
+              "Loading..."
+        } />
       </div>
     );
   }

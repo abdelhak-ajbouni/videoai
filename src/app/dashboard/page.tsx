@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useUser, SignOutButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
@@ -8,7 +8,7 @@ import { VideoLibrary } from "@/components/VideoLibrary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
-import { CreditCard, Video, Plus, User, Settings, TrendingUp, Clock } from "lucide-react";
+import { CreditCard, Video, Plus, User, Settings, TrendingUp, Clock, LogOut } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -62,6 +62,12 @@ export default function Dashboard() {
                   Profile
                 </Button>
               </Link>
+              <SignOutButton>
+                <Button variant="outline" size="sm">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </SignOutButton>
             </div>
           </div>
         </div>
