@@ -93,17 +93,13 @@ export const createVideo = mutation({
   args: {
     title: v.string(),
     prompt: v.string(),
-    model: v.union(
-      v.literal("google/veo-3"),
-      v.literal("luma/ray-2-720p"),
-      v.literal("luma/ray-flash-2-540p")
-    ),
+    model: v.string(), // Accept any model ID string
     quality: v.union(
       v.literal("standard"),
       v.literal("high"),
       v.literal("ultra")
     ),
-    duration: v.union(v.literal("5"), v.literal("8"), v.literal("9")),
+    duration: v.string(), // Keep as string for compatibility
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -120,7 +116,33 @@ export const createVideo = mutation({
       throw new Error("User not found");
     }
 
-    // Check subscription tier access for quality
+    // Validate model exists and is active
+    const model = await ctx.db
+      .query("models")
+      .withIndex("by_model_id", (q) => q.eq("modelId", args.model))
+      .first();
+
+    if (!model || !model.isActive) {
+      throw new Error("Selected model is not available");
+    }
+
+    // Validate model capabilities
+    const durationNum = parseInt(args.duration);
+    if (model.fixedDuration && durationNum !== model.fixedDuration) {
+      throw new Error(
+        `Model only supports ${model.fixedDuration} second duration`
+      );
+    }
+
+    if (!model.supportedDurations.includes(durationNum)) {
+      throw new Error(`Duration ${durationNum}s not supported by this model`);
+    }
+
+    if (!model.supportedQualities.includes(args.quality)) {
+      throw new Error(`Quality '${args.quality}' not supported by this model`);
+    }
+
+    // Check quality access based on subscription
     const hasQualityAccess = checkQualityAccess(
       user.subscriptionTier,
       args.quality
@@ -132,10 +154,11 @@ export const createVideo = mutation({
     }
 
     // Calculate credit cost based on model, quality and duration
-    const creditsCost = calculateCreditCost(
+    const creditsCost = await calculateCreditCost(
+      ctx,
       args.model,
       args.quality,
-      args.duration
+      durationNum
     );
 
     // Check if user has enough credits

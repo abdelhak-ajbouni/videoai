@@ -52,19 +52,13 @@ export default defineSchema({
     tags: v.optional(v.array(v.string())),
 
     // Generation settings
-    model: v.optional(
-      v.union(
-        v.literal("google/veo-3"),
-        v.literal("luma/ray-2-720p"),
-        v.literal("luma/ray-flash-2-540p")
-      )
-    ),
+    model: v.string(), // Accept any model ID string
     quality: v.union(
       v.literal("standard"),
       v.literal("high"),
       v.literal("ultra")
     ),
-    duration: v.union(v.literal("5"), v.literal("8"), v.literal("9")),
+    duration: v.string(), // Accept any duration string
 
     // Status and processing
     status: v.union(
@@ -349,4 +343,52 @@ export default defineSchema({
     .index("by_category", ["category"])
     .index("by_active", ["isActive"])
     .index("by_category_and_active", ["category", "isActive"]),
+
+  models: defineTable({
+    // Model identification
+    modelId: v.string(), // "google/veo-3", "luma/ray-2-720p", etc.
+    name: v.string(), // "Google Veo-3", "Luma Ray-2-720p", etc.
+    description: v.string(), // Human-readable description
+    version: v.optional(v.string()), // Model version for tracking
+
+    // Model capabilities
+    costPerSecond: v.number(), // Cost in USD per second
+    supportedDurations: v.array(v.number()), // [5, 8, 9] etc.
+    supportedQualities: v.array(v.string()), // ["standard", "high", "ultra"]
+    maxDuration: v.optional(v.number()), // Maximum supported duration
+    fixedDuration: v.optional(v.number()), // For models with fixed duration only
+
+    // Model characteristics
+    isPremium: v.boolean(), // Premium model flag
+    isActive: v.boolean(), // Whether model is available for use
+    isDefault: v.boolean(), // Default model for new users
+    isDeprecated: v.boolean(), // Deprecated model flag
+
+    // Model metadata
+    provider: v.string(), // "Google", "Luma", etc.
+    category: v.optional(v.string()), // "premium", "budget", "experimental"
+    tags: v.optional(v.array(v.string())), // ["fast", "high-quality", "cost-effective"]
+
+    // Technical details
+    replicateModelId: v.string(), // Full Replicate model identifier
+    modelParameters: v.optional(v.any()), // Model-specific parameters
+    requirements: v.optional(v.any()), // System requirements or constraints
+
+    // Usage statistics
+    totalGenerations: v.optional(v.number()), // Total generations using this model
+    averageGenerationTime: v.optional(v.number()), // Average generation time in seconds
+    successRate: v.optional(v.number()), // Success rate percentage
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deprecatedAt: v.optional(v.number()),
+  })
+    .index("by_model_id", ["modelId"])
+    .index("by_active", ["isActive"])
+    .index("by_premium", ["isPremium"])
+    .index("by_default", ["isDefault"])
+    .index("by_provider", ["provider"])
+    .index("by_category", ["category"])
+    .index("by_active_and_premium", ["isActive", "isPremium"]),
 });

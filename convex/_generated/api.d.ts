@@ -18,6 +18,7 @@ import type * as creditPackages from "../creditPackages.js";
 import type * as credits from "../credits.js";
 import type * as http from "../http.js";
 import type * as migrations from "../migrations.js";
+import type * as models from "../models.js";
 import type * as pricing from "../pricing.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   credits: typeof credits;
   http: typeof http;
   migrations: typeof migrations;
+  models: typeof models;
   pricing: typeof pricing;
   stripe: typeof stripe;
   subscriptionPlans: typeof subscriptionPlans;

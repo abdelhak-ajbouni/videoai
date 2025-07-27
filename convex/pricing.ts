@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 
-// Helper function to calculate credit cost based on configuration
+// Helper function to calculate credit cost based on model and configuration
 async function calculateCreditCost(
   ctx: any,
-  model: "google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p",
+  modelId: string,
   quality: "standard" | "high" | "ultra",
-  duration: "5" | "8" | "9"
+  duration: number
 ): Promise<number> {
   // Get business configuration from database
   const profitMargin = await ctx.db
@@ -24,10 +24,15 @@ async function calculateCreditCost(
     .withIndex("by_key", (q: any) => q.eq("key", "quality_multipliers"))
     .first();
 
-  const modelConfigs = await ctx.db
-    .query("configurations")
-    .withIndex("by_key", (q: any) => q.eq("key", "model_configs"))
+  // Get model from models table
+  const model = await ctx.db
+    .query("models")
+    .withIndex("by_model_id", (q: any) => q.eq("modelId", modelId))
     .first();
+
+  if (!model || !model.isActive) {
+    throw new Error(`Model ${modelId} not found or inactive`);
+  }
 
   // Use default values if configurations not found
   const businessConfig = {
@@ -43,27 +48,8 @@ async function calculateCreditCost(
     },
   };
 
-  const allModelConfigs = (modelConfigs?.value as Record<string, any>) || {
-    "google/veo-3": {
-      costPerSecond: 0.75,
-    },
-    "luma/ray-2-720p": {
-      costPerSecond: 0.18,
-    },
-    "luma/ray-flash-2-540p": {
-      costPerSecond: 0.12,
-    },
-  };
-
-  const durationInSeconds = parseInt(duration);
-  const modelConfig = allModelConfigs[model];
-
-  if (!modelConfig) {
-    throw new Error(`Model configuration not found for ${model}`);
-  }
-
   // Calculate base cost
-  const baseCostUSD = modelConfig.costPerSecond * durationInSeconds;
+  const baseCostUSD = model.costPerSecond * duration;
 
   // Apply quality multiplier and profit margin
   const totalCostUSD =
@@ -80,67 +66,48 @@ async function calculateCreditCost(
 // Convex query to calculate credit cost
 export const getCreditCost = query({
   args: {
-    model: v.union(
-      v.literal("google/veo-3"),
-      v.literal("luma/ray-2-720p"),
-      v.literal("luma/ray-flash-2-540p")
-    ),
+    modelId: v.string(),
     quality: v.union(
       v.literal("standard"),
       v.literal("high"),
       v.literal("ultra")
     ),
-    duration: v.union(v.literal("5"), v.literal("8"), v.literal("9")),
+    duration: v.number(),
   },
   handler: async (ctx, args) => {
     return await calculateCreditCost(
       ctx,
-      args.model,
+      args.modelId,
       args.quality,
       args.duration
     );
   },
 });
 
-// Convex query to get pricing matrix for all combinations
+// Convex query to get pricing matrix for all active models
 export const getPricingMatrix = query({
   args: {},
   handler: async (ctx) => {
-    const models = [
-      "google/veo-3",
-      "luma/ray-2-720p",
-      "luma/ray-flash-2-540p",
-    ] as const;
-    const qualities = ["standard", "high", "ultra"] as const;
-    const durations = ["5", "8", "9"] as const;
+    // Get all active models
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
 
-    const matrix: Record<string, Record<string, Record<string, number>>> = {};
+    const qualities = ["standard", "high", "ultra"] as const;
+    const matrix: Record<string, Record<string, Record<number, number>>> = {};
 
     for (const model of models) {
-      matrix[model] = {};
+      matrix[model.modelId] = {};
       for (const quality of qualities) {
-        matrix[model][quality] = {};
-        for (const duration of durations) {
-          // Only calculate for valid combinations
-          if (model === "google/veo-3" && duration === "8") {
-            matrix[model][quality][duration] = await calculateCreditCost(
-              ctx,
-              model,
-              quality,
-              duration
-            );
-          } else if (
-            (model === "luma/ray-2-720p" ||
-              model === "luma/ray-flash-2-540p") &&
-            (duration === "5" || duration === "9")
-          ) {
-            matrix[model][quality][duration] = await calculateCreditCost(
-              ctx,
-              model,
-              quality,
-              duration
-            );
-          }
+        matrix[model.modelId][quality] = {};
+        for (const duration of model.supportedDurations) {
+          matrix[model.modelId][quality][duration] = await calculateCreditCost(
+            ctx,
+            model.modelId,
+            quality,
+            duration
+          );
         }
       }
     }
@@ -149,49 +116,134 @@ export const getPricingMatrix = query({
   },
 });
 
-// Convex query to get model information
+// Convex query to get model information (now from models table)
 export const getModelInfo = query({
   args: {},
   handler: async (ctx) => {
-    const modelConfigs = await ctx.db
-      .query("configurations")
-      .withIndex("by_key", (q: any) => q.eq("key", "model_configs"))
-      .first();
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
 
-    if (
-      !modelConfigs ||
-      !modelConfigs.value ||
-      typeof modelConfigs.value !== "object"
-    ) {
-      // Return default model configurations if not found in database
-      return {
-        "google/veo-3": {
-          name: "Google Veo-3",
-          description: "High-quality video generation",
-          costPerSecond: 0.75,
-          fixedDuration: 8,
-          supportedDurations: [8],
-          isPremium: true,
-        },
-        "luma/ray-2-720p": {
-          name: "Luma Ray-2-720p",
-          description: "Fast, cost-effective video generation",
-          costPerSecond: 0.18,
-          supportedDurations: [5, 9],
-          isPremium: false,
-        },
-        "luma/ray-flash-2-540p": {
-          name: "Luma Ray Flash 2-540p",
-          description: "Ultra-fast, ultra-cheap video generation",
-          costPerSecond: 0.12,
-          supportedDurations: [5, 9],
-          isPremium: false,
-          isDefault: true,
-        },
+    // Transform to match the expected format
+    const modelInfo: Record<string, any> = {};
+
+    for (const model of models) {
+      modelInfo[model.modelId] = {
+        name: model.name,
+        description: model.description,
+        costPerSecond: model.costPerSecond,
+        fixedDuration: model.fixedDuration,
+        supportedDurations: model.supportedDurations,
+        isPremium: model.isPremium,
+        isDefault: model.isDefault,
+        provider: model.provider,
+        category: model.category,
+        tags: model.tags,
+        version: model.version,
       };
     }
 
-    return modelConfigs.value as Record<string, any>;
+    return modelInfo;
+  },
+});
+
+// Get available models for a specific duration and quality
+export const getAvailableModels = query({
+  args: {
+    duration: v.number(),
+    quality: v.union(
+      v.literal("standard"),
+      v.literal("high"),
+      v.literal("ultra")
+    ),
+  },
+  handler: async (ctx, { duration, quality }) => {
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    return models.filter((model) => {
+      // Check if model supports the requested duration
+      if (model.fixedDuration && duration !== model.fixedDuration) {
+        return false;
+      }
+
+      if (!model.supportedDurations.includes(duration)) {
+        return false;
+      }
+
+      // Check if model supports the requested quality
+      if (!model.supportedQualities.includes(quality)) {
+        return false;
+      }
+
+      return true;
+    });
+  },
+});
+
+// Get model pricing comparison
+export const getModelPricingComparison = query({
+  args: {
+    duration: v.number(),
+    quality: v.union(
+      v.literal("standard"),
+      v.literal("high"),
+      v.literal("ultra")
+    ),
+  },
+  handler: async (ctx, { duration, quality }) => {
+    // Get available models directly instead of calling another query
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .collect();
+
+    const availableModels = models.filter((model: any) => {
+      // Check if model supports the requested duration
+      if (model.fixedDuration && duration !== model.fixedDuration) {
+        return false;
+      }
+
+      if (!model.supportedDurations.includes(duration)) {
+        return false;
+      }
+
+      // Check if model supports the requested quality
+      if (!model.supportedQualities.includes(quality)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const comparison = await Promise.all(
+      availableModels.map(async (model: any) => {
+        const cost = await calculateCreditCost(
+          ctx,
+          model.modelId,
+          quality,
+          duration
+        );
+        return {
+          modelId: model.modelId,
+          name: model.name,
+          description: model.description,
+          costPerSecond: model.costPerSecond,
+          totalCost: cost,
+          isPremium: model.isPremium,
+          isDefault: model.isDefault,
+          provider: model.provider,
+          category: model.category,
+          tags: model.tags,
+        };
+      })
+    );
+
+    // Sort by cost (cheapest first)
+    return comparison.sort((a: any, b: any) => a.totalCost - b.totalCost);
   },
 });
 

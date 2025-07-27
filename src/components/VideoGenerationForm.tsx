@@ -28,15 +28,18 @@ import { toast } from "sonner";
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
   const [title, setTitle] = useState("");
-  const [model, setModel] = useState<"google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p">("luma/ray-flash-2-540p");
+  const [modelId, setModelId] = useState<string>("");
   const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
-  const [duration, setDuration] = useState<"5" | "8" | "9">("5"); // Default to 5s for cheapest model
+  const [duration, setDuration] = useState<number>(5);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
+  const activeModels = useQuery(api.models.getActiveModels);
+  const defaultModel = useQuery(api.models.getDefaultModel);
+
   const creditCost = useQuery(api.pricing.getCreditCost, {
-    model,
+    modelId,
     quality,
     duration
   });
@@ -44,6 +47,16 @@ export function VideoGenerationForm() {
 
   const creditsCost = creditCost || 0;
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
+
+  // Set default model when available
+  useEffect(() => {
+    if (defaultModel && !modelId) {
+      setModelId(defaultModel.modelId);
+    }
+  }, [defaultModel, modelId]);
+
+  // Get current model information
+  const currentModel = activeModels?.find(m => m.modelId === modelId);
 
   // Check if user can access quality tiers based on subscription
   const canAccessQuality = (qualityTier: string) => {
@@ -62,25 +75,30 @@ export function VideoGenerationForm() {
   };
 
   // Get valid durations for the selected model
-  const getValidDurations = (selectedModel: "google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p") => {
-    if (selectedModel === "google/veo-3") {
-      return [{ value: "8", label: "8 seconds", badge: "Fixed duration" }];
+  const getValidDurations = (model: any) => {
+    if (!model) return [];
+
+    if (model.fixedDuration) {
+      return [{ value: model.fixedDuration, label: `${model.fixedDuration} seconds`, badge: "Fixed duration" }];
     } else {
-      return [
-        { value: "5", label: "5 seconds", badge: "Base cost" },
-        { value: "9", label: "9 seconds", badge: "1.8x cost" }
-      ];
+      return model.supportedDurations.map((d: number) => ({
+        value: d,
+        label: `${d} seconds`,
+        badge: d === Math.min(...model.supportedDurations) ? "Base cost" : `${d}s option`
+      }));
     }
   };
 
   // Update duration when model changes
   useEffect(() => {
-    if (model === "google/veo-3") {
-      setDuration("8"); // Google Veo-3 only supports 8s
-    } else if ((model === "luma/ray-2-720p" || model === "luma/ray-flash-2-540p") && duration === "8") {
-      setDuration("5"); // Switch to valid duration for Luma models
+    if (currentModel) {
+      if (currentModel.fixedDuration) {
+        setDuration(currentModel.fixedDuration);
+      } else if (!currentModel.supportedDurations.includes(duration)) {
+        setDuration(Math.min(...currentModel.supportedDurations));
+      }
     }
-  }, [model, duration]);
+  }, [currentModel, duration]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +110,11 @@ export function VideoGenerationForm() {
 
     if (!title.trim()) {
       toast.error("Please enter a title for your video");
+      return;
+    }
+
+    if (!modelId) {
+      toast.error("Please select a model");
       return;
     }
 
@@ -111,9 +134,9 @@ export function VideoGenerationForm() {
       await createVideo({
         title: title.trim(),
         prompt: prompt.trim(),
-        model,
+        model: modelId,
         quality,
-        duration,
+        duration: duration.toString(),
       });
 
       toast.success("Video generation started! Check your library to see progress.");
@@ -121,9 +144,9 @@ export function VideoGenerationForm() {
       // Reset form
       setPrompt("");
       setTitle("");
-      setModel("google/veo-3");
+      setModelId(defaultModel?.modelId || "");
       setQuality("standard");
-      setDuration("8"); // Reset to default for Google Veo-3
+      setDuration(5);
 
     } catch (error) {
       console.error("Error creating video:", error);
@@ -257,47 +280,25 @@ export function VideoGenerationForm() {
                     {/* Model Selection */}
                     <div className="space-y-2 sm:col-span-2">
                       <Label>AI Model</Label>
-                      <Select value={model} onValueChange={(value: "google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p") => setModel(value)}>
+                      <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="luma/ray-flash-2-540p">
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center space-x-2">
-                                <Zap className="h-4 w-4 text-blue-500" />
-                                <div>
-                                  <div className="font-medium">Luma Ray Flash 2-540p</div>
-                                  <div className="text-xs text-gray-500">Ultra-fast, ultra-cheap generation</div>
+                          {activeModels?.map((model) => (
+                            <SelectItem key={model.modelId} value={model.modelId}>
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center space-x-2">
+                                  <Zap className="h-4 w-4 text-blue-500" />
+                                  <div>
+                                    <div className="font-medium">{model.name}</div>
+                                    <div className="text-xs text-gray-500">{model.description}</div>
+                                  </div>
                                 </div>
+                                <Badge className="bg-blue-100 text-blue-800 ml-2">Default</Badge>
                               </div>
-                              <Badge className="bg-blue-100 text-blue-800 ml-2">Default</Badge>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="luma/ray-2-720p">
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center space-x-2">
-                                <Zap className="h-4 w-4 text-green-500" />
-                                <div>
-                                  <div className="font-medium">Luma Ray-2-720p</div>
-                                  <div className="text-xs text-gray-500">Fast, cost-effective generation</div>
-                                </div>
-                              </div>
-                              <Badge className="bg-green-100 text-green-800 ml-2">Budget</Badge>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="google/veo-3">
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center space-x-2">
-                                <Crown className="h-4 w-4 text-purple-500" />
-                                <div>
-                                  <div className="font-medium">Google Veo-3</div>
-                                  <div className="text-xs text-gray-500">High-quality video generation</div>
-                                </div>
-                              </div>
-                              <Badge variant="secondary" className="ml-2">Premium</Badge>
-                            </div>
-                          </SelectItem>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -348,16 +349,19 @@ export function VideoGenerationForm() {
                     {/* Duration */}
                     <div className="space-y-2">
                       <Label>Duration</Label>
-                      <Select value={duration} onValueChange={(value: "5" | "8" | "9") => setDuration(value)}>
+                      <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {getValidDurations(model).map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
+                          {getValidDurations(currentModel).map((item: any) => (
+                            <SelectItem key={item.value} value={item.value.toString()}>
                               <div className="flex items-center justify-between w-full">
-                                <span>{item.label}</span>
-                                <Badge variant="secondary" className="ml-2">
+                                <div className="flex items-center space-x-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <span>{item.label}</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
                                   {item.badge}
                                 </Badge>
                               </div>
@@ -374,7 +378,7 @@ export function VideoGenerationForm() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={!prompt.trim() || !title.trim() || !hasEnoughCredits || isGenerating || !canAccessQuality(quality)}
+                  disabled={!prompt.trim() || !title.trim() || !modelId || !hasEnoughCredits || isGenerating || !canAccessQuality(quality)}
                 >
                   {isGenerating ? (
                     <>
