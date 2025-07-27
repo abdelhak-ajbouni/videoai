@@ -72,7 +72,14 @@ export const createSubscription = mutation({
       stripeCustomerId,
       stripePriceId,
       tier: planId,
-      status: subscriptionStatus as any,
+      status: subscriptionStatus as
+        | "active"
+        | "canceled"
+        | "past_due"
+        | "trialing"
+        | "incomplete"
+        | "incomplete_expired"
+        | "unpaid",
       currentPeriodStart,
       currentPeriodEnd,
       cancelAtPeriodEnd,
@@ -82,10 +89,35 @@ export const createSubscription = mutation({
       updatedAt: Date.now(),
     });
 
+    // Map Stripe status to user schema status
+    let userStatus:
+      | "active"
+      | "canceled"
+      | "past_due"
+      | "trialing"
+      | "inactive";
+    switch (subscriptionStatus) {
+      case "active":
+      case "trialing":
+        userStatus = subscriptionStatus;
+        break;
+      case "canceled":
+      case "past_due":
+        userStatus = subscriptionStatus;
+        break;
+      case "incomplete":
+      case "incomplete_expired":
+      case "unpaid":
+        userStatus = "inactive";
+        break;
+      default:
+        userStatus = "inactive";
+    }
+
     // Update user's subscription tier
     await ctx.db.patch(userId, {
       subscriptionTier: planId,
-      subscriptionStatus: subscriptionStatus as any,
+      subscriptionStatus: userStatus,
       stripeSubscriptionId,
       subscriptionStartDate: currentPeriodStart,
       subscriptionEndDate: currentPeriodEnd,
@@ -139,9 +171,33 @@ export const updateSubscription = mutation({
       });
     }
 
-    // Update user's subscription status
+    // Update user's subscription status (map Stripe status to user schema status)
+    let userStatus:
+      | "active"
+      | "canceled"
+      | "past_due"
+      | "trialing"
+      | "inactive";
+    switch (status) {
+      case "active":
+      case "trialing":
+        userStatus = status;
+        break;
+      case "canceled":
+      case "past_due":
+        userStatus = status;
+        break;
+      case "incomplete":
+      case "incomplete_expired":
+      case "unpaid":
+        userStatus = "inactive";
+        break;
+      default:
+        userStatus = "inactive";
+    }
+
     await ctx.db.patch(userId, {
-      subscriptionStatus: status,
+      subscriptionStatus: userStatus,
     });
 
     return subscription?._id;
@@ -244,8 +300,14 @@ export const getSubscriptionStats = query({
         creditsRemaining: 0,
         nextBillingDate: null,
         cancelAtPeriodEnd: false,
+        monthlyPrice: 0,
       };
     }
+
+    // Get subscription plan details for pricing
+    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
+      planId: subscription.tier,
+    });
 
     // Calculate credits used this period
     const periodStart = subscription.currentPeriodStart;
@@ -276,6 +338,7 @@ export const getSubscriptionStats = query({
       creditsRemaining: subscription.monthlyCredits - creditsUsedThisPeriod,
       nextBillingDate: subscription.currentPeriodEnd,
       cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      monthlyPrice: plan?.price || 0,
     };
   },
 });

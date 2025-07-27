@@ -15,13 +15,24 @@ import {
   Settings,
   Zap,
   Star,
-  Crown
+  Crown,
+  AlertTriangle,
+  FileText,
+  DollarSign,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Info
 } from "lucide-react";
 import { CreditPurchase } from "./CreditPurchase";
 import { SubscriptionPlans } from "./SubscriptionPlans";
+import { InvoiceManagement } from "./InvoiceManagement";
+import { BillingAnalytics } from "./BillingAnalytics";
+import { useState } from "react";
 
 export function BillingDashboard() {
   const { user } = useUser();
+  const [activeTab, setActiveTab] = useState("purchase");
 
   // Fetch user data and billing information using getCurrentUser
   const userData = useQuery(api.users.getCurrentUser);
@@ -35,6 +46,10 @@ export function BillingDashboard() {
   );
   const creditHistory = useQuery(
     api.credits.getCreditHistory,
+    userData?._id ? { userId: userData._id } : "skip"
+  );
+  const subscriptionHistory = useQuery(
+    api.subscriptions.getSubscriptionHistory,
     userData?._id ? { userId: userData._id } : "skip"
   );
 
@@ -66,6 +81,40 @@ export function BillingDashboard() {
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "canceled":
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case "past_due":
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  // Calculate usage insights
+  const getUsageInsights = () => {
+    if (!creditStats) return null;
+
+    const totalUsed = creditStats.totalUsed || 0;
+    const currentBalance = userData?.credits || 0;
+    const monthlyUsage = creditStats.monthlyUsage || 0;
+
+    return {
+      totalUsed,
+      currentBalance,
+      monthlyUsage,
+      averagePerMonth: monthlyUsage > 0 ? Math.round(monthlyUsage / 1) : 0,
+      estimatedMonthsLeft: currentBalance > 0 && monthlyUsage > 0 ? Math.round(currentBalance / monthlyUsage) : 0,
+      isLowBalance: currentBalance < 50,
+      isVeryLowBalance: currentBalance < 10,
+    };
+  };
+
+  const usageInsights = getUsageInsights();
+
   // Show loading state while user data is being fetched
   if (!userData) {
     return (
@@ -96,8 +145,41 @@ export function BillingDashboard() {
         </div>
       </div>
 
+      {/* Billing Alerts */}
+      {usageInsights?.isVeryLowBalance && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div>
+                <p className="font-medium text-red-800">Low Credit Balance</p>
+                <p className="text-sm text-red-600">
+                  You have {userData.credits} credits remaining. Consider purchasing more credits to continue generating videos.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {usageInsights?.isLowBalance && !usageInsights?.isVeryLowBalance && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Info className="h-5 w-5 text-yellow-600" />
+              <div>
+                <p className="font-medium text-yellow-800">Credit Balance Notice</p>
+                <p className="text-sm text-yellow-600">
+                  You have {userData.credits} credits remaining. Based on your usage, you have approximately {usageInsights.estimatedMonthsLeft} months of credits left.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Credit Balance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
@@ -110,6 +192,11 @@ export function BillingDashboard() {
             <p className="text-xs text-muted-foreground">
               ${((userData?.credits || 0) * 0.02).toFixed(2)} value
             </p>
+            {usageInsights?.estimatedMonthsLeft && usageInsights.estimatedMonthsLeft > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ~{usageInsights.estimatedMonthsLeft} months remaining
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -125,6 +212,31 @@ export function BillingDashboard() {
             <p className="text-xs text-muted-foreground">
               Lifetime usage
             </p>
+            {usageInsights?.averagePerMonth && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ~{usageInsights.averagePerMonth} credits/month
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Usage</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {creditStats?.monthlyUsage?.toLocaleString() || 0} credits
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This month
+            </p>
+            {creditStats?.monthlyUsage && creditStats.monthlyUsage > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ${((creditStats.monthlyUsage * 0.02)).toFixed(2)} value
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -193,9 +305,14 @@ export function BillingDashboard() {
                     {formatDate(subscriptionStats.nextBillingDate)}
                   </div>
                 </div>
-                {subscriptionStats.cancelAtPeriodEnd && (
-                  <Badge variant="destructive">Canceling</Badge>
-                )}
+                <div className="flex items-center space-x-2">
+                  {subscriptionStats.cancelAtPeriodEnd && (
+                    <Badge variant="destructive">Canceling</Badge>
+                  )}
+                  <Badge variant="outline">
+                    {formatCurrency(subscriptionStats.monthlyPrice || 0)}/month
+                  </Badge>
+                </div>
               </div>
             )}
           </CardContent>
@@ -203,11 +320,13 @@ export function BillingDashboard() {
       )}
 
       {/* Main Tabs */}
-      <Tabs defaultValue="purchase" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="purchase">Purchase Credits</TabsTrigger>
           <TabsTrigger value="subscription">Subscriptions</TabsTrigger>
           <TabsTrigger value="history">Transaction History</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices & Billing</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="purchase" className="space-y-4">
@@ -262,6 +381,14 @@ export function BillingDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-4">
+          <InvoiceManagement />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <BillingAnalytics />
         </TabsContent>
       </Tabs>
     </div>

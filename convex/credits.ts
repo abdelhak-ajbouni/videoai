@@ -214,13 +214,26 @@ export const getCreditStats = query({
       totalRefunded: 0,
       totalGranted: 0,
       currentBalance: 0,
+      monthlyUsage: 0,
+      averagePerMonth: 0,
     };
+
+    // Calculate current month usage
+    const now = Date.now();
+    const currentMonthStart = new Date(now);
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+    const currentMonthTimestamp = currentMonthStart.getTime();
 
     transactions.forEach((tx) => {
       if (tx.type === "purchase") {
         stats.totalPurchased += tx.amount;
       } else if (tx.type === "video_generation") {
         stats.totalUsed += Math.abs(tx.amount);
+        // Calculate monthly usage
+        if (tx.createdAt >= currentMonthTimestamp) {
+          stats.monthlyUsage += Math.abs(tx.amount);
+        }
       } else if (tx.type === "refund") {
         stats.totalRefunded += tx.amount;
       } else if (tx.type === "subscription_grant") {
@@ -230,6 +243,15 @@ export const getCreditStats = query({
 
     const user = await ctx.db.get(userId);
     stats.currentBalance = user?.credits || 0;
+
+    // Calculate average monthly usage (based on user's account age)
+    if (user?.createdAt) {
+      const accountAgeInMonths = Math.max(
+        1,
+        (now - user.createdAt) / (1000 * 60 * 60 * 24 * 30)
+      );
+      stats.averagePerMonth = Math.round(stats.totalUsed / accountAgeInMonths);
+    }
 
     return stats;
   },
