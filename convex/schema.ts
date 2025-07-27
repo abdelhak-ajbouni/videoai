@@ -48,14 +48,19 @@ export default defineSchema({
     // Video metadata
     title: v.string(),
     prompt: v.string(),
+    description: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
 
     // Generation settings
+    model: v.optional(
+      v.union(v.literal("google/veo-3"), v.literal("luma/ray-2-720p"))
+    ),
     quality: v.union(
       v.literal("standard"),
       v.literal("high"),
       v.literal("ultra")
     ),
-    duration: v.union(v.literal("15"), v.literal("30"), v.literal("60")),
+    duration: v.union(v.literal("5"), v.literal("8"), v.literal("9")),
 
     // Status and processing
     status: v.union(
@@ -74,15 +79,50 @@ export default defineSchema({
     videoUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
     convexFileId: v.optional(v.id("_storage")),
+    thumbnailFileId: v.optional(v.id("_storage")),
+
+    // Video file metadata
+    fileSize: v.optional(v.number()), // in bytes
+    actualDuration: v.optional(v.number()), // actual video duration in seconds
+    dimensions: v.optional(
+      v.object({
+        width: v.number(),
+        height: v.number(),
+      })
+    ),
+    format: v.optional(v.string()), // e.g., "mp4", "webm"
+    codec: v.optional(v.string()), // e.g., "h264", "vp9"
+    bitrate: v.optional(v.number()), // in kbps
+
+    // Analytics and engagement
+    viewCount: v.optional(v.number()),
+    lastViewedAt: v.optional(v.number()),
+    downloadCount: v.optional(v.number()),
+    shareCount: v.optional(v.number()),
 
     // Processing details
     errorMessage: v.optional(v.string()),
     processingStartedAt: v.optional(v.number()),
     processingCompletedAt: v.optional(v.number()),
     estimatedCompletionTime: v.optional(v.number()),
+    processingDuration: v.optional(v.number()), // total processing time in ms
+
+    // Performance metrics
+    generationMetrics: v.optional(
+      v.object({
+        queueTime: v.number(), // time spent in queue
+        processingTime: v.number(), // actual generation time
+        downloadTime: v.optional(v.number()), // time to download and store
+        totalTime: v.number(), // total end-to-end time
+      })
+    ),
 
     // Cost tracking
     creditsCost: v.number(),
+
+    // Content management
+    isPublic: v.optional(v.boolean()),
+    isFavorite: v.optional(v.boolean()),
 
     // Timestamps
     createdAt: v.number(),
@@ -92,7 +132,14 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_user_and_status", ["userId", "status"])
     .index("by_replicate_job_id", ["replicateJobId"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_user_and_created_at", ["userId", "createdAt"])
+    .index("by_user_and_favorite", ["userId", "isFavorite"])
+    .index("by_user_and_public", ["userId", "isPublic"])
+    .index("by_user_and_view_count", ["userId", "viewCount"])
+    .index("by_tags", ["tags"])
+    .index("by_file_size", ["fileSize"])
+    .index("by_last_viewed", ["lastViewedAt"]),
 
   creditTransactions: defineTable({
     // User relationship

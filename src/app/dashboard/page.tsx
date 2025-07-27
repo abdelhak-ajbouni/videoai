@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { VideoLibrary } from "@/components/VideoLibrary";
+import { VideoAnalytics } from "@/components/VideoAnalytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
@@ -146,6 +147,16 @@ export default function Dashboard() {
               <Video className="h-4 w-4 inline mr-2" />
               My Videos
             </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "analytics"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+            >
+              <TrendingUp className="h-4 w-4 inline mr-2" />
+              Analytics
+            </button>
           </nav>
         </div>
       </div>
@@ -210,6 +221,12 @@ export default function Dashboard() {
         {activeTab === "library" && (
           <div className="max-w-7xl mx-auto">
             <VideoLibrary />
+          </div>
+        )}
+
+        {activeTab === "analytics" && (
+          <div className="max-w-7xl mx-auto">
+            <VideoAnalytics />
           </div>
         )}
       </div>

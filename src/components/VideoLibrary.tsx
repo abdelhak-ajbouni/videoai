@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,10 @@ import {
   Calendar,
   Timer,
   Search,
-  Filter
+  Filter,
+  Heart,
+  Eye,
+  BarChart3
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useMemo } from "react";
@@ -27,6 +31,8 @@ import { toast } from "sonner";
 export function VideoLibrary() {
   const videos = useQuery(api.videos.getUserVideos);
   const deleteVideo = useMutation(api.videos.deleteVideo);
+  const trackInteraction = useMutation(api.videos.trackVideoInteraction);
+  const toggleFavorite = useMutation(api.videos.toggleVideoFavorite);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -74,6 +80,12 @@ export function VideoLibrary() {
     }
 
     try {
+      // Track download interaction
+      await trackInteraction({
+        videoId: video._id,
+        action: "download"
+      });
+
       // Create a temporary link to download the video
       const link = document.createElement('a');
       link.href = video.videoUrl;
@@ -90,7 +102,30 @@ export function VideoLibrary() {
     }
   };
 
-  const handleDelete = async (videoId: string, title: string) => {
+  const handleToggleFavorite = async (videoId: Id<"videos">, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await toggleFavorite({ videoId });
+      toast.success("Video favorite status updated");
+    } catch (error) {
+      console.error("Toggle favorite error:", error);
+      toast.error("Failed to update favorite status");
+    }
+  };
+
+  const handleVideoView = async (videoId: Id<"videos">) => {
+    try {
+      await trackInteraction({
+        videoId,
+        action: "view"
+      });
+    } catch (error) {
+      console.error("Track view error:", error);
+      // Don't show error to user for analytics
+    }
+  };
+
+  const handleDelete = async (videoId: Id<"videos">, title: string) => {
     if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
       return;
     }
@@ -283,6 +318,7 @@ export function VideoLibrary() {
                       className="w-full h-full object-cover rounded-lg"
                       controls
                       poster={video.thumbnailUrl}
+                      onPlay={() => handleVideoView(video._id)}
                     >
                       <source src={video.videoUrl} type="video/mp4" />
                       Your browser does not support the video tag.
@@ -316,6 +352,27 @@ export function VideoLibrary() {
                     </span>
                   </div>
 
+                  {/* Video Analytics */}
+                  {video.status === "completed" && (
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center space-x-3">
+                        <span className="flex items-center">
+                          <Eye className="h-3 w-3 mr-1" />
+                          {video.viewCount || 0} views
+                        </span>
+                        <span className="flex items-center">
+                          <Download className="h-3 w-3 mr-1" />
+                          {video.downloadCount || 0} downloads
+                        </span>
+                        {video.fileSize && (
+                          <span>
+                            {Math.round((video.fileSize || 0) / 1024 / 1024 * 10) / 10} MB
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center text-xs text-gray-500">
                     <Calendar className="h-3 w-3 mr-1" />
                     {formatDistanceToNow(new Date(video.createdAt), { addSuffix: true })}
@@ -338,6 +395,14 @@ export function VideoLibrary() {
 
                 {/* Actions */}
                 <div className="flex space-x-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={`${video.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-gray-600'}`}
+                    onClick={(e) => handleToggleFavorite(video._id, e)}
+                  >
+                    <Heart className={`h-4 w-4 ${video.isFavorite ? 'fill-current' : ''}`} />
+                  </Button>
                   {video.status === "completed" && video.videoUrl && (
                     <Button
                       size="sm"

@@ -3,7 +3,7 @@
 ## 1. Project Overview
 
 ### Vision Statement
-Build a web application that enables users to generate high-quality videos directly from text prompts using Google's Veo AI model, with a credit-based subscription system and personal video library.
+Build a web application that enables users to generate high-quality videos directly from text prompts using dual AI models (Google Veo-3 and Luma Ray-2-720p), with a credit-based pricing system and personal video library.
 
 ### Target Users
 - **Content Creators**: YouTubers, social media managers, marketers
@@ -12,9 +12,10 @@ Build a web application that enables users to generate high-quality videos direc
 
 ### Key Value Propositions
 - Transform text ideas into professional videos with AI
+- Choose between premium (Google Veo-3) and budget (Luma Ray-2) models
 - No video editing skills required
 - Personal library for organizing generated content
-- Flexible credit-based pricing model
+- Flexible credit-based pricing with transparent costs
 
 ## 2. Functional Requirements
 
@@ -52,12 +53,15 @@ Build a web application that enables users to generate high-quality videos direc
 ### 2.2 Video Generation
 
 #### FR-4: Text-to-Video Generation
-- **Description**: Convert text prompts into videos using Veo-3 model
+- **Description**: Convert text prompts into videos using dual AI models
 - **Priority**: High
 - **Requirements**:
   - Text input field with character limit (500 characters)
-  - Quality selection (Standard/HD/4K based on subscription)
-  - Duration options (15s/30s/60s)
+  - AI model selection (Google Veo-3 Premium or Luma Ray-2 Budget)
+  - Model-specific duration options:
+    - Google Veo-3: Fixed 8-second duration
+    - Luma Ray-2: 5-second or 9-second options
+  - Quality selection (Standard/High/Ultra based on subscription)
   - Real-time generation progress
   - Credit cost display before generation
   - Generation history
@@ -80,20 +84,43 @@ Build a web application that enables users to generate high-quality videos direc
   - Retry failed generations
   - Generation status notifications
 
-### 2.3 Video Library
+### 2.3 Pricing System
 
-#### FR-7: Personal Video Library
+#### FR-7: Credit-Based Pricing
+- **Description**: Transparent credit system with dual-model pricing
+- **Priority**: High
+- **Requirements**:
+  - Credit value: $0.02 per credit (1 dollar = 50 credits)
+  - 32% profit margin maintained across all models
+  - Real-time cost calculation for all model/quality/duration combinations
+  - Pricing transparency with complete cost breakdown
+  - Automatic credit deduction upon generation start
+  - Credit refund for failed generations
+
+#### FR-8: Model-Specific Pricing
+- **Description**: Different pricing tiers for each AI model
+- **Priority**: High
+- **Requirements**:
+  - Google Veo-3 (Premium): 396-594 credits for 8s videos
+  - Luma Ray-2 (Budget): 60-161 credits for 5s/9s videos
+  - Quality multipliers: Standard (1.0x), High (1.2x), Ultra (1.5x)
+  - Cost savings display (73-85% with Luma Ray-2)
+  - Model comparison in UI
+
+### 2.4 Video Library
+
+#### FR-9: Personal Video Library
 - **Description**: Store and organize generated videos
 - **Priority**: High
 - **Requirements**:
   - Grid view of all user videos
   - Thumbnail previews
-  - Video metadata display (date, duration, credits used)
+  - Video metadata display (date, duration, credits used, model used)
   - Search functionality
-  - Filter by date, status, quality
+  - Filter by date, status, quality, model
   - Sort options (newest, oldest, most credits)
 
-#### FR-8: Video Management
+#### FR-10: Video Management
 - **Description**: Individual video operations
 - **Priority**: High
 - **Requirements**:
@@ -103,28 +130,6 @@ Build a web application that enables users to generate high-quality videos direc
   - Delete videos
   - Share video links (optional)
   - View generation details
-
-### 2.4 Credit System
-
-#### FR-9: Credit Management
-- **Description**: Track and manage user credits
-- **Priority**: High
-- **Requirements**:
-  - Display current credit balance
-  - Credit usage history
-  - Credit costs per video quality/duration
-  - Low balance warnings
-  - Credit expiration notifications (3 months)
-
-#### FR-10: Credit Purchase
-- **Description**: Allow users to buy additional credits
-- **Priority**: Medium
-- **Requirements**:
-  - One-time credit purchase options
-  - Secure payment processing
-  - Instant credit delivery
-  - Purchase confirmation emails
-  - Receipt generation
 
 ### 2.5 Subscription System
 

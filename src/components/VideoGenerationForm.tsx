@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -28,32 +28,21 @@ import { toast } from "sonner";
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
   const [title, setTitle] = useState("");
+  const [model, setModel] = useState<"google/veo-3" | "luma/ray-2-720p">("google/veo-3");
   const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
-  const [duration, setDuration] = useState<"15" | "30" | "60">("15");
+  const [duration, setDuration] = useState<"5" | "8" | "9">("8"); // Default to 8s for Google Veo-3
   const [isGenerating, setIsGenerating] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
+  const creditCost = useQuery(api.pricing.getCreditCost, {
+    model,
+    quality,
+    duration
+  });
+  const pricingMatrix = useQuery(api.pricing.getPricingMatrix);
 
-  // Calculate credit cost based on quality and duration
-  const calculateCreditCost = (quality: "standard" | "high" | "ultra", duration: "15" | "30" | "60"): number => {
-    const durationMultiplier = {
-      "15": 1,
-      "30": 2,
-      "60": 4
-    };
-
-    const qualityMultiplier = {
-      "standard": 1,
-      "high": 2,
-      "ultra": 4
-    };
-
-    const baseCost = 5; // Base cost per 15 seconds
-    return baseCost * durationMultiplier[duration] * qualityMultiplier[quality];
-  };
-
-  const creditsCost = calculateCreditCost(quality, duration);
+  const creditsCost = creditCost || 0;
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
 
   // Check if user can access quality tiers based on subscription
@@ -71,6 +60,27 @@ export function VideoGenerationForm() {
         return false;
     }
   };
+
+  // Get valid durations for the selected model
+  const getValidDurations = (selectedModel: "google/veo-3" | "luma/ray-2-720p") => {
+    if (selectedModel === "google/veo-3") {
+      return [{ value: "8", label: "8 seconds", badge: "Fixed duration" }];
+    } else {
+      return [
+        { value: "5", label: "5 seconds", badge: "Base cost" },
+        { value: "9", label: "9 seconds", badge: "1.8x cost" }
+      ];
+    }
+  };
+
+  // Update duration when model changes
+  useEffect(() => {
+    if (model === "google/veo-3") {
+      setDuration("8"); // Google Veo-3 only supports 8s
+    } else if (model === "luma/ray-2-720p" && duration === "8") {
+      setDuration("5"); // Switch to valid duration for Luma
+    }
+  }, [model, duration]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +111,7 @@ export function VideoGenerationForm() {
       await createVideo({
         title: title.trim(),
         prompt: prompt.trim(),
+        model,
         quality,
         duration,
       });
@@ -110,8 +121,9 @@ export function VideoGenerationForm() {
       // Reset form
       setPrompt("");
       setTitle("");
+      setModel("google/veo-3");
       setQuality("standard");
-      setDuration("15");
+      setDuration("8"); // Reset to default for Google Veo-3
 
     } catch (error) {
       console.error("Error creating video:", error);
@@ -242,6 +254,42 @@ export function VideoGenerationForm() {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
+                    {/* Model Selection */}
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>AI Model</Label>
+                      <Select value={model} onValueChange={(value: "google/veo-3" | "luma/ray-2-720p") => setModel(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="google/veo-3">
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center space-x-2">
+                                <Crown className="h-4 w-4 text-purple-500" />
+                                <div>
+                                  <div className="font-medium">Google Veo-3</div>
+                                  <div className="text-xs text-gray-500">High-quality video generation</div>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="ml-2">Premium</Badge>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="luma/ray-2-720p">
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center space-x-2">
+                                <Zap className="h-4 w-4 text-green-500" />
+                                <div>
+                                  <div className="font-medium">Luma Ray-2-720p</div>
+                                  <div className="text-xs text-gray-500">Fast, cost-effective generation</div>
+                                </div>
+                              </div>
+                              <Badge className="bg-green-100 text-green-800 ml-2">Budget</Badge>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Quality */}
                     <div className="space-y-2">
                       <Label>Quality</Label>
@@ -288,29 +336,21 @@ export function VideoGenerationForm() {
                     {/* Duration */}
                     <div className="space-y-2">
                       <Label>Duration</Label>
-                      <Select value={duration} onValueChange={(value: "15" | "30" | "60") => setDuration(value)}>
+                      <Select value={duration} onValueChange={(value: "5" | "8" | "9") => setDuration(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="15">
-                            <div className="flex items-center justify-between w-full">
-                              <span>15 seconds</span>
-                              <Badge variant="secondary" className="ml-2">Base cost</Badge>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="30">
-                            <div className="flex items-center justify-between w-full">
-                              <span>30 seconds</span>
-                              <Badge variant="secondary" className="ml-2">2x cost</Badge>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="60">
-                            <div className="flex items-center justify-between w-full">
-                              <span>60 seconds</span>
-                              <Badge variant="secondary" className="ml-2">4x cost</Badge>
-                            </div>
-                          </SelectItem>
+                          {getValidDurations(model).map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              <div className="flex items-center justify-between w-full">
+                                <span>{item.label}</span>
+                                <Badge variant="secondary" className="ml-2">
+                                  {item.badge}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -377,6 +417,42 @@ export function VideoGenerationForm() {
                 <p className="text-xs text-gray-500 mt-3">
                   You&apos;ll receive real-time updates on the generation progress.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Coins className="h-5 w-5" />
+                <span>Pricing Guide</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <h4 className="font-medium mb-2">Google Veo-3 (Premium)</h4>
+                  <div className="space-y-1 text-gray-600">
+                    <p>• 8s Standard: {pricingMatrix?.["google/veo-3"]?.["standard"]?.["8"] || 0} credits</p>
+                    <p>• 8s High: {pricingMatrix?.["google/veo-3"]?.["high"]?.["8"] || 0} credits</p>
+                    <p>• 8s Ultra: {pricingMatrix?.["google/veo-3"]?.["ultra"]?.["8"] || 0} credits</p>
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2">Luma Ray-2-720p (Budget)</h4>
+                  <div className="space-y-1 text-gray-600">
+                    <p>• 5s Standard: {pricingMatrix?.["luma/ray-2-720p"]?.["standard"]?.["5"] || 0} credits</p>
+                    <p>• 5s High: {pricingMatrix?.["luma/ray-2-720p"]?.["high"]?.["5"] || 0} credits</p>
+                    <p>• 9s Standard: {pricingMatrix?.["luma/ray-2-720p"]?.["standard"]?.["9"] || 0} credits</p>
+                    <p>• 9s High: {pricingMatrix?.["luma/ray-2-720p"]?.["high"]?.["9"] || 0} credits</p>
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <p className="text-xs text-blue-800">
+                    <strong>💡 Tip:</strong> Luma Ray-2-720p is ~4x cheaper than Google Veo-3 for similar quality!
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

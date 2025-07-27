@@ -6,10 +6,13 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 
 ### ✅ **Implemented**
 - **User Authentication**: Email/password and Google OAuth via Clerk
-- **Video Generation**: AI-powered video creation using Google's Veo-3 model
-- **Quality Tiers**: Standard (720p), HD (1080p), and 4K based on subscription
-- **Duration Options**: 15s, 30s, and 60s video generation
-- **Credit System**: Pay-per-use with automatic credit deduction
+- **Dual AI Models**: Google Veo-3 (Premium) and Luma Ray-2-720p (Budget)
+- **Model-Specific Durations**: 
+  - Google Veo-3: Fixed 8-second duration
+  - Luma Ray-2-720p: 5-second or 9-second options
+- **Quality Tiers**: Standard, High, and Ultra based on subscription
+- **Credit System**: Pay-per-use with $0.02 per credit (1 dollar = 50 credits)
+- **Pricing Transparency**: Real-time cost calculation with 32% profit margin
 - **Video Library**: Personal library with search, filter, and sort capabilities
 - **Profile Management**: User profile editing and account management
 - **Subscription Plans**: Free, Starter, Pro, and Business tiers
@@ -32,15 +35,46 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 - Enhanced prompt optimization
 - Team management features
 
+## 💰 Pricing System
+
+### Credit Value
+- **1 Credit = $0.02** (1 dollar = 50 credits)
+- **32% profit margin** maintained across all models
+
+### AI Models & Pricing
+
+#### Google Veo-3 (Premium)
+- **Duration**: Fixed 8-second videos only
+- **Quality**: Standard, High, Ultra
+- **Pricing**: 396-594 credits ($7.92-$11.88)
+- **Best For**: High-quality, professional videos
+
+#### Luma Ray-2-720p (Budget)
+- **Duration**: 5-second or 9-second videos
+- **Quality**: Standard, High, Ultra
+- **Pricing**: 60-161 credits ($1.20-$3.22)
+- **Best For**: Cost-effective content creation
+- **Savings**: 73-85% cheaper than Google Veo-3
+
+### Example Costs
+| Model | Duration | Quality | Credits | USD Cost |
+|-------|----------|---------|---------|----------|
+| Google Veo-3 | 8s | Standard | 396 | $7.92 |
+| Google Veo-3 | 8s | High | 476 | $9.52 |
+| Google Veo-3 | 8s | Ultra | 594 | $11.88 |
+| Luma Ray-2 | 5s | Standard | 60 | $1.20 |
+| Luma Ray-2 | 9s | Standard | 107 | $2.14 |
+
 ## 🛠 Tech Stack
 
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
 - **Backend**: Convex (real-time database and serverless functions)
 - **Authentication**: Clerk (OAuth, email/password)
-- **AI**: Google Veo-3 via Replicate API
+- **AI**: Google Veo-3 and Luma Ray-2-720p via Replicate API
 - **Payments**: Stripe (subscriptions and one-time purchases)
 - **UI Components**: Radix UI with custom styling
 - **File Storage**: Convex file storage for videos
+- **Pricing**: Centralized Convex pricing functions
 
 ## 🚀 Quick Start
 
@@ -165,16 +199,49 @@ The application supports 4 subscription tiers:
 
 ### Credit Costs
 
-Credits are calculated based on video duration and quality:
+Credits are calculated based on video duration, quality, and AI model:
 
-- **Base cost**: 5 credits per 15 seconds
-- **Duration multipliers**: 15s (1x), 30s (2x), 60s (4x)
-- **Quality multipliers**: Standard (1x), HD (2x), 4K (4x)
+- **Credit Value**: $0.02 per credit (1 dollar = 50 credits)
+- **Profit Margin**: 32%
 
-Examples:
-- 15s Standard: 5 credits
-- 30s HD: 20 credits
-- 60s 4K: 80 credits
+#### Model Options
+
+**Google Veo-3 (Premium)**
+- Cost: $0.75/second from Replicate
+- Best for: High-quality, professional videos
+- Pricing: ~50 credits/second
+
+**Luma Ray-2-720p (Budget)**
+- Cost: $0.18/second from Replicate  
+- Best for: Cost-effective, quick generation
+- Pricing: ~12 credits/second
+
+#### Quality Multipliers
+- **Standard**: 1.0x (base cost)
+- **High**: 1.2x (20% premium)
+- **Ultra**: 1.5x (50% premium)
+
+#### Duration Multipliers
+- **15s**: 1x (base cost)
+- **30s**: 2x (double cost)
+- **60s**: 4x (quadruple cost)
+
+#### Example Costs
+
+| Model | Duration | Quality | Credits | USD Equivalent |
+|-------|----------|---------|---------|----------------|
+| Google Veo-3 | 15s | Standard | 750 | $15.00 |
+| Google Veo-3 | 30s | Standard | 1,500 | $30.00 |
+| Google Veo-3 | 60s | Standard | 3,000 | $60.00 |
+| Luma Ray-2 | 15s | Standard | 180 | $3.60 |
+| Luma Ray-2 | 30s | Standard | 360 | $7.20 |
+| Luma Ray-2 | 60s | Standard | 720 | $14.40 |
+
+**Credit Package Recommendations:**
+- Starter: 2,000 credits ($40) - 2-3 Luma videos or 1 Google Veo-3 video
+- Basic: 5,000 credits ($100) - 5-10 Luma videos or 2-3 Google Veo-3 videos
+- Pro: 15,000 credits ($300) - 15-30 Luma videos or 5-10 Google Veo-3 videos
+- Business: 50,000+ credits with volume discounts
 
 ## 📚 API Documentation
 

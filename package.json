@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev-mode": "node scripts/toggle-mode.js dev",
+    "prod-mode": "node scripts/toggle-mode.js prod",
+    "check-mode": "node scripts/toggle-mode.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.1.1",
