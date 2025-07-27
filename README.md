@@ -20,6 +20,8 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 - **Real-time Updates**: Live generation progress and status updates
 - **Video Download**: Download completed videos in MP4 format
 - **Mobile Responsive**: Optimized for all device sizes
+- **Configuration Management**: Database-driven system settings with admin interface
+- **Admin Dashboard**: Visual configuration management at `/admin/configurations`
 
 ### 🔄 **In Progress**
 - Stripe payment integration for credit purchases
@@ -29,7 +31,6 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 
 ### 📋 **Planned**
 - Video sharing with shareable links
-- Admin dashboard for platform management
 - Usage analytics and insights
 - API access for Pro/Business users
 - Enhanced prompt optimization
@@ -40,6 +41,7 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 ### Credit Value
 - **1 Credit = $0.02** (1 dollar = 50 credits)
 - **32% profit margin** maintained across all models
+- **Configurable**: All pricing can be adjusted via admin interface
 
 ### AI Models & Pricing
 
@@ -74,7 +76,8 @@ Transform your ideas into stunning videos using cutting-edge AI technology. No f
 - **Payments**: Stripe (subscriptions and one-time purchases)
 - **UI Components**: Radix UI with custom styling
 - **File Storage**: Convex file storage for videos
-- **Pricing**: Centralized Convex pricing functions
+- **Pricing**: Database-driven configuration system
+- **Admin Interface**: Visual configuration management
 
 ## 🚀 Quick Start
 
@@ -270,6 +273,76 @@ await updateUser({
   email: "john@example.com"
 });
 ```
+
+## ⚙️ Configuration Management
+
+VideoAI features a comprehensive configuration management system that allows administrators to modify system settings without code deployments.
+
+### Accessing the Admin Interface
+
+Navigate to `/admin/configurations` to access the visual configuration management interface.
+
+### Key Configuration Categories
+
+1. **Business Settings**
+   - Profit margins and credit conversion rates
+   - Free tier credit allocation
+   - Revenue optimization parameters
+
+2. **Pricing & Costs**
+   - Quality multipliers (Standard, High, Ultra)
+   - Model-specific pricing
+   - Cost calculation parameters
+
+3. **AI Models**
+   - Model configurations and capabilities
+   - Supported durations and quality options
+   - Model availability and defaults
+
+4. **Feature Flags**
+   - System feature toggles
+   - Experimental feature controls
+   - A/B testing capabilities
+
+5. **System Limits**
+   - Rate limits and usage constraints
+   - File size and duration limits
+   - Concurrent generation limits
+
+6. **Subscription Settings**
+   - Quality access by subscription tier
+   - Feature access control
+   - Subscription-specific limits
+
+### Configuration API
+
+```typescript
+// Get specific configuration
+const profitMargin = useQuery(api.configurations.getConfig, { 
+  key: "profit_margin" 
+});
+
+// Get all business configurations
+const businessConfigs = useQuery(api.configurations.getConfigsByCategory, { 
+  category: "business" 
+});
+
+// Update configuration
+const updateConfig = useMutation(api.configurations.updateConfig);
+await updateConfig({
+  key: "profit_margin",
+  value: 1.35, // New 35% markup
+});
+```
+
+### Initialization
+
+```bash
+# Initialize default configurations
+npm run init-configs
+```
+
+For detailed configuration management documentation, see [docs/configuration-system.md](docs/configuration-system.md).
 
 ## 🔒 Security
 

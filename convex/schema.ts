@@ -307,4 +307,46 @@ export default defineSchema({
     .index("by_replicate_job_id", ["replicateJobId"])
     .index("by_status", ["status"])
     .index("by_created_at", ["createdAt"]),
+
+  configurations: defineTable({
+    // Configuration identification
+    key: v.string(), // Unique configuration key
+    category: v.string(), // "pricing", "models", "business", "features", "limits"
+    name: v.string(), // Human-readable name
+    description: v.optional(v.string()), // Description of what this config controls
+
+    // Configuration value (supports different types)
+    value: v.union(
+      v.string(),
+      v.number(),
+      v.boolean(),
+      v.array(v.string()),
+      v.array(v.number()),
+      v.any() // Use v.any() for complex objects
+    ),
+
+    // Configuration metadata
+    dataType: v.union(
+      v.literal("string"),
+      v.literal("number"),
+      v.literal("boolean"),
+      v.literal("array"),
+      v.literal("object")
+    ),
+    isActive: v.boolean(),
+    isEditable: v.boolean(), // Whether this can be changed via admin interface
+
+    // Validation and constraints
+    minValue: v.optional(v.number()),
+    maxValue: v.optional(v.number()),
+    allowedValues: v.optional(v.array(v.string())),
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"])
+    .index("by_category_and_active", ["category", "isActive"]),
 });

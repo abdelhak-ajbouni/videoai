@@ -19,13 +19,21 @@ export const createUser = mutation({
       return existingUser._id;
     }
 
+    // Get free tier credits from configuration
+    const freeTierCredits = await ctx.db
+      .query("configurations")
+      .withIndex("by_key", (q: any) => q.eq("key", "free_tier_credits"))
+      .first();
+
+    const initialCredits = (freeTierCredits?.value as number) || 10; // Default to 10 if not configured
+
     // Create new user with default values
     const userId = await ctx.db.insert("users", {
       clerkId: args.clerkId,
       email: args.email,
       name: args.name,
       imageUrl: args.imageUrl,
-      credits: 10, // Free tier starts with 10 credits
+      credits: initialCredits,
       totalCreditsUsed: 0,
       subscriptionTier: "free",
       subscriptionStatus: "inactive",
