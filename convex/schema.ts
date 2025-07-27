@@ -53,7 +53,11 @@ export default defineSchema({
 
     // Generation settings
     model: v.optional(
-      v.union(v.literal("google/veo-3"), v.literal("luma/ray-2-720p"))
+      v.union(
+        v.literal("google/veo-3"),
+        v.literal("luma/ray-2-720p"),
+        v.literal("luma/ray-flash-2-540p")
+      )
     ),
     quality: v.union(
       v.literal("standard"),

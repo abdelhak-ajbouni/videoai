@@ -28,9 +28,9 @@ import { toast } from "sonner";
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
   const [title, setTitle] = useState("");
-  const [model, setModel] = useState<"google/veo-3" | "luma/ray-2-720p">("google/veo-3");
+  const [model, setModel] = useState<"google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p">("luma/ray-flash-2-540p");
   const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
-  const [duration, setDuration] = useState<"5" | "8" | "9">("8"); // Default to 8s for Google Veo-3
+  const [duration, setDuration] = useState<"5" | "8" | "9">("5"); // Default to 5s for cheapest model
   const [isGenerating, setIsGenerating] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -62,7 +62,7 @@ export function VideoGenerationForm() {
   };
 
   // Get valid durations for the selected model
-  const getValidDurations = (selectedModel: "google/veo-3" | "luma/ray-2-720p") => {
+  const getValidDurations = (selectedModel: "google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p") => {
     if (selectedModel === "google/veo-3") {
       return [{ value: "8", label: "8 seconds", badge: "Fixed duration" }];
     } else {
@@ -77,8 +77,8 @@ export function VideoGenerationForm() {
   useEffect(() => {
     if (model === "google/veo-3") {
       setDuration("8"); // Google Veo-3 only supports 8s
-    } else if (model === "luma/ray-2-720p" && duration === "8") {
-      setDuration("5"); // Switch to valid duration for Luma
+    } else if ((model === "luma/ray-2-720p" || model === "luma/ray-flash-2-540p") && duration === "8") {
+      setDuration("5"); // Switch to valid duration for Luma models
     }
   }, [model, duration]);
 
@@ -257,21 +257,21 @@ export function VideoGenerationForm() {
                     {/* Model Selection */}
                     <div className="space-y-2 sm:col-span-2">
                       <Label>AI Model</Label>
-                      <Select value={model} onValueChange={(value: "google/veo-3" | "luma/ray-2-720p") => setModel(value)}>
+                      <Select value={model} onValueChange={(value: "google/veo-3" | "luma/ray-2-720p" | "luma/ray-flash-2-540p") => setModel(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="google/veo-3">
+                          <SelectItem value="luma/ray-flash-2-540p">
                             <div className="flex items-center justify-between w-full">
                               <div className="flex items-center space-x-2">
-                                <Crown className="h-4 w-4 text-purple-500" />
+                                <Zap className="h-4 w-4 text-blue-500" />
                                 <div>
-                                  <div className="font-medium">Google Veo-3</div>
-                                  <div className="text-xs text-gray-500">High-quality video generation</div>
+                                  <div className="font-medium">Luma Ray Flash 2-540p</div>
+                                  <div className="text-xs text-gray-500">Ultra-fast, ultra-cheap generation</div>
                                 </div>
                               </div>
-                              <Badge variant="secondary" className="ml-2">Premium</Badge>
+                              <Badge className="bg-blue-100 text-blue-800 ml-2">Default</Badge>
                             </div>
                           </SelectItem>
                           <SelectItem value="luma/ray-2-720p">
@@ -284,6 +284,18 @@ export function VideoGenerationForm() {
                                 </div>
                               </div>
                               <Badge className="bg-green-100 text-green-800 ml-2">Budget</Badge>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="google/veo-3">
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center space-x-2">
+                                <Crown className="h-4 w-4 text-purple-500" />
+                                <div>
+                                  <div className="font-medium">Google Veo-3</div>
+                                  <div className="text-xs text-gray-500">High-quality video generation</div>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="ml-2">Premium</Badge>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -431,11 +443,12 @@ export function VideoGenerationForm() {
             <CardContent>
               <div className="space-y-4 text-sm">
                 <div>
-                  <h4 className="font-medium mb-2">Google Veo-3 (Premium)</h4>
+                  <h4 className="font-medium mb-2">Luma Ray Flash 2-540p (Default)</h4>
                   <div className="space-y-1 text-gray-600">
-                    <p>• 8s Standard: {pricingMatrix?.["google/veo-3"]?.["standard"]?.["8"] || 0} credits</p>
-                    <p>• 8s High: {pricingMatrix?.["google/veo-3"]?.["high"]?.["8"] || 0} credits</p>
-                    <p>• 8s Ultra: {pricingMatrix?.["google/veo-3"]?.["ultra"]?.["8"] || 0} credits</p>
+                    <p>• 5s Standard: {pricingMatrix?.["luma/ray-flash-2-540p"]?.["standard"]?.["5"] || 0} credits</p>
+                    <p>• 5s High: {pricingMatrix?.["luma/ray-flash-2-540p"]?.["high"]?.["5"] || 0} credits</p>
+                    <p>• 9s Standard: {pricingMatrix?.["luma/ray-flash-2-540p"]?.["standard"]?.["9"] || 0} credits</p>
+                    <p>• 9s High: {pricingMatrix?.["luma/ray-flash-2-540p"]?.["high"]?.["9"] || 0} credits</p>
                   </div>
                 </div>
                 <Separator />
@@ -448,9 +461,18 @@ export function VideoGenerationForm() {
                     <p>• 9s High: {pricingMatrix?.["luma/ray-2-720p"]?.["high"]?.["9"] || 0} credits</p>
                   </div>
                 </div>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2">Google Veo-3 (Premium)</h4>
+                  <div className="space-y-1 text-gray-600">
+                    <p>• 8s Standard: {pricingMatrix?.["google/veo-3"]?.["standard"]?.["8"] || 0} credits</p>
+                    <p>• 8s High: {pricingMatrix?.["google/veo-3"]?.["high"]?.["8"] || 0} credits</p>
+                    <p>• 8s Ultra: {pricingMatrix?.["google/veo-3"]?.["ultra"]?.["8"] || 0} credits</p>
+                  </div>
+                </div>
                 <div className="bg-blue-50 p-3 rounded-md">
                   <p className="text-xs text-blue-800">
-                    <strong>💡 Tip:</strong> Luma Ray-2-720p is ~4x cheaper than Google Veo-3 for similar quality!
+                    <strong>💡 Tip:</strong> Luma Ray Flash 2-540p is the cheapest option at ~6x cheaper than Google Veo-3!
                   </p>
                 </div>
               </div>

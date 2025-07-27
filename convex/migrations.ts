@@ -94,7 +94,7 @@ export const addModelFieldToVideos = mutation({
       if (!video.model) {
         // Update the video with the default model
         await ctx.db.patch(video._id, {
-          model: "google/veo-3", // Default to Google Veo-3 for existing videos
+          model: "luma/ray-flash-2-540p", // Default to cheapest model for existing videos
         });
         updatedCount++;
       }
