@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useUser } from "@clerk/nextjs";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
@@ -18,7 +17,6 @@ const PACKAGE_ICONS = {
 } as const;
 
 export function CreditPurchase() {
-  const { user } = useUser();
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,7 +32,7 @@ export function CreditPurchase() {
     try {
       const checkoutUrl = await createCheckoutSession({
         userId: userData._id,
-        packageId: packageId as any,
+        packageId: packageId as "small" | "medium" | "large" | "xlarge",
       });
 
       // Redirect to Stripe checkout

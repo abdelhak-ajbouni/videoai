@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useUser } from "@clerk/nextjs";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
@@ -10,23 +9,19 @@ import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   FileText,
-  Download,
   CreditCard,
   Calendar,
-  DollarSign,
   Settings,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
   Info,
-  ExternalLink,
   Receipt,
   History
 } from "lucide-react";
 
 export function InvoiceManagement() {
-  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
 
   // Get current user data
@@ -49,12 +44,7 @@ export function InvoiceManagement() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount / 100); // Convert cents to dollars
-  };
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {

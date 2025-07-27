@@ -21,8 +21,7 @@ import {
   Search,
   Filter,
   Heart,
-  Eye,
-  BarChart3
+  Eye
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useMemo } from "react";
@@ -43,7 +42,7 @@ export function VideoLibrary() {
   const filteredAndSortedVideos = useMemo(() => {
     if (!videos) return [];
 
-    let filtered = videos.filter((video) => {
+    const filtered = videos.filter((video) => {
       const matchesSearch =
         video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
@@ -73,7 +72,7 @@ export function VideoLibrary() {
     return filtered;
   }, [videos, searchQuery, statusFilter, qualityFilter, sortBy]);
 
-  const handleDownload = async (video: any) => {
+  const handleDownload = async (video: { _id: Id<"videos">; videoUrl?: string; title: string }) => {
     if (!video.videoUrl) {
       toast.error("Video not ready for download");
       return;

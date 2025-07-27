@@ -143,7 +143,7 @@ export const fixInvalidDurations = mutation({
 });
 
 // Migration to initialize default subscription plans
-export const initializeSubscriptionPlans = mutation({
+export const initializeSubscriptionPlans: any = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("Starting subscription plans migration...");
@@ -161,7 +161,7 @@ export const initializeSubscriptionPlans = mutation({
 });
 
 // Migration to initialize default credit packages
-export const initializeCreditPackages = mutation({
+export const initializeCreditPackages: any = mutation({
   args: {},
   handler: async (ctx) => {
     console.log("Starting credit packages migration...");

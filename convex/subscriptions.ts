@@ -27,7 +27,7 @@ export const getAllSubscriptions = query({
 });
 
 // Create new subscription (called from webhook)
-export const createSubscription = mutation({
+export const createSubscription: any = mutation({
   args: {
     userId: v.id("users"),
     stripeSubscriptionId: v.string(),
@@ -237,6 +237,88 @@ export const cancelSubscription = mutation({
   },
 });
 
+// Cancel subscription at period end (user keeps existing credits)
+export const cancelSubscriptionAtPeriodEnd = mutation({
+  args: {
+    userId: v.id("users"),
+    stripeSubscriptionId: v.string(),
+  },
+  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+    // Get the subscription record
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_stripe_subscription_id", (q) =>
+        q.eq("stripeSubscriptionId", stripeSubscriptionId)
+      )
+      .first();
+
+    if (!subscription) {
+      throw new Error("Subscription not found");
+    }
+
+    if (
+      subscription.status !== "active" &&
+      subscription.status !== "trialing"
+    ) {
+      throw new Error("Subscription is not active");
+    }
+
+    // Update subscription to cancel at period end
+    await ctx.db.patch(subscription._id, {
+      cancelAtPeriodEnd: true,
+      updatedAt: Date.now(),
+    });
+
+    // Update user's subscription status to show it's canceling
+    await ctx.db.patch(userId, {
+      subscriptionStatus: "canceled", // This indicates it's canceling but still active until period end
+    });
+
+    return subscription._id;
+  },
+});
+
+// Reactivate subscription (remove cancel at period end)
+export const reactivateSubscription = mutation({
+  args: {
+    userId: v.id("users"),
+    stripeSubscriptionId: v.string(),
+  },
+  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+    // Get the subscription record
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_stripe_subscription_id", (q) =>
+        q.eq("stripeSubscriptionId", stripeSubscriptionId)
+      )
+      .first();
+
+    if (!subscription) {
+      throw new Error("Subscription not found");
+    }
+
+    if (
+      subscription.status !== "active" &&
+      subscription.status !== "trialing"
+    ) {
+      throw new Error("Subscription is not active");
+    }
+
+    // Remove cancel at period end flag
+    await ctx.db.patch(subscription._id, {
+      cancelAtPeriodEnd: false,
+      updatedAt: Date.now(),
+    });
+
+    // Update user's subscription status back to active
+    await ctx.db.patch(userId, {
+      subscriptionStatus: "active",
+    });
+
+    return subscription._id;
+  },
+});
+
 // Allocate monthly credits for subscription
 export const allocateMonthlyCredits = mutation({
   args: {
@@ -282,7 +364,7 @@ export const allocateMonthlyCredits = mutation({
 });
 
 // Get subscription usage statistics
-export const getSubscriptionStats = query({
+export const getSubscriptionStats: any = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     const subscription = await ctx.db
@@ -352,5 +434,161 @@ export const getSubscriptionHistory = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+  },
+});
+
+// Get current subscription with cancellation details
+export const getCurrentSubscription: any = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Get subscription plan details for pricing
+    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
+      planId: subscription.tier,
+    });
+
+    return {
+      ...subscription,
+      planDetails: plan,
+    };
+  },
+});
+
+// Change subscription plan (deactivates old, creates new)
+export const changeSubscriptionPlan: any = mutation({
+  args: {
+    userId: v.id("users"),
+    newPlanId: v.union(
+      v.literal("starter"),
+      v.literal("pro"),
+      v.literal("business")
+    ),
+    stripeSubscriptionId: v.string(),
+    stripeCustomerId: v.string(),
+    stripePriceId: v.string(),
+    subscriptionStatus: v.string(),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    cancelAtPeriodEnd: v.boolean(),
+  },
+  handler: async (
+    ctx,
+    {
+      userId,
+      newPlanId,
+      stripeSubscriptionId,
+      stripeCustomerId,
+      stripePriceId,
+      subscriptionStatus,
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    }
+  ) => {
+    // Get new plan from database
+    const newPlan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
+      planId: newPlanId,
+    });
+    if (!newPlan) {
+      throw new Error(`Subscription plan not found: ${newPlanId}`);
+    }
+
+    // Deactivate all existing active subscriptions for this user
+    const existingSubscriptions = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "trialing")
+        )
+      )
+      .collect();
+
+    // Mark existing subscriptions as canceled
+    for (const existingSub of existingSubscriptions) {
+      await ctx.db.patch(existingSub._id, {
+        status: "canceled",
+        cancelAtPeriodEnd: true,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // Create new subscription record
+    const newSubscriptionId = await ctx.db.insert("subscriptions", {
+      userId,
+      stripeSubscriptionId,
+      stripeCustomerId,
+      stripePriceId,
+      tier: newPlanId,
+      status: subscriptionStatus as
+        | "active"
+        | "canceled"
+        | "past_due"
+        | "trialing"
+        | "incomplete"
+        | "incomplete_expired"
+        | "unpaid",
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+      monthlyCredits: newPlan.monthlyCredits,
+      creditsGrantedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Map Stripe status to user schema status
+    let userStatus:
+      | "active"
+      | "canceled"
+      | "past_due"
+      | "trialing"
+      | "inactive";
+    switch (subscriptionStatus) {
+      case "active":
+      case "trialing":
+        userStatus = subscriptionStatus;
+        break;
+      case "canceled":
+      case "past_due":
+        userStatus = subscriptionStatus;
+        break;
+      case "incomplete":
+      case "incomplete_expired":
+      case "unpaid":
+        userStatus = "inactive";
+        break;
+      default:
+        userStatus = "inactive";
+    }
+
+    // Update user's subscription tier
+    await ctx.db.patch(userId, {
+      subscriptionTier: newPlanId,
+      subscriptionStatus: userStatus,
+      stripeSubscriptionId,
+      subscriptionStartDate: currentPeriodStart,
+      subscriptionEndDate: currentPeriodEnd,
+    });
+
+    // Grant initial monthly credits for new plan
+    await ctx.runMutation(api.credits.grantSubscriptionCredits, {
+      userId,
+      amount: newPlan.monthlyCredits,
+      description: `Plan change to ${newPlanId} - monthly credits`,
+      subscriptionId: newSubscriptionId,
+    });
+
+    return newSubscriptionId;
   },
 });

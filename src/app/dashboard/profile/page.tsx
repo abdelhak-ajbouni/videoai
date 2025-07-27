@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,11 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import Image from "next/image";
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  const updateUser = useMutation(api.users.updateUser);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState("");
 
@@ -93,9 +93,11 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-4">
                 {user?.imageUrl && (
-                  <img
+                  <Image
                     src={user.imageUrl}
                     alt="Profile"
+                    width={64}
+                    height={64}
                     className="w-16 h-16 rounded-full border-2 border-gray-200"
                   />
                 )}

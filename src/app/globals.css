@@ -2,13 +2,88 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* AI-Themed Color System */
+    /* Primary AI Colors */
+    --ai-primary-50: #f0f4ff;
+    --ai-primary-100: #e0e7ff;
+    --ai-primary-200: #c7d2fe;
+    --ai-primary-300: #a5b4fc;
+    --ai-primary-400: #818cf8;
+    --ai-primary-500: #6366f1; /* Main brand color */
+    --ai-primary-600: #4f46e5;
+    --ai-primary-700: #4338ca;
+    --ai-primary-800: #3730a3;
+    --ai-primary-900: #312e81;
+
+    /* Electric Accent Colors */
+    --ai-electric-50: #faf5ff;
+    --ai-electric-100: #f3e8ff;
+    --ai-electric-200: #e9d5ff;
+    --ai-electric-300: #d8b4fe;
+    --ai-electric-400: #a855f7; /* Purple accent */
+    --ai-electric-500: #8b5cf6;
+    --ai-electric-600: #7c3aed;
+    --ai-electric-700: #6d28d9;
+    --ai-electric-800: #5b21b6;
+    --ai-electric-900: #4c1d95;
+
+    /* Neural Network Colors */
+    --ai-neural-50: #ecfeff;
+    --ai-neural-100: #cffafe;
+    --ai-neural-200: #a5f3fc;
+    --ai-neural-300: #06b6d4; /* Cyan for connections */
+    --ai-neural-400: #0891b2;
+    --ai-neural-500: #0e7490;
+    --ai-neural-600: #155e75;
+    --ai-neural-700: #164e63;
+    --ai-neural-800: #155e75;
+    --ai-neural-900: #083344;
+
+    /* Gradient Definitions */
+    --ai-gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --ai-gradient-neural: linear-gradient(90deg, #06b6d4 0%, #6366f1 50%, #a855f7 100%);
+    --ai-gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    --ai-gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+
+    /* Semantic Colors */
+    --success: #10b981;
+    --success-foreground: #ffffff;
+    --warning: #f59e0b;
+    --warning-foreground: #ffffff;
+    --error: #ef4444;
+    --error-foreground: #ffffff;
+    --info: #3b82f6;
+    --info-foreground: #ffffff;
+
+    /* Neutral Colors */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    /* Light Theme Variables */
+    --background: #ffffff;
+    --foreground: #111827;
+    --surface: #ffffff;
+    --surface-elevated: #f9fafb;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+
+    /* Legacy Shadcn Variables (for compatibility) */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 247 84% 57%; /* Maps to ai-primary-500 */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
@@ -18,20 +93,111 @@
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --ring: 247 84% 57%;
+
+    /* Typography Scale */
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    /* Type Scale */
+    --text-xs: 0.75rem;    /* 12px */
+    --text-sm: 0.875rem;   /* 14px */
+    --text-base: 1rem;     /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.25rem;    /* 20px */
+    --text-2xl: 1.5rem;    /* 24px */
+    --text-3xl: 1.875rem;  /* 30px */
+    --text-4xl: 2.25rem;   /* 36px */
+    --text-5xl: 3rem;      /* 48px */
+
+    /* Line Heights */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+
+    /* Font Weights */
+    --font-light: 300;
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+
+    /* 8px Grid System */
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-10: 2.5rem;   /* 40px */
+    --space-12: 3rem;     /* 48px */
+    --space-16: 4rem;     /* 64px */
+    --space-20: 5rem;     /* 80px */
+    --space-24: 6rem;     /* 96px */
+
+    /* Container Sizes */
+    --container-sm: 640px;
+    --container-md: 768px;
+    --container-lg: 1024px;
+    --container-xl: 1280px;
+    --container-2xl: 1536px;
+
+    /* Border Radius */
+    --radius-sm: 0.25rem;  /* 4px */
+    --radius-md: 0.5rem;   /* 8px */
+    --radius-lg: 0.75rem;  /* 12px */
+    --radius-xl: 1rem;     /* 16px */
+    --radius-2xl: 1.5rem;  /* 24px */
+    --radius-full: 9999px;
+    --radius: 0.75rem; /* Default radius for compatibility */
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    --shadow-ai: 0 4px 14px 0 rgba(99, 102, 241, 0.25);
+
+    /* Animation Durations */
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+
+    /* Animation Easings */
+    --ease-linear: linear;
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+  /* Dark Theme Overrides */
+  [data-theme="dark"], .dark {
+    --background: #0a0a0f;
+    --foreground: #ffffff;
+    --surface: #1a1a2e;
+    --surface-elevated: #16213e;
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --border: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.05);
+
+    /* Adjust AI colors for dark theme */
+    --ai-gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+
+    /* Legacy Shadcn dark theme variables */
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
+    --primary: 247 84% 57%;
     --primary-foreground: 222.2 84% 4.9%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -41,8 +207,138 @@
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 94.1%;
+  }
+
+  /* Base Styles */
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-primary);
+    line-height: var(--leading-normal);
+  }
+
+  /* Typography Classes */
+  .text-gradient-ai {
+    background: var(--ai-gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-neural {
+    background: var(--ai-gradient-neural);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Glass Morphism Classes */
+  .glass-card {
+    background: var(--ai-gradient-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-card-elevated {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: var(--shadow-glass), 0 12px 40px 0 rgba(31, 38, 135, 0.45);
+    transform: translateY(-2px);
+  }
+
+  /* Animation Classes */
+  .animate-pulse-ai {
+    animation: pulse-ai 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-ai {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  [data-theme="dark"] .animate-shimmer {
+    background: linear-gradient(90deg, var(--gray-800) 25%, var(--gray-700) 50%, var(--gray-800) 75%);
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Neural Network Animation */
+  .animate-neural {
+    animation: neural-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes neural-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 20px rgba(99, 102, 241, 0);
+    }
+  }
+
+  /* Smooth transitions for theme switching */
+  * {
+    transition: background-color var(--duration-normal) var(--ease-out),
+                border-color var(--duration-normal) var(--ease-out),
+                color var(--duration-normal) var(--ease-out);
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid var(--ai-primary-500);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--surface);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ai-primary-300);
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--ai-primary-400);
   }
 }

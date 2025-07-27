@@ -268,6 +268,12 @@ export const initializeDefaultConfigs = mutation({
       if (!existingConfig) {
         const configId = await ctx.db.insert("configurations", {
           ...config,
+          dataType: config.dataType as
+            | "string"
+            | "number"
+            | "boolean"
+            | "object"
+            | "array",
           createdAt: now,
           updatedAt: now,
         });

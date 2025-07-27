@@ -1,27 +1,17 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   CreditCard,
   Calendar,
   TrendingUp,
   Download,
-  Settings,
-  Zap,
-  Star,
-  Crown,
   AlertTriangle,
-  FileText,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  XCircle,
   Info
 } from "lucide-react";
 import { CreditPurchase } from "./CreditPurchase";
@@ -31,7 +21,6 @@ import { BillingAnalytics } from "./BillingAnalytics";
 import { useState } from "react";
 
 export function BillingDashboard() {
-  const { user } = useUser();
   const [activeTab, setActiveTab] = useState("purchase");
 
   // Fetch user data and billing information using getCurrentUser
@@ -40,59 +29,10 @@ export function BillingDashboard() {
     api.credits.getCreditStats,
     userData?._id ? { userId: userData._id } : "skip"
   );
-  const subscriptionStats = useQuery(
-    api.subscriptions.getSubscriptionStats,
-    userData?._id ? { userId: userData._id } : "skip"
-  );
   const creditHistory = useQuery(
     api.credits.getCreditHistory,
     userData?._id ? { userId: userData._id } : "skip"
   );
-  const subscriptionHistory = useQuery(
-    api.subscriptions.getSubscriptionHistory,
-    userData?._id ? { userId: userData._id } : "skip"
-  );
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount / 100); // Convert cents to dollars
-  };
-
-  const getSubscriptionIcon = (tier: string) => {
-    switch (tier) {
-      case "starter":
-        return <Zap className="h-4 w-4" />;
-      case "pro":
-        return <Star className="h-4 w-4" />;
-      case "business":
-        return <Crown className="h-4 w-4" />;
-      default:
-        return <CreditCard className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "active":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "canceled":
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case "past_due":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
 
   // Calculate usage insights
   const getUsageInsights = () => {
@@ -114,6 +54,14 @@ export function BillingDashboard() {
   };
 
   const usageInsights = getUsageInsights();
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Show loading state while user data is being fetched
   if (!userData) {
@@ -247,77 +195,16 @@ export function BillingDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center space-x-2">
-              {subscriptionStats?.hasActiveSubscription ? (
-                <>
-                  {getSubscriptionIcon(subscriptionStats.tier || "free")}
-                  <span className="text-lg font-semibold capitalize">
-                    {subscriptionStats.tier}
-                  </span>
-                </>
-              ) : (
-                <span className="text-lg font-semibold">Free</span>
-              )}
+              <span className="text-lg font-semibold">Free</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {subscriptionStats?.hasActiveSubscription
-                ? `${subscriptionStats.creditsRemaining} credits remaining`
-                : "No active subscription"
-              }
+              No active subscription
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Subscription Status */}
-      {subscriptionStats?.hasActiveSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription Status</CardTitle>
-            <CardDescription>
-              Your current subscription details and usage
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Plan</div>
-                <div className="text-lg font-semibold capitalize">{subscriptionStats.tier}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Monthly Credits</div>
-                <div className="text-lg font-semibold">{subscriptionStats.monthlyCredits}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Used This Period</div>
-                <div className="text-lg font-semibold">{subscriptionStats.creditsUsedThisPeriod}</div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Remaining</div>
-                <div className="text-lg font-semibold">{subscriptionStats.creditsRemaining}</div>
-              </div>
-            </div>
 
-            {subscriptionStats.nextBillingDate && (
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <div className="text-sm font-medium">Next Billing Date</div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatDate(subscriptionStats.nextBillingDate)}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {subscriptionStats.cancelAtPeriodEnd && (
-                    <Badge variant="destructive">Canceling</Badge>
-                  )}
-                  <Badge variant="outline">
-                    {formatCurrency(subscriptionStats.monthlyPrice || 0)}/month
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

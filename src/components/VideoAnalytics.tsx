@@ -14,7 +14,6 @@ import {
   HardDrive,
   Video,
   Activity,
-  Users,
   PlayCircle
 } from "lucide-react";
 import { useState } from "react";
@@ -70,7 +69,7 @@ export function VideoAnalytics() {
           </p>
         </div>
 
-        <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+        <Select value={timeRange} onValueChange={(value: "week" | "month" | "quarter" | "year" | "all") => setTimeRange(value)}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>

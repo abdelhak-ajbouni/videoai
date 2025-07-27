@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -19,14 +18,9 @@ import {
   RefreshCw,
   Plus,
   Trash2,
-  Zap,
-  Crown,
-  Star,
-  Clock,
   DollarSign,
-  Tag,
   AlertCircle,
-  CheckCircle
+  Star
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,8 +43,8 @@ interface Model {
   category?: string;
   tags?: string[];
   replicateModelId: string;
-  modelParameters?: any;
-  requirements?: any;
+  modelParameters?: unknown;
+  requirements?: unknown;
   totalGenerations?: number;
   averageGenerationTime?: number;
   successRate?: number;
@@ -80,8 +74,6 @@ export function ModelManager() {
   ];
 
   const providers = ["Google", "Luma", "OpenAI", "Anthropic", "Stability AI"];
-  const qualities = ["standard", "high", "ultra"];
-  const durations = [5, 8, 9, 15, 30, 60];
 
   const filteredModels = models?.filter(model =>
     selectedCategory === "all" || model.category === selectedCategory
@@ -197,7 +189,7 @@ export function ModelManager() {
               <CardTitle className="text-lg flex items-center gap-2">
                 {model.name}
                 {model.isDefault && <Star className="h-4 w-4 text-yellow-500" />}
-                {model.isPremium && <Crown className="h-4 w-4 text-purple-500" />}
+                {model.isPremium && <Star className="h-4 w-4 text-purple-500" />}
                 {model.isDeprecated && <AlertCircle className="h-4 w-4 text-red-500" />}
               </CardTitle>
               <CardDescription>{model.description}</CardDescription>

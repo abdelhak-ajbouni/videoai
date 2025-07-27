@@ -190,7 +190,7 @@ export const initializeDefaultPlans = mutation({
 });
 
 // Create Stripe products and prices for subscription plans
-export const createStripeProducts = action({
+export const createStripeProducts: any = action({
   args: {},
   handler: async (ctx) => {
     const stripe = new (await import("stripe")).default(

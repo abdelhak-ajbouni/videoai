@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Doc } from "../../convex/_generated/dataModel";
-import { FunctionReturnType } from "convex/server";
+
 
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
@@ -39,8 +39,7 @@ export function VideoGenerationForm() {
   const createVideo = useMutation(api.videos.createVideo);
   const activeModels = useQuery(api.models.getActiveModels);
 
-  // Type the query results properly
-  type ActiveModelsResult = FunctionReturnType<typeof api.models.getActiveModels>;
+
 
   const creditCost = useQuery(api.pricing.getCreditCost, {
     modelId: modelId || "",

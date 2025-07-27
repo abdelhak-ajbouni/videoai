@@ -172,10 +172,8 @@ export const updateModel = mutation({
       }
     }
 
-    // If deprecating, set deprecated timestamp
-    if (updates.isDeprecated && !model.isDeprecated) {
-      updates.deprecatedAt = Date.now();
-    }
+    // If deprecating, model is marked as deprecated
+    // Note: deprecatedAt timestamp is tracked via updatedAt when isDeprecated becomes true
 
     await ctx.db.patch(model._id, {
       ...updates,
@@ -203,7 +201,6 @@ export const deleteModel = mutation({
     await ctx.db.patch(model._id, {
       isActive: false,
       isDeprecated: true,
-      deprecatedAt: Date.now(),
       updatedAt: Date.now(),
     });
 

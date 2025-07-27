@@ -1,9 +1,10 @@
 import { ModelManager } from "@/components/ModelManager";
-import { auth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export default async function ModelsPage() {
-  const { userId } = await auth();
+  const user = await currentUser();
+  const userId = user?.id;
 
   // Basic admin check - in production, you'd want more sophisticated role-based access control
   if (!userId) {
