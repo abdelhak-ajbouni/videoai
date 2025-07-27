@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Get all active subscription plans
 export const getActivePlans = query({
@@ -185,5 +186,98 @@ export const initializeDefaultPlans = mutation({
     }
 
     return planIds;
+  },
+});
+
+// Create Stripe products and prices for subscription plans
+export const createStripeProducts = action({
+  args: {},
+  handler: async (ctx) => {
+    const stripe = new (await import("stripe")).default(
+      process.env.STRIPE_SECRET_KEY!
+    );
+
+    // Get all active subscription plans
+    const plans = await ctx.runQuery(api.subscriptionPlans.getActivePlans);
+    const results = [];
+
+    for (const plan of plans) {
+      try {
+        // Create or get product
+        let product;
+        const existingProducts = await stripe.products.list({
+          limit: 100,
+        });
+
+        const existingProduct = existingProducts.data.find(
+          (p) => p.name === `${plan.monthlyCredits} Credits - ${plan.name} Plan`
+        );
+
+        if (existingProduct) {
+          product = existingProduct;
+        } else {
+          product = await stripe.products.create({
+            name: `${plan.monthlyCredits} Credits - ${plan.name} Plan`,
+            description:
+              plan.description ||
+              `Monthly subscription for ${plan.monthlyCredits} credits`,
+          });
+        }
+
+        // Create or get price
+        let price;
+        const existingPrices = await stripe.prices.list({
+          product: product.id,
+          limit: 100,
+        });
+
+        const existingPrice = existingPrices.data.find(
+          (p) =>
+            p.unit_amount === plan.price && p.recurring?.interval === "month"
+        );
+
+        if (existingPrice) {
+          price = existingPrice;
+        } else {
+          price = await stripe.prices.create({
+            product: product.id,
+            unit_amount: plan.price,
+            currency: plan.currency,
+            recurring: {
+              interval: "month",
+            },
+          });
+        }
+
+        // Update plan with real price ID
+        await ctx.runMutation(api.subscriptionPlans.updatePlan, {
+          planId: plan.planId,
+          priceId: price.id,
+        });
+
+        results.push({
+          planId: plan.planId,
+          name: plan.name,
+          priceId: price.id,
+          productId: product.id,
+          status: "success",
+        });
+
+        console.log(`Created Stripe product and price for ${plan.name}:`, {
+          productId: product.id,
+          priceId: price.id,
+        });
+      } catch (error) {
+        console.error(`Error creating Stripe product for ${plan.name}:`, error);
+        results.push({
+          planId: plan.planId,
+          name: plan.name,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return results;
   },
 });

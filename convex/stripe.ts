@@ -3,6 +3,7 @@ import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import Stripe from "stripe";
 import { ActionCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -202,7 +203,11 @@ export const handleStripeWebhook = action({
     });
 
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, endpointSecret);
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        endpointSecret
+      );
       console.log("Webhook event verified:", event.type);
     } catch (err) {
       console.error("Webhook signature verification failed:", err);
@@ -265,7 +270,7 @@ async function handleCheckoutSessionCompleted(
     try {
       // Add credits to user account
       const newBalance = await ctx.runMutation(api.credits.addCredits, {
-        userId: userId as any,
+        userId: userId as Id<"users">,
         amount: parseInt(credits),
         description: `Credit purchase - ${packageId} package`,
         stripePaymentIntentId: session.payment_intent as string,
@@ -284,9 +289,9 @@ async function handleCheckoutSessionCompleted(
     console.log("Processing subscription creation:", { userId, planId });
 
     try {
-      // Handle subscription creation
-      await ctx.runMutation(api.subscriptions.createSubscription, {
-        userId: userId as any,
+      // Handle subscription creation using the dedicated action
+      await ctx.runAction(api.stripe.handleSubscriptionCreation, {
+        userId: userId as Id<"users">,
         stripeSubscriptionId: session.subscription as string,
         planId: planId as "starter" | "pro" | "business",
       });
@@ -311,7 +316,9 @@ async function handleInvoicePaymentSucceeded(
   ctx: ActionCtx,
   invoice: Stripe.Invoice
 ) {
-  if (invoice.subscription_id && invoice.customer) {
+  // Check if this invoice is for a subscription and has a customer
+  const subscriptionId = (invoice as any).subscription;
+  if (subscriptionId && invoice.customer) {
     // Find user by Stripe customer ID
     const user = await ctx.runQuery(api.users.getUserByStripeCustomerId, {
       stripeCustomerId: invoice.customer as string,
@@ -321,7 +328,7 @@ async function handleInvoicePaymentSucceeded(
       // Allocate monthly credits for subscription
       await ctx.runMutation(api.subscriptions.allocateMonthlyCredits, {
         userId: user._id,
-        stripeSubscriptionId: invoice.subscription_id,
+        stripeSubscriptionId: subscriptionId,
       });
     }
   }
@@ -369,6 +376,51 @@ async function handleSubscriptionDeleted(
     });
   }
 }
+
+// Action to handle subscription creation from webhook
+export const handleSubscriptionCreation = action({
+  args: {
+    userId: v.id("users"),
+    stripeSubscriptionId: v.string(),
+    planId: v.union(
+      v.literal("starter"),
+      v.literal("pro"),
+      v.literal("business")
+    ),
+  },
+  handler: async (ctx, { userId, stripeSubscriptionId, planId }) => {
+    console.log("Handling subscription creation:", {
+      userId,
+      stripeSubscriptionId,
+      planId,
+    });
+
+    try {
+      // Get Stripe subscription details
+      const subscription =
+        await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+      // Create subscription in database
+      await ctx.runMutation(api.subscriptions.createSubscription, {
+        userId,
+        stripeSubscriptionId,
+        planId,
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: subscription.current_period_start * 1000,
+        currentPeriodEnd: subscription.current_period_end * 1000,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      });
+
+      console.log("Subscription created successfully:", { userId, planId });
+      return { success: true };
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      throw error;
+    }
+  },
+});
 
 // Test function to verify webhook endpoint is working
 export const testWebhook = action({

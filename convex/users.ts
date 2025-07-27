@@ -131,3 +131,11 @@ export const getUserByStripeCustomerId = query({
       .first();
   },
 });
+
+// Get all users (for debugging only)
+export const getAllUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("users").collect();
+  },
+});

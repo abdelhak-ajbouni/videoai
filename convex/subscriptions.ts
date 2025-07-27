@@ -26,7 +26,7 @@ export const getAllSubscriptions = query({
   },
 });
 
-// Create new subscription
+// Create new subscription (called from webhook)
 export const createSubscription = mutation({
   args: {
     userId: v.id("users"),
@@ -36,8 +36,27 @@ export const createSubscription = mutation({
       v.literal("pro"),
       v.literal("business")
     ),
+    stripeCustomerId: v.string(),
+    stripePriceId: v.string(),
+    subscriptionStatus: v.string(),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    cancelAtPeriodEnd: v.boolean(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId, planId }) => {
+  handler: async (
+    ctx,
+    {
+      userId,
+      stripeSubscriptionId,
+      planId,
+      stripeCustomerId,
+      stripePriceId,
+      subscriptionStatus,
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    }
+  ) => {
     // Get plan from database
     const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
       planId,
@@ -46,24 +65,17 @@ export const createSubscription = mutation({
       throw new Error(`Subscription plan not found: ${planId}`);
     }
 
-    // Get Stripe subscription details
-    const stripe = new (await import("stripe")).default(
-      process.env.STRIPE_SECRET_KEY!
-    );
-    const subscription =
-      await stripe.subscriptions.retrieve(stripeSubscriptionId);
-
     // Create subscription record
     const subscriptionId = await ctx.db.insert("subscriptions", {
       userId,
       stripeSubscriptionId,
-      stripeCustomerId: subscription.customer as string,
-      stripePriceId: subscription.items.data[0].price.id,
+      stripeCustomerId,
+      stripePriceId,
       tier: planId,
-      status: subscription.status,
-      currentPeriodStart: subscription.current_period_start * 1000,
-      currentPeriodEnd: subscription.current_period_end * 1000,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      status: subscriptionStatus as any,
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
       monthlyCredits: plan.monthlyCredits,
       creditsGrantedAt: Date.now(),
       createdAt: Date.now(),
@@ -73,10 +85,10 @@ export const createSubscription = mutation({
     // Update user's subscription tier
     await ctx.db.patch(userId, {
       subscriptionTier: planId,
-      subscriptionStatus: subscription.status,
+      subscriptionStatus: subscriptionStatus as any,
       stripeSubscriptionId,
-      subscriptionStartDate: subscription.current_period_start * 1000,
-      subscriptionEndDate: subscription.current_period_end * 1000,
+      subscriptionStartDate: currentPeriodStart,
+      subscriptionEndDate: currentPeriodEnd,
     });
 
     // Grant initial monthly credits
