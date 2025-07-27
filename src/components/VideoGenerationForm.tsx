@@ -24,6 +24,8 @@ import {
   Zap
 } from "lucide-react";
 import { toast } from "sonner";
+import { Doc } from "../../convex/_generated/dataModel";
+import { FunctionReturnType } from "convex/server";
 
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
@@ -36,10 +38,12 @@ export function VideoGenerationForm() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
   const activeModels = useQuery(api.models.getActiveModels);
-  const defaultModel = useQuery(api.models.getDefaultModel);
+
+  // Type the query results properly
+  type ActiveModelsResult = FunctionReturnType<typeof api.models.getActiveModels>;
 
   const creditCost = useQuery(api.pricing.getCreditCost, {
-    modelId,
+    modelId: modelId || "",
     quality,
     duration
   });
@@ -48,12 +52,26 @@ export function VideoGenerationForm() {
   const creditsCost = creditCost || 0;
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
 
-  // Set default model when available
+  // Check if data is still loading
+  const isLoading = !activeModels;
+
+
+
+
+
+  // Set default model when available, or use first available model as fallback
   useEffect(() => {
-    if (defaultModel && !modelId) {
-      setModelId(defaultModel.modelId);
+    if (!modelId && activeModels && activeModels.length > 0) {
+      // Try to find the default model first
+      const defaultModelFromList = activeModels.find(model => model.isDefault);
+      if (defaultModelFromList) {
+        setModelId(defaultModelFromList.modelId);
+      } else {
+        // Fallback to first available model
+        setModelId(activeModels[0].modelId);
+      }
     }
-  }, [defaultModel, modelId]);
+  }, [activeModels, modelId]);
 
   // Get current model information
   const currentModel = activeModels?.find(m => m.modelId === modelId);
@@ -75,7 +93,7 @@ export function VideoGenerationForm() {
   };
 
   // Get valid durations for the selected model
-  const getValidDurations = (model: any) => {
+  const getValidDurations = (model: Doc<"models"> | undefined) => {
     if (!model) return [];
 
     if (model.fixedDuration) {
@@ -144,7 +162,8 @@ export function VideoGenerationForm() {
       // Reset form
       setPrompt("");
       setTitle("");
-      setModelId(defaultModel?.modelId || "");
+      // Reset to first available model or empty string
+      setModelId(activeModels && activeModels.length > 0 ? activeModels[0].modelId : "");
       setQuality("standard");
       setDuration(5);
 
@@ -354,7 +373,7 @@ export function VideoGenerationForm() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {getValidDurations(currentModel).map((item: any) => (
+                          {getValidDurations(currentModel).map((item) => (
                             <SelectItem key={item.value} value={item.value.toString()}>
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center space-x-2">
@@ -378,12 +397,17 @@ export function VideoGenerationForm() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={!prompt.trim() || !title.trim() || !modelId || !hasEnoughCredits || isGenerating || !canAccessQuality(quality)}
+                  disabled={!prompt.trim() || !title.trim() || !modelId || !hasEnoughCredits || isGenerating || !canAccessQuality(quality) || isLoading}
                 >
                   {isGenerating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Generating Video...
+                    </>
+                  ) : isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
                     </>
                   ) : (
                     <>

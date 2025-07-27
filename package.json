@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "convex dev && next dev",
+    "dev": "next dev",
     "predev": "convex dev --run init --until-success",
     "build": "next build",
     "start": "next start",

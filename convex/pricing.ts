@@ -31,7 +31,7 @@ async function calculateCreditCost(
     .first();
 
   if (!model || !model.isActive) {
-    throw new Error(`Model ${modelId} not found or inactive`);
+    throw new Error(`Model "${modelId}" not found or inactive. Please select a valid model.`);
   }
 
   // Use default values if configurations not found
@@ -75,6 +75,11 @@ export const getCreditCost = query({
     duration: v.number(),
   },
   handler: async (ctx, args) => {
+    // Return 0 if modelId is empty or undefined
+    if (!args.modelId || args.modelId.trim() === "") {
+      return 0;
+    }
+    
     return await calculateCreditCost(
       ctx,
       args.modelId,
