@@ -145,6 +145,32 @@ http.route({
   }),
 });
 
+// Handle Stripe webhook events
+http.route({
+  path: "/api/webhooks/stripe",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await request.text();
+    const signature = request.headers.get("stripe-signature");
+
+    if (!signature) {
+      return new Response("Missing stripe-signature header", { status: 400 });
+    }
+
+    try {
+      await ctx.runAction(api.stripe.handleStripeWebhook, {
+        body,
+        signature,
+      });
+
+      return new Response("Webhook processed successfully", { status: 200 });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      return new Response(`Webhook error: ${error}`, { status: 400 });
+    }
+  }),
+});
+
 // Helper function to handle successful video generation
 async function handleSuccessfulGeneration(
   ctx: any,

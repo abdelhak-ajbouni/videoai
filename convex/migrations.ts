@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Migration to add new fields to existing videos
 export const migrateVideoSchema = mutation({
@@ -138,6 +139,76 @@ export const fixInvalidDurations = mutation({
 
     console.log(`Updated ${updatedCount} videos with valid duration values`);
     return { updatedCount };
+  },
+});
+
+// Migration to initialize default subscription plans
+export const initializeSubscriptionPlans = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting subscription plans migration...");
+
+    // Initialize default plans
+    const planIds = await ctx.runMutation(
+      api.subscriptionPlans.initializeDefaultPlans,
+      {}
+    );
+
+    console.log(`Initialized ${planIds.length} subscription plans:`, planIds);
+
+    return planIds;
+  },
+});
+
+// Migration to initialize default credit packages
+export const initializeCreditPackages = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting credit packages migration...");
+
+    // Initialize default packages
+    const packageIds = await ctx.runMutation(
+      api.creditPackages.initializeDefaultPackages,
+      {}
+    );
+
+    console.log(
+      `Initialized ${packageIds.length} credit packages:`,
+      packageIds
+    );
+
+    return packageIds;
+  },
+});
+
+// Migration to update existing subscriptions to use new tier format
+export const migrateSubscriptionTiers = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting subscription tiers migration...");
+
+    // Get all existing subscriptions
+    const subscriptions = await ctx.db.query("subscriptions").collect();
+
+    let updatedCount = 0;
+
+    for (const subscription of subscriptions) {
+      // Check if tier is already a string (new format)
+      if (typeof subscription.tier === "string") {
+        continue; // Already migrated
+      }
+
+      // Convert old union type to string
+      await ctx.db.patch(subscription._id, {
+        tier: subscription.tier as string,
+      });
+
+      updatedCount++;
+    }
+
+    console.log(`Migrated ${updatedCount} subscription tiers`);
+
+    return updatedCount;
   },
 });
 

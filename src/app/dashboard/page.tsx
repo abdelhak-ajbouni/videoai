@@ -14,12 +14,16 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function Dashboard() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  const recentVideos = useQuery(api.videos.getVideosByStatus, { status: "completed" });
+  const recentVideos = useQuery(
+    api.videos.getVideosByStatus,
+    currentUser ? { status: "completed" } : "skip"
+  );
   const [activeTab, setActiveTab] = useState("generate");
 
-  if (!currentUser) {
+  // Show loading state while authentication and user data are being loaded
+  if (!isLoaded || !currentUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loading text="Loading your dashboard..." />

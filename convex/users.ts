@@ -65,6 +65,19 @@ export const updateUser = mutation({
   },
 });
 
+export const updateUserStripeCustomerId = mutation({
+  args: {
+    userId: v.id("users"),
+    stripeCustomerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      stripeCustomerId: args.stripeCustomerId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -82,12 +95,31 @@ export const getCurrentUser = query({
   },
 });
 
+export const getUser = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+  },
+});
+
+export const getUserByStripeCustomerId = query({
+  args: { stripeCustomerId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_stripe_customer_id", (q) =>
+        q.eq("stripeCustomerId", args.stripeCustomerId)
+      )
       .first();
   },
 });

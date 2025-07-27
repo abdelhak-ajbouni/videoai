@@ -178,6 +178,58 @@ export default defineSchema({
     .index("by_video", ["videoId"])
     .index("by_created_at", ["createdAt"]),
 
+  creditPackages: defineTable({
+    // Package identification
+    packageId: v.string(), // "small", "medium", "large", "xlarge"
+    name: v.string(), // "Small", "Medium", "Large", "X-Large"
+    description: v.optional(v.string()),
+
+    // Pricing
+    price: v.number(), // Price in cents
+    currency: v.string(), // "usd"
+
+    // Credits
+    credits: v.number(), // Number of credits in this package
+
+    // Package configuration
+    isActive: v.boolean(),
+    isPopular: v.optional(v.boolean()),
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_package_id", ["packageId"])
+    .index("by_active", ["isActive"])
+    .index("by_price", ["price"]),
+
+  subscriptionPlans: defineTable({
+    // Plan identification
+    planId: v.string(), // "starter", "pro", "business"
+    name: v.string(), // "Starter", "Pro", "Business"
+    description: v.optional(v.string()),
+
+    // Pricing
+    priceId: v.string(), // Stripe price ID
+    price: v.number(), // Price in cents
+    currency: v.string(), // "usd"
+
+    // Features
+    monthlyCredits: v.number(),
+    features: v.array(v.string()), // ["HD video quality", "Priority processing", etc.]
+
+    // Plan configuration
+    isActive: v.boolean(),
+    isPopular: v.optional(v.boolean()),
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_plan_id", ["planId"])
+    .index("by_active", ["isActive"])
+    .index("by_price", ["price"]),
+
   subscriptions: defineTable({
     // User relationship
     userId: v.id("users"),
@@ -188,11 +240,7 @@ export default defineSchema({
     stripePriceId: v.string(),
 
     // Subscription details
-    tier: v.union(
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("business")
-    ),
+    tier: v.string(), // Now references planId from subscriptionPlans
     status: v.union(
       v.literal("active"),
       v.literal("canceled"),
