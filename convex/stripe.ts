@@ -202,7 +202,7 @@ export const handleStripeWebhook = action({
     });
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+      event = await stripe.webhooks.constructEventAsync(body, signature, endpointSecret);
       console.log("Webhook event verified:", event.type);
     } catch (err) {
       console.error("Webhook signature verification failed:", err);
