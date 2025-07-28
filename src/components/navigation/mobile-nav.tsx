@@ -29,19 +29,19 @@ const mobileNavItems = [
   {
     id: "generate",
     label: "Generate",
-    href: "/dashboard?tab=generate",
+    href: "/generate",
     icon: <Sparkles className="h-5 w-5" />
   },
   {
     id: "library",
     label: "Library",
-    href: "/dashboard?tab=library",
+    href: "/library",
     icon: <Video className="h-5 w-5" />
   },
   {
     id: "analytics",
     label: "Analytics",
-    href: "/dashboard?tab=analytics",
+    href: "/analytics",
     icon: <TrendingUp className="h-5 w-5" />
   },
   {

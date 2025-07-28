@@ -70,15 +70,15 @@ export function VideoAnalytics() {
         </div>
 
         <Select value={timeRange} onValueChange={(value: "week" | "month" | "quarter" | "year" | "all") => setTimeRange(value)}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Last 7 days</SelectItem>
-            <SelectItem value="month">Last 30 days</SelectItem>
-            <SelectItem value="quarter">Last 90 days</SelectItem>
-            <SelectItem value="year">Last year</SelectItem>
-            <SelectItem value="all">All time</SelectItem>
+          <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+            <SelectItem value="week" className="py-2 text-gray-900 dark:text-white">Last 7 days</SelectItem>
+            <SelectItem value="month" className="py-2 text-gray-900 dark:text-white">Last 30 days</SelectItem>
+            <SelectItem value="quarter" className="py-2 text-gray-900 dark:text-white">Last 90 days</SelectItem>
+            <SelectItem value="year" className="py-2 text-gray-900 dark:text-white">Last year</SelectItem>
+            <SelectItem value="all" className="py-2 text-gray-900 dark:text-white">All time</SelectItem>
           </SelectContent>
         </Select>
       </div>

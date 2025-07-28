@@ -241,38 +241,38 @@ export function VideoLibrary() {
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger className="w-full sm:w-32 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
+            <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+              <SelectItem value="all" className="py-2 text-gray-900 dark:text-white">All Status</SelectItem>
+              <SelectItem value="completed" className="py-2 text-gray-900 dark:text-white">Completed</SelectItem>
+              <SelectItem value="processing" className="py-2 text-gray-900 dark:text-white">Processing</SelectItem>
+              <SelectItem value="pending" className="py-2 text-gray-900 dark:text-white">Pending</SelectItem>
+              <SelectItem value="failed" className="py-2 text-gray-900 dark:text-white">Failed</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={qualityFilter} onValueChange={setQualityFilter}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger className="w-full sm:w-32 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
               <SelectValue placeholder="Quality" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Quality</SelectItem>
-              <SelectItem value="standard">Standard</SelectItem>
-              <SelectItem value="high">High</SelectItem>
+            <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+              <SelectItem value="all" className="py-2 text-gray-900 dark:text-white">All Quality</SelectItem>
+              <SelectItem value="standard" className="py-2 text-gray-900 dark:text-white">Standard</SelectItem>
+              <SelectItem value="high" className="py-2 text-gray-900 dark:text-white">High</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger className="w-full sm:w-32 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-              <SelectItem value="most-credits">Most Credits</SelectItem>
-              <SelectItem value="title">Title A-Z</SelectItem>
+            <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+              <SelectItem value="newest" className="py-2 text-gray-900 dark:text-white">Newest</SelectItem>
+              <SelectItem value="oldest" className="py-2 text-gray-900 dark:text-white">Oldest</SelectItem>
+              <SelectItem value="most-credits" className="py-2 text-gray-900 dark:text-white">Most Credits</SelectItem>
+              <SelectItem value="title" className="py-2 text-gray-900 dark:text-white">Title A-Z</SelectItem>
             </SelectContent>
           </Select>
         </div>

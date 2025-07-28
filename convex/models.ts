@@ -83,6 +83,7 @@ export const createModel = mutation({
     maxDuration: v.optional(v.number()),
     fixedDuration: v.optional(v.number()),
     isPremium: v.boolean(),
+    isFast: v.boolean(),
     isActive: v.boolean(),
     isDefault: v.boolean(),
     isDeprecated: v.boolean(),
@@ -135,6 +136,7 @@ export const updateModel = mutation({
     maxDuration: v.optional(v.number()),
     fixedDuration: v.optional(v.number()),
     isPremium: v.optional(v.boolean()),
+    isFast: v.optional(v.boolean()),
     isActive: v.optional(v.boolean()),
     isDefault: v.optional(v.boolean()),
     isDeprecated: v.optional(v.boolean()),
@@ -226,6 +228,7 @@ export const initializeDefaultModels = mutation({
         supportedQualities: ["standard", "high", "ultra"],
         fixedDuration: 8,
         isPremium: true,
+        isFast: false,
         isActive: true,
         isDefault: false,
         isDeprecated: false,
@@ -253,6 +256,7 @@ export const initializeDefaultModels = mutation({
         supportedQualities: ["standard", "high", "ultra"],
         maxDuration: 9,
         isPremium: false,
+        isFast: true,
         isActive: true,
         isDefault: false,
         isDeprecated: false,
@@ -280,6 +284,7 @@ export const initializeDefaultModels = mutation({
         supportedQualities: ["standard", "high", "ultra"],
         maxDuration: 9,
         isPremium: false,
+        isFast: true,
         isActive: true,
         isDefault: true, // This is the default model
         isDeprecated: false,
@@ -432,5 +437,36 @@ export const validateModelCapabilities = query({
     }
 
     return { valid: true };
+  },
+});
+
+// Migration: Add isFast field to existing models
+export const migrateAddIsFastField = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const models = await ctx.db.query("models").collect();
+
+    for (const model of models) {
+      // Check if model already has isFast field
+      if (model.isFast === undefined) {
+        // Determine if model is fast based on tags and category
+        let isFast = false;
+
+        if (
+          model.tags?.includes("ultra-fast") ||
+          model.tags?.includes("fast") ||
+          model.category === "budget"
+        ) {
+          isFast = true;
+        }
+
+        await ctx.db.patch(model._id, {
+          isFast,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    return { updated: models.length };
   },
 });

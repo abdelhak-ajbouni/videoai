@@ -111,12 +111,12 @@ export function ConfigurationManager() {
       case "boolean":
         return (
           <Select value={editValue?.toString() || "false"} onValueChange={(value) => setEditValue(value === "true")}>
-            <SelectTrigger>
+            <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="true">True</SelectItem>
-              <SelectItem value="false">False</SelectItem>
+            <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+              <SelectItem value="true" className="py-2 text-gray-900 dark:text-white">True</SelectItem>
+              <SelectItem value="false" className="py-2 text-gray-900 dark:text-white">False</SelectItem>
             </SelectContent>
           </Select>
         );

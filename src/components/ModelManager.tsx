@@ -36,6 +36,7 @@ interface Model {
   maxDuration?: number;
   fixedDuration?: number;
   isPremium: boolean;
+  isFast: boolean;
   isActive: boolean;
   isDefault: boolean;
   isDeprecated: boolean;
@@ -91,6 +92,7 @@ export function ModelManager() {
       maxDuration: model.maxDuration,
       fixedDuration: model.fixedDuration,
       isPremium: model.isPremium,
+      isFast: model.isFast,
       isActive: model.isActive,
       isDefault: model.isDefault,
       isDeprecated: model.isDeprecated,
@@ -141,6 +143,7 @@ export function ModelManager() {
         maxDuration: newModel.maxDuration,
         fixedDuration: newModel.fixedDuration,
         isPremium: newModel.isPremium || false,
+        isFast: newModel.isFast || false,
         isActive: newModel.isActive || true,
         isDefault: newModel.isDefault || false,
         isDeprecated: false,
@@ -325,12 +328,12 @@ export function ModelManager() {
                       value={editData.provider || ""}
                       onValueChange={(value) => setEditData({ ...editData, provider: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
                         {providers.map(provider => (
-                          <SelectItem key={provider} value={provider}>{provider}</SelectItem>
+                          <SelectItem key={provider} value={provider} className="py-2 text-gray-900 dark:text-white">{provider}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -341,13 +344,13 @@ export function ModelManager() {
                       value={editData.category || ""}
                       onValueChange={(value) => setEditData({ ...editData, category: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                      <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
+                        <SelectItem value="" className="py-2 text-gray-900 dark:text-white">None</SelectItem>
                         {categories.slice(1).map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                          <SelectItem key={cat.id} value={cat.id} className="py-2 text-gray-900 dark:text-white">{cat.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -451,12 +454,12 @@ export function ModelManager() {
                   value={newModel.provider || ""}
                   onValueChange={(value) => setNewModel({ ...newModel, provider: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <SelectValue placeholder="Select provider" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
                     {providers.map(provider => (
-                      <SelectItem key={provider} value={provider}>{provider}</SelectItem>
+                      <SelectItem key={provider} value={provider} className="py-2 text-gray-900 dark:text-white">{provider}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

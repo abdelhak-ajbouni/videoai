@@ -91,7 +91,7 @@ export const getVideosByStatus = query({
 // Mutation to create a new video generation request
 export const createVideo = mutation({
   args: {
-    title: v.string(),
+    title: v.optional(v.string()),
     prompt: v.string(),
     model: v.string(), // Accept any model ID string
     quality: v.union(
@@ -171,7 +171,7 @@ export const createVideo = mutation({
     // Create video record
     const videoId = await ctx.db.insert("videos", {
       userId: user._id,
-      title: args.title,
+      title: args.title || null,
       prompt: args.prompt,
       model: args.model,
       quality: args.quality,
@@ -200,7 +200,7 @@ export const createVideo = mutation({
       userId: user._id,
       type: "video_generation",
       amount: -creditsCost,
-      description: `Video generation: ${args.title}`,
+      description: `Video generation: ${args.title || "Untitled"}`,
       videoId,
       balanceBefore: user.credits,
       balanceAfter: user.credits - creditsCost,

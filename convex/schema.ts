@@ -46,7 +46,7 @@ export default defineSchema({
     userId: v.id("users"),
 
     // Video metadata
-    title: v.string(),
+    title: v.optional(v.string()),
     prompt: v.string(),
     description: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
@@ -360,6 +360,7 @@ export default defineSchema({
 
     // Model characteristics
     isPremium: v.boolean(), // Premium model flag
+    isFast: v.boolean(), // Fast model flag
     isActive: v.boolean(), // Whether model is available for use
     isDefault: v.boolean(), // Default model for new users
     isDeprecated: v.boolean(), // Deprecated model flag

@@ -42,21 +42,21 @@ const navigationItems: NavigationItem[] = [
   {
     id: "generate",
     label: "Generate Video",
-    href: "/dashboard?tab=generate",
+    href: "/generate",
     icon: <Sparkles className="h-5 w-5" />,
     description: "Create AI-powered videos"
   },
   {
     id: "library",
     label: "Video Library",
-    href: "/dashboard?tab=library",
+    href: "/library",
     icon: <Video className="h-5 w-5" />,
     description: "Manage your videos"
   },
   {
     id: "analytics",
     label: "Analytics",
-    href: "/dashboard?tab=analytics",
+    href: "/analytics",
     icon: <TrendingUp className="h-5 w-5" />,
     description: "Usage insights and stats"
   },
@@ -100,7 +100,10 @@ export function Sidebar({ className }: SidebarProps) {
       className
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-border">
+      <div className={cn(
+        "flex items-center border-b border-border",
+        collapsed ? "justify-center p-4" : "justify-between p-6"
+      )}>
         {!collapsed && (
           <div className="flex items-center space-x-3">
             <div className="p-2 rounded-lg bg-gradient-ai">
@@ -114,24 +117,36 @@ export function Sidebar({ className }: SidebarProps) {
         )}
 
         {collapsed && (
-          <div className="p-2 rounded-lg bg-gradient-ai mx-auto">
+          <div className="p-2 rounded-lg bg-gradient-ai">
             <Sparkles className="h-6 w-6 text-white" />
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className="hover:bg-ai-primary-50 dark:hover:bg-ai-primary-900/20"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="hover:bg-ai-primary-50 dark:hover:bg-ai-primary-900/20"
+          >
             <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
+
+      {/* Collapsed Toggle Button - Always visible when collapsed */}
+      {collapsed && (
+        <div className="p-2 border-b border-border">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full hover:bg-ai-primary-50 dark:hover:bg-ai-primary-900/20"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* User Info */}
       {!collapsed && currentUser && (
