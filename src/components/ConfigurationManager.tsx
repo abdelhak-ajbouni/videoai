@@ -90,7 +90,7 @@ export function ConfigurationManager() {
       case "string":
         return (
           <Input
-            value={editValue || ""}
+            value={String(editValue || "")}
             onChange={(e) => setEditValue(e.target.value)}
             placeholder="Enter string value"
           />
@@ -100,7 +100,7 @@ export function ConfigurationManager() {
         return (
           <Input
             type="number"
-            value={editValue || ""}
+            value={String(editValue || "")}
             onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
             min={config.minValue}
             max={config.maxValue}

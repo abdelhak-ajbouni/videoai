@@ -44,7 +44,7 @@ export function VideoLibrary() {
 
     const filtered = videos.filter((video) => {
       const matchesSearch =
-        video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (video.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || video.status === statusFilter;
@@ -63,7 +63,7 @@ export function VideoLibrary() {
         case "most-credits":
           return b.creditsCost - a.creditsCost;
         case "title":
-          return a.title.localeCompare(b.title);
+          return (a.title || "").localeCompare(b.title || "");
         default:
           return b.createdAt - a.createdAt;
       }
@@ -72,7 +72,7 @@ export function VideoLibrary() {
     return filtered;
   }, [videos, searchQuery, statusFilter, qualityFilter, sortBy]);
 
-  const handleDownload = async (video: { _id: Id<"videos">; videoUrl?: string; title: string }) => {
+  const handleDownload = async (video: { _id: Id<"videos">; videoUrl?: string; title?: string }) => {
     if (!video.videoUrl) {
       toast.error("Video not ready for download");
       return;
@@ -88,7 +88,7 @@ export function VideoLibrary() {
       // Create a temporary link to download the video
       const link = document.createElement('a');
       link.href = video.videoUrl;
-      link.download = `${video.title}.mp4`;
+      link.download = `${video.title || 'video'}.mp4`;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
@@ -417,7 +417,7 @@ export function VideoLibrary() {
                     size="sm"
                     variant="outline"
                     className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(video._id, video.title)}
+                    onClick={() => handleDelete(video._id, video.title || 'Untitled')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

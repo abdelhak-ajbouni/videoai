@@ -27,9 +27,6 @@ export function WelcomeHero({ className }: WelcomeHeroProps) {
   const { user } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
 
-
-
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";

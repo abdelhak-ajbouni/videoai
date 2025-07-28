@@ -88,6 +88,42 @@ export const getVideosByStatus = query({
   },
 });
 
+// Query to get latest videos from all users except current user
+export const getLatestVideosFromOthers = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+
+    // Get all completed videos from all users except current user
+    const allVideos = await ctx.db
+      .query("videos")
+      .withIndex("by_status", (q) => q.eq("status", "completed"))
+      .order("desc")
+      .collect();
+
+    // Filter out videos from current user and limit results
+    const otherUsersVideos = allVideos
+      .filter(video => video.userId !== currentUser._id)
+      .slice(0, args.limit || 12);
+
+    return otherUsersVideos;
+  },
+});
+
 // Mutation to create a new video generation request
 export const createVideo = mutation({
   args: {
@@ -171,7 +207,7 @@ export const createVideo = mutation({
     // Create video record
     const videoId = await ctx.db.insert("videos", {
       userId: user._id,
-      title: args.title || null,
+      title: args.title || undefined,
       prompt: args.prompt,
       model: args.model,
       quality: args.quality,
@@ -893,7 +929,7 @@ export const searchVideos = query({
         case "oldest":
           return a.createdAt - b.createdAt;
         case "title":
-          return a.title.localeCompare(b.title);
+          return (a.title || "").localeCompare(b.title || "");
         case "credits":
           return b.creditsCost - a.creditsCost;
         case "fileSize":

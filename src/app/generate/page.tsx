@@ -6,14 +6,14 @@ import { api } from "../../../convex/_generated/api";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
-import { WelcomeHero } from "@/components/dashboard/welcome-hero";
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { CreditCard, Video, Clock, Sparkles, Play, Calendar, Zap, Crown, Coins, Download } from "lucide-react";
+
+import { Video, Clock, Sparkles, Play, Zap, Download, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { VideoModal } from "@/components/VideoModal";
 
 export default function GeneratePage() {
   const { user, isLoaded } = useUser();
@@ -258,49 +258,13 @@ export default function GeneratePage() {
         </div>
 
         {/* Video Modal */}
-        {selectedVideo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {selectedVideo.title}
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  ✕
-                </Button>
-              </div>
-              <div className="p-4">
-                <video
-                  className="w-full h-auto max-h-[70vh] rounded-lg"
-                  controls
-                  autoPlay
-                >
-                  <source src={selectedVideo.videoUrl} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Duration:</span> {selectedVideo.duration}s |
-                    <span className="font-medium ml-2">Quality:</span> {selectedVideo.quality} |
-                    <span className="font-medium ml-2">Credits:</span> {selectedVideo.creditsCost}
-                  </div>
-                  <Button
-                    onClick={() => handleDownload(selectedVideo)}
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <VideoModal
+          video={selectedVideo}
+          onClose={closeModal}
+          showDownloadButton={true}
+          onDownload={handleDownload}
+          variant="detailed"
+        />
       </div>
     </DashboardLayout>
   );
