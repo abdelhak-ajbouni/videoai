@@ -30,7 +30,7 @@ export default function Home() {
               name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || undefined,
               imageUrl: user.imageUrl || undefined,
             });
-            toast.success("Welcome to VideoAI! You've received 10 free credits.");
+            toast.success("Welcome to VideoAI!");
             router.push("/dashboard");
           } catch (error) {
             console.error("Error creating user:", error);
