@@ -10,7 +10,6 @@ import {
   Video,
   CreditCard,
   User,
-  TrendingUp,
   Home,
   ChevronLeft,
   ChevronRight,
@@ -52,13 +51,6 @@ const navigationItems: NavigationItem[] = [
     href: "/library",
     icon: <Video className="h-5 w-5" />,
     description: "Manage your videos"
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    href: "/analytics",
-    icon: <TrendingUp className="h-5 w-5" />,
-    description: "Usage insights and stats"
   },
   {
     id: "billing",

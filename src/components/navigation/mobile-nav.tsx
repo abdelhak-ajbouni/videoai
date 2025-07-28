@@ -12,7 +12,6 @@ import {
   Video,
   CreditCard,
   User,
-  TrendingUp,
   Home
 } from "lucide-react";
 import { useUser, SignOutButton } from "@clerk/nextjs";
@@ -37,12 +36,6 @@ const mobileNavItems = [
     label: "Library",
     href: "/library",
     icon: <Video className="h-5 w-5" />
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    href: "/analytics",
-    icon: <TrendingUp className="h-5 w-5" />
   },
   {
     id: "billing",

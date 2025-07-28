@@ -9,7 +9,6 @@ import {
   User,
   CreditCard,
   Video,
-  TrendingUp,
   Sparkles,
   Monitor,
   Smartphone,
@@ -203,16 +202,7 @@ export function HeaderShowcase() {
               </div>
             </div>
 
-            <div>
-              <p className="text-xs text-text-secondary mb-2">Analytics Deep Dive</p>
-              <div className="p-3 rounded-lg bg-surface-elevated border border-border">
-                <Breadcrumb items={[
-                  { label: "Analytics", href: "/dashboard/analytics", icon: <TrendingUp className="h-4 w-4" /> },
-                  { label: "Usage Reports", href: "/dashboard/analytics/usage" },
-                  { label: "Monthly Summary" }
-                ]} />
-              </div>
-            </div>
+
           </div>
         </CardContent>
       </Card>
