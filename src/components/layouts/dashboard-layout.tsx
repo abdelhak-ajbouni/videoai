@@ -11,12 +11,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[calc(100vh-4rem)] bg-background">
       {/* Mobile Navigation */}
       <MobileNav />
 
       {/* Desktop Layout */}
-      <div className="hidden lg:flex h-screen overflow-hidden">
+      <div className="hidden lg:flex h-[calc(100vh-4rem)] overflow-hidden">
         {/* Sidebar */}
         <Sidebar />
 
@@ -30,7 +30,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
       {/* Mobile Content */}
       <div className="lg:hidden">
-        <main className={cn("min-h-screen", className)}>
+        <main className={cn("min-h-[calc(100vh-4rem)]", className)}>
           {children}
         </main>
       </div>
