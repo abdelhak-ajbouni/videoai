@@ -1,5 +1,5 @@
 import { ModelManager } from "@/components/ModelManager";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { AppLayout } from "@/components/layouts/app-layout";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -21,10 +21,10 @@ export default async function ModelsPage() {
   }
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="container mx-auto py-8 px-4">
         <ModelManager />
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 } 

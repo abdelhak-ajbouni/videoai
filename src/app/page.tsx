@@ -31,17 +31,17 @@ export default function Home() {
               imageUrl: user.imageUrl || undefined,
             });
             toast.success("Welcome to VideoAI!");
-            router.push("/dashboard");
+            router.push("/generate");
           } catch (error) {
             console.error("Error creating user:", error);
-            toast.error("Welcome to VideoAI! Please refresh the page if you don't see your dashboard.");
+            toast.error("Welcome to VideoAI! Please refresh the page if you don't see the generate page.");
           }
         };
 
         createUserRecord();
       } else if (currentUser) {
-        // Existing user - redirect to dashboard automatically
-        router.push("/dashboard");
+        // Existing user - redirect to generate page automatically
+        router.push("/generate");
       }
     }
   }, [isSignedIn, user, currentUser, isLoaded, createUser, router]);
@@ -51,7 +51,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Loading text={
-          isSignedIn && currentUser ? "Redirecting to dashboard..." :
+          isSignedIn && currentUser ? "Redirecting to generate page..." :
             isSignedIn ? "Setting up your account..." :
               "Loading..."
         } />
@@ -79,7 +79,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
             <SignUpButton
               mode="modal"
-              forceRedirectUrl="/dashboard"
+              forceRedirectUrl="/generate"
             >
               <Button size="lg" className="text-lg px-8 py-3 bg-blue-600 hover:bg-blue-700">
                 <Sparkles className="mr-2 h-5 w-5" />
@@ -88,7 +88,7 @@ export default function Home() {
             </SignUpButton>
             <SignInButton
               mode="modal"
-              forceRedirectUrl="/dashboard"
+              forceRedirectUrl="/generate"
             >
               <Button variant="outline" size="lg" className="text-lg px-8 py-3">
                 Sign In

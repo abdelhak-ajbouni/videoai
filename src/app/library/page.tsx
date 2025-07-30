@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { VideoLibrary } from "@/components/VideoLibrary";
 import { Loading } from "@/components/ui/loading";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { AppLayout } from "@/components/layouts/app-layout";
 import { Video } from "lucide-react";
 
 export default function LibraryPage() {
@@ -15,16 +15,16 @@ export default function LibraryPage() {
   // Show loading state while authentication and user data are being loaded
   if (!isLoaded || !currentUser) {
     return (
-      <DashboardLayout>
+      <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loading text="Loading your video library..." />
         </div>
-      </DashboardLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="lg:p-0 p-4">
         {/* Header */}
         <div className="bg-surface shadow-sm border-b border-border backdrop-blur-sm">
@@ -50,6 +50,6 @@ export default function LibraryPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 } 

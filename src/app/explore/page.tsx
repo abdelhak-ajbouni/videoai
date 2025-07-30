@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { Loading } from "@/components/ui/loading";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { AppLayout } from "@/components/layouts/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Video, Compass, Play, Clock, Eye } from "lucide-react";
 import { useState } from "react";
@@ -26,11 +26,11 @@ export default function ExplorePage() {
   // Show loading state while authentication and user data are being loaded
   if (!isLoaded || !currentUser) {
     return (
-      <DashboardLayout>
+      <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loading text="Loading community videos..." />
         </div>
-      </DashboardLayout>
+      </AppLayout>
     );
   }
 
@@ -45,7 +45,7 @@ export default function ExplorePage() {
   };
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="min-h-screen bg-gray-900">
         {/* Header */}
         <div className="border-b border-gray-800">
@@ -173,6 +173,6 @@ export default function ExplorePage() {
           variant="detailed"
         />
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { ConfigurationManager } from "@/components/ConfigurationManager";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { AppLayout } from "@/components/layouts/app-layout";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -21,10 +21,10 @@ export default async function ConfigurationsPage() {
   }
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="container mx-auto py-8 px-4">
         <ConfigurationManager />
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 } 

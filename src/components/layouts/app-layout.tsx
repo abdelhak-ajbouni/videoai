@@ -4,12 +4,12 @@ import { Sidebar } from "@/components/navigation/sidebar";
 import { MobileNav } from "@/components/navigation/mobile-nav";
 import { cn } from "@/lib/utils";
 
-interface DashboardLayoutProps {
+interface AppLayoutProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export function DashboardLayout({ children, className }: DashboardLayoutProps) {
+export function AppLayout({ children, className }: AppLayoutProps) {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background">
       {/* Mobile Navigation */}

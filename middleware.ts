@@ -2,8 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isProtectedRoute = createRouteMatcher([
-  "/dashboard(.*)",
   "/generate(.*)",
+  "/explore(.*)",
+  "/my-videos(.*)",
   "/library(.*)",
   "/settings(.*)",
   "/billing(.*)",
@@ -24,7 +25,7 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next();
   }
 
-  // Protect dashboard and other authenticated routes
+  // Protect authenticated routes
   if (isProtectedRoute(req)) {
     if (!userId) {
       return redirectToSignIn({ returnBackUrl: req.url });

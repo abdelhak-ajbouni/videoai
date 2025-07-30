@@ -8,7 +8,7 @@ import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { AppLayout } from "@/components/layouts/app-layout";
 
 import { Video, Clock, Sparkles, Play, Zap, Download, CreditCard } from "lucide-react";
 import Link from "next/link";
@@ -27,11 +27,11 @@ export default function GeneratePage() {
   // Show loading state while authentication and user data are being loaded
   if (!isLoaded || !currentUser) {
     return (
-      <DashboardLayout>
+      <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loading text="Loading video generation..." />
         </div>
-      </DashboardLayout>
+      </AppLayout>
     );
   }
 
@@ -63,7 +63,7 @@ export default function GeneratePage() {
   };
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
         <div className="px-4 py-8">
           {/* Top Header with Credits */}
@@ -266,6 +266,6 @@ export default function GeneratePage() {
           variant="detailed"
         />
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 } 
