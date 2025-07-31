@@ -361,7 +361,7 @@ export function BillingAnalytics() {
                 <div className="flex justify-center mb-2">
                   <Crown className="h-8 w-8 text-yellow-500" />
                 </div>
-                <h3 className="font-medium">Business Plan</h3>
+                <h3 className="font-medium">Max Plan</h3>
                 <p className="text-sm text-muted-foreground mb-2">$99.99/month</p>
                 <div className="text-lg font-bold text-green-600">
                   Save {insights.monthlySpending > 99.99 ? formatCurrency((insights.monthlySpending - 99.99) * 100) : "$0"}/month

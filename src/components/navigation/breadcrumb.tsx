@@ -20,7 +20,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     <nav className={cn("flex items-center space-x-1 text-sm", className)}>
       {/* Home icon */}
       <Link
-        href="/dashboard"
+        href="/generate"
         className="flex items-center text-text-secondary hover:text-ai-primary-500 transition-colors duration-normal"
       >
         <Home className="h-4 w-4" />
@@ -72,10 +72,10 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 // Preset breadcrumb configurations for common pages
 export const breadcrumbPresets = {
   dashboard: [],
-  profile: [{ label: "Profile", href: "/dashboard/profile" }],
-  billing: [{ label: "Billing", href: "/dashboard/billing" }],
-  videoLibrary: [{ label: "Video Library" }],
-  videoGeneration: [{ label: "Generate Video" }],
+  profile: [{ label: "Profile", href: "/profile" }],
+  billing: [{ label: "Billing", href: "/profile" }],
+  videoLibrary: [{ label: "Video Library", href: "/my-videos" }],
+  videoGeneration: [{ label: "Generate Video", href: "/generate" }],
   analytics: [{ label: "Analytics" }],
   settings: [{ label: "Settings" }],
   help: [{ label: "Help & Support" }],

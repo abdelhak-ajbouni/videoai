@@ -786,9 +786,9 @@ function checkQualityAccess(
     case "standard":
       return true; // Available to all
     case "high":
-      return ["starter", "pro", "business"].includes(subscriptionTier);
+      return ["starter", "pro", "max"].includes(subscriptionTier);
     case "ultra":
-      return ["business"].includes(subscriptionTier);
+      return ["max"].includes(subscriptionTier);
     default:
       return false;
   }

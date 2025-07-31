@@ -461,10 +461,10 @@ const defaultPlans = [
     isPopular: true,
   },
   {
-    planId: "business",
-    name: "Business",
+    planId: "max",
+    name: "Max",
     description: "Enterprise-grade features for teams and businesses",
-    priceId: "price_business",
+    priceId: "price_max",
     price: 9999,
     currency: "usd",
     monthlyCredits: 2000,

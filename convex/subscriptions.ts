@@ -31,11 +31,7 @@ export const createSubscription: any = mutation({
   args: {
     userId: v.id("users"),
     stripeSubscriptionId: v.string(),
-    planId: v.union(
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("business")
-    ),
+    planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
     stripeCustomerId: v.string(),
     stripePriceId: v.string(),
     subscriptionStatus: v.string(),
@@ -470,7 +466,7 @@ export const changeSubscriptionPlan: any = mutation({
     newPlanId: v.union(
       v.literal("starter"),
       v.literal("pro"),
-      v.literal("business")
+      v.literal("max")
     ),
     stripeSubscriptionId: v.string(),
     stripeCustomerId: v.string(),

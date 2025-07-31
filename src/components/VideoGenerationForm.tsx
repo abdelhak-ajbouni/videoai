@@ -35,7 +35,7 @@ export function VideoGenerationForm() {
   const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
   const [duration, setDuration] = useState<number>(5);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // Model-specific options
   const [resolution, setResolution] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
@@ -83,9 +83,9 @@ export function VideoGenerationForm() {
       case "standard":
         return true; // Available to all
       case "high":
-        return ["starter", "pro", "business"].includes(currentUser.subscriptionTier);
+        return ["starter", "pro", "max"].includes(currentUser.subscriptionTier);
       case "ultra":
-        return ["business"].includes(currentUser.subscriptionTier);
+        return ["max"].includes(currentUser.subscriptionTier);
       default:
         return false;
     }
@@ -177,8 +177,6 @@ export function VideoGenerationForm() {
         cameraConcept: cameraConcept || undefined,
       });
 
-      toast.success("Video generation started! Check your library to see progress.");
-
       // Reset form
       setPrompt("");
       // Reset to first available model or empty string
@@ -225,16 +223,16 @@ export function VideoGenerationForm() {
   return (
     <div className="space-y-4">
       <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50">
-      <CardHeader className="pb-6">
-        <CardTitle className="text-lg font-medium text-white/95">
-          Create New Video
-        </CardTitle>
-        <p className="text-sm text-gray-400 mt-1">
-          Generate AI-powered videos from your description
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-lg font-medium text-white/95">
+            Create New Video
+          </CardTitle>
+          <p className="text-sm text-gray-400 mt-1">
+            Generate AI-powered videos from your description
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Prompt */}
             <div className="space-y-3">
               <Label htmlFor="prompt" className="text-sm font-medium text-white/90">

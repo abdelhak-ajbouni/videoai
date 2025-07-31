@@ -114,8 +114,8 @@ export const createCreditCheckoutSession = action({
           },
         ],
         mode: "payment",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true&credits=${packageConfig.credits}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?canceled=true`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?success=true&credits=${packageConfig.credits}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?canceled=true`,
         metadata: {
           userId,
           packageId,
@@ -132,11 +132,7 @@ export const createCreditCheckoutSession = action({
 export const createSubscriptionCheckoutSession = action({
   args: {
     userId: v.id("users"),
-    planId: v.union(
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("business")
-    ),
+    planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
   },
   handler: async (ctx: ActionCtx, { userId, planId }): Promise<string> => {
     const user = await ctx.runQuery(api.users.getUser, { userId });
@@ -161,8 +157,8 @@ export const createSubscriptionCheckoutSession = action({
           },
         ],
         mode: "subscription",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscription=success&plan=${planId}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscription=canceled`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=success&plan=${planId}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=canceled`,
         metadata: {
           userId,
           planId,
@@ -183,7 +179,7 @@ export const createCustomerPortalSession = action({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate`,
     });
 
     return session.url;
@@ -294,7 +290,7 @@ async function handleCheckoutSessionCompleted(
       await ctx.runAction(api.stripe.handleSubscriptionCreation, {
         userId: userId as Id<"users">,
         stripeSubscriptionId: session.subscription as string,
-        planId: planId as "starter" | "pro" | "business",
+        planId: planId as "starter" | "pro" | "max",
       });
 
       console.log("Subscription created successfully:", { userId, planId });
@@ -310,7 +306,7 @@ async function handleCheckoutSessionCompleted(
       await ctx.runAction(api.stripe.handlePlanChange, {
         userId: userId as Id<"users">,
         stripeSubscriptionId: session.subscription as string,
-        newPlanId: newPlanId as "starter" | "pro" | "business",
+        newPlanId: newPlanId as "starter" | "pro" | "max",
       });
 
       console.log("Plan change processed successfully:", { userId, newPlanId });
@@ -399,11 +395,7 @@ export const handleSubscriptionCreation = action({
   args: {
     userId: v.id("users"),
     stripeSubscriptionId: v.string(),
-    planId: v.union(
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("business")
-    ),
+    planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
   },
   handler: async (ctx, { userId, stripeSubscriptionId, planId }) => {
     console.log("Handling subscription creation:", {
@@ -448,7 +440,7 @@ export const handlePlanChange = action({
     newPlanId: v.union(
       v.literal("starter"),
       v.literal("pro"),
-      v.literal("business")
+      v.literal("max")
     ),
   },
   handler: async (ctx, { userId, stripeSubscriptionId, newPlanId }) => {
@@ -577,7 +569,7 @@ export const changeSubscriptionPlan: any = action({
     newPlanId: v.union(
       v.literal("starter"),
       v.literal("pro"),
-      v.literal("business")
+      v.literal("max")
     ),
   },
   handler: async (ctx, { userId, newPlanId }) => {
@@ -599,8 +591,8 @@ export const changeSubscriptionPlan: any = action({
           },
         ],
         mode: "subscription",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?plan_change=success&plan=${newPlanId}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?plan_change=canceled`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=success&plan=${newPlanId}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=canceled`,
         metadata: {
           userId,
           newPlanId,

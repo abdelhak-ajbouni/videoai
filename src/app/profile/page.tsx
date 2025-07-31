@@ -28,7 +28,7 @@ import { toast } from "sonner";
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  
+
   // Form states
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -96,7 +96,7 @@ export default function ProfilePage() {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
       });
-      
+
       toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch (error) {
@@ -134,7 +134,7 @@ export default function ProfilePage() {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      
+
       toast.success("Password updated successfully");
       setIsChangingPassword(false);
       setPasswordData({

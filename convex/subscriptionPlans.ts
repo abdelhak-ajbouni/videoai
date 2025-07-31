@@ -146,10 +146,10 @@ export const initializeDefaultPlans = mutation({
         isPopular: true,
       },
       {
-        planId: "business",
-        name: "Business",
+        planId: "max",
+        name: "Max",
         description: "Enterprise-grade features for teams and businesses",
-        priceId: process.env.STRIPE_BUSINESS_PRICE_ID!,
+        priceId: process.env.STRIPE_MAX_PRICE_ID!,
         price: 9999, // $99.99
         currency: "usd",
         monthlyCredits: 2000,

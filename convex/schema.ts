@@ -18,7 +18,7 @@ export default defineSchema({
       v.literal("free"),
       v.literal("starter"),
       v.literal("pro"),
-      v.literal("business")
+      v.literal("max")
     ),
     subscriptionStatus: v.union(
       v.literal("active"),

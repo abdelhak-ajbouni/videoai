@@ -64,7 +64,7 @@ export function HeaderShowcase() {
               <Header showSearch={false}>
                 <div className="space-y-2">
                   <Breadcrumb items={[
-                    { label: "Video Library", href: "/dashboard/library" },
+                    { label: "Video Library", href: "/my-videos" },
                     { label: "My Video", icon: <Video className="h-4 w-4" /> }
                   ]} />
                   <h1 className="text-2xl font-bold text-text-primary">Sunset Over Mountains</h1>
@@ -195,8 +195,8 @@ export function HeaderShowcase() {
               <p className="text-xs text-text-secondary mb-2">Video Library</p>
               <div className="p-3 rounded-lg bg-surface-elevated border border-border">
                 <Breadcrumb items={[
-                  { label: "Video Library", href: "/dashboard/library" },
-                  { label: "AI Landscapes", href: "/dashboard/library/category/landscapes" },
+                  { label: "Video Library", href: "/my-videos" },
+                  { label: "AI Landscapes", href: "/my-videos/category/landscapes" },
                   { label: "Sunset Over Mountains", icon: <Video className="h-4 w-4" /> }
                 ]} />
               </div>

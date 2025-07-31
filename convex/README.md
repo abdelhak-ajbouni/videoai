@@ -93,7 +93,7 @@ The seeding system uses the following environment variables for Stripe price IDs
 
 - `STRIPE_STARTER_PRICE_ID`
 - `STRIPE_PRO_PRICE_ID`
-- `STRIPE_BUSINESS_PRICE_ID`
+- `STRIPE_MAX_PRICE_ID`
 
 If these are not set, placeholder values will be used.
 

@@ -55,7 +55,7 @@ export default function PricingPage() {
       toast.success("Redirecting to checkout...");
       const checkoutUrl = await createSubscriptionCheckout({
         userId: currentUser._id,
-        planId: planId as "starter" | "pro" | "business",
+        planId: planId as "starter" | "pro" | "max",
       });
 
       if (checkoutUrl) {
@@ -104,7 +104,7 @@ export default function PricingPage() {
         return <Zap className="h-5 w-5" />;
       case 'pro':
         return <Star className="h-5 w-5" />;
-      case 'business':
+      case 'max':
         return <Crown className="h-5 w-5" />;
       default:
         return <Package className="h-5 w-5" />;

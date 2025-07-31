@@ -15,12 +15,15 @@ import { Video, Clock, Sparkles, Play, Download, Loader2, CheckCircle, AlertCirc
 import { useState, useEffect } from "react";
 import { VideoModal } from "@/components/VideoModal";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 export default function GeneratePage() {
   const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
+
   // Get videos in different states
   const pendingVideos = useQuery(
     api.videos.getVideosByStatus,
@@ -34,13 +37,40 @@ export default function GeneratePage() {
     api.videos.getVideosByStatus,
     currentUser ? { status: "completed" } : "skip"
   );
-  
+
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
   const [progress, setProgress] = useState(0);
 
+  // Handle Stripe redirect parameters
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const credits = searchParams.get('credits');
+    const subscription = searchParams.get('subscription');
+    const plan = searchParams.get('plan');
+    const planChange = searchParams.get('plan_change');
+    const canceled = searchParams.get('canceled');
+
+    if (success === 'true' && credits) {
+      toast.success(`Successfully purchased ${credits} credits! You can now generate videos.`);
+    } else if (subscription === 'success' && plan) {
+      toast.success(`Successfully subscribed to ${plan} plan! You now have access to more features.`);
+    } else if (planChange === 'success' && plan) {
+      toast.success(`Successfully upgraded to ${plan} plan! You now have access to more features.`);
+    } else if (canceled === 'true') {
+      toast.error('Payment was canceled');
+    }
+
+    // Clear URL parameters after showing the message
+    if (success || subscription || planChange || canceled) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
   // Get the current video (most recent pending or processing)
   const currentVideo = processingVideos?.[0] || pendingVideos?.[0] || completedVideos?.[0] || null;
-  
+
   // Simulate progress for processing videos
   useEffect(() => {
     if (processingVideos && processingVideos.length > 0) {
@@ -50,7 +80,7 @@ export default function GeneratePage() {
           return newProgress > 95 ? 95 : newProgress;
         });
       }, 1000);
-      
+
       return () => clearInterval(interval);
     } else if (completedVideos && completedVideos.length > 0) {
       setProgress(100);
@@ -185,8 +215,8 @@ export default function GeneratePage() {
                             This may take a few minutes...
                           </p>
                           <div className="w-48 mx-auto">
-                            <Progress 
-                              value={progress} 
+                            <Progress
+                              value={progress}
                               className="h-2 bg-gray-800"
                             />
                             <p className="text-xs text-gray-500 mt-2">
@@ -242,7 +272,7 @@ export default function GeneratePage() {
                               </div>
                             </div>
                           </div>
-                          
+
                           {status === 'completed' && (
                             <div className="flex items-center space-x-3">
                               <div className="flex items-center space-x-2">

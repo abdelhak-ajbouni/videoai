@@ -43,7 +43,7 @@ export function SubscriptionPlans() {
       if (subscriptionStats?.hasActiveSubscription) {
         const checkoutUrl = await changeSubscriptionPlan({
           userId: userData._id,
-          newPlanId: planId as "starter" | "pro" | "business",
+          newPlanId: planId as "starter" | "pro" | "max",
         });
 
         // Redirect to Stripe checkout for plan change
@@ -52,7 +52,7 @@ export function SubscriptionPlans() {
         // New subscription
         const checkoutUrl = await createSubscriptionSession({
           userId: userData._id,
-          planId: planId as "starter" | "pro" | "business",
+          planId: planId as "starter" | "pro" | "max",
         });
 
         // Redirect to Stripe checkout
