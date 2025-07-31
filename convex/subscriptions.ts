@@ -4,11 +4,11 @@ import { api } from "./_generated/api";
 
 // Get user's current subscription
 export const getSubscription = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
     return await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
   },
@@ -16,11 +16,11 @@ export const getSubscription = query({
 
 // Get all subscriptions for a user (including inactive)
 export const getAllSubscriptions = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
     return await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .order("desc")
       .collect();
   },
@@ -29,7 +29,7 @@ export const getAllSubscriptions = query({
 // Create new subscription (called from webhook)
 export const createSubscription: any = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
     planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
     stripeCustomerId: v.string(),
@@ -42,7 +42,7 @@ export const createSubscription: any = mutation({
   handler: async (
     ctx,
     {
-      userId,
+      clerkId,
       stripeSubscriptionId,
       planId,
       stripeCustomerId,
@@ -63,7 +63,7 @@ export const createSubscription: any = mutation({
 
     // Create subscription record
     const subscriptionId = await ctx.db.insert("subscriptions", {
-      userId,
+      clerkId,
       stripeSubscriptionId,
       stripeCustomerId,
       stripePriceId,

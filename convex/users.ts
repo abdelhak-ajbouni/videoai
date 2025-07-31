@@ -1,50 +1,21 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
 
+// Create user (now redirects to userProfiles)
 export const createUser = mutation({
   args: {
     clerkId: v.string(),
-    email: v.string(),
-    name: v.optional(v.string()),
-    imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Check if user already exists
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (existingUser) {
-      return existingUser._id;
-    }
-
-    // Get free tier credits from configuration
-    const freeTierCredits = await ctx.db
-      .query("configurations")
-      .withIndex("by_key", (q: any) => q.eq("key", "free_tier_credits"))
-      .first();
-
-    const initialCredits = (freeTierCredits?.value as number) || 10; // Default to 10 if not configured
-
-    // Create new user with default values
-    const userId = await ctx.db.insert("users", {
+    // Redirect to userProfiles creation
+    return await ctx.runMutation(api.userProfiles.createUserProfile, {
       clerkId: args.clerkId,
-      email: args.email,
-      name: args.name,
-      imageUrl: args.imageUrl,
-      credits: initialCredits,
-      totalCreditsUsed: 0,
-      subscriptionTier: "free",
-      subscriptionStatus: "inactive",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
     });
-
-    return userId;
   },
 });
 
+// Update user (deprecated - user profile data now handled by Clerk)
 export const updateUser = mutation({
   args: {
     clerkId: v.string(),
@@ -53,39 +24,29 @@ export const updateUser = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    await ctx.db.patch(user._id, {
-      name: args.name,
-      imageUrl: args.imageUrl,
-      email: args.email,
-      updatedAt: Date.now(),
+    // User profile data (name, email, imageUrl) is now handled by Clerk
+    // Only create userProfile if it doesn't exist
+    return await ctx.runMutation(api.userProfiles.createUserProfile, {
+      clerkId: args.clerkId,
     });
-
-    return user._id;
   },
 });
 
+// Deprecated - Stripe customer IDs now stored in subscriptions table
 export const updateUserStripeCustomerId = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeCustomerId: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.userId, {
-      stripeCustomerId: args.stripeCustomerId,
-      updatedAt: Date.now(),
-    });
+    // No-op: Stripe customer IDs are now managed in subscriptions table
+    // This function is kept for backward compatibility
+    console.log(`updateUserStripeCustomerId called for ${args.clerkId}, but no action needed`);
+    return null;
   },
 });
 
+// Get current user (now returns userProfile + Clerk data)
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -94,40 +55,67 @@ export const getCurrentUser = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
+    // Get user profile from userProfiles table
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: identity.subject,
+    });
 
-    return user;
+    if (!userProfile) {
+      return null;
+    }
+
+    // Combine userProfile data with Clerk identity data
+    return {
+      _id: userProfile._id,
+      clerkId: userProfile.clerkId,
+      email: identity.email || "",
+      name: identity.name || "",
+      imageUrl: identity.pictureUrl || "",
+      credits: userProfile.credits,
+      totalCreditsUsed: userProfile.totalCreditsUsed,
+      createdAt: userProfile.createdAt,
+      updatedAt: userProfile.updatedAt,
+    };
   },
 });
 
+// Get user by profile ID (now uses userProfiles)
 export const getUser = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("userProfiles") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.userId);
   },
 });
 
+// Get user by Clerk ID (now uses userProfiles)
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
+    return await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: args.clerkId,
+    });
   },
 });
 
+// Get user by Stripe customer ID (now searches subscriptions table)
 export const getUserByStripeCustomerId = query({
   args: { stripeCustomerId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
+    // Find subscription with this customer ID
+    const subscription = await ctx.db
+      .query("subscriptions")
       .withIndex("by_stripe_customer_id", (q) =>
         q.eq("stripeCustomerId", args.stripeCustomerId)
       )
       .first();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Return the user profile for this clerkId
+    return await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: subscription.clerkId,
+    });
   },
 });
