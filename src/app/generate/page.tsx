@@ -226,8 +226,8 @@ export default function GeneratePage() {
 
                     {/* Video Info */}
                     {currentVideo && (
-                      <div className="p-2 lg:p-6">
-                        <div className="flex items-center justify-between mb-4">
+                      <div className="p-2">
+                        <div className="flex items-center justify-between">
                           <div>
                             <h3 className="text-white font-medium mb-1">
                               {currentVideo.title}

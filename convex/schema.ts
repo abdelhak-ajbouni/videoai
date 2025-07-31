@@ -437,33 +437,6 @@ export default defineSchema({
     .index("by_health", ["lastHealthCheck"])
     .index("by_discovery", ["discoveredAt"]),
 
-  replicateMetrics: defineTable({
-    // Model and operation identification
-    modelId: v.string(), // Model that was used
-    operation: v.string(), // "create_prediction", "get_prediction", "list_models", etc.
-
-    // Performance metrics
-    duration: v.number(), // Operation duration in milliseconds
-    success: v.boolean(), // Whether the operation succeeded
-
-    // Error information (for failed operations)
-    errorType: v.optional(v.string()), // ReplicateErrorType enum value
-    errorMessage: v.optional(v.string()), // Error message
-    errorStatus: v.optional(v.number()), // HTTP status code
-
-    // Additional context
-    context: v.optional(v.any()), // Additional context data
-
-    // Timestamp
-    timestamp: v.number(), // When the operation occurred
-  })
-    .index("by_model_id", ["modelId"])
-    .index("by_model_and_timestamp", ["modelId", "timestamp"])
-    .index("by_success", ["success"])
-    .index("by_error_type", ["errorType"])
-    .index("by_timestamp", ["timestamp"])
-    .index("by_operation", ["operation"]),
-
   modelDiscoveryLogs: defineTable({
     discoveryId: v.string(),
     startedAt: v.number(),

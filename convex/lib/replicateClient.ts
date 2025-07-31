@@ -1,7 +1,4 @@
 import Replicate from "replicate";
-import { RetryManager, RetryOptions } from "./retryManager";
-import { defaultPerformanceMonitor } from "../services/performanceMonitor";
-import { ReplicateErrorHandler, ReplicateError, ReplicateErrorType } from "./replicateErrors";
 
 /**
  * Interface for Replicate prediction parameters
@@ -10,546 +7,169 @@ export interface PredictionParams {
   model: string;
   input: Record<string, any>;
   webhook?: string;
-  webhook_events_filter?: string[];
   stream?: boolean;
 }
 
 /**
- * Interface for Replicate prediction response
+ * Simple Replicate client with basic retry logic
  */
-export interface Prediction {
-  id: string;
-  model: string;
-  version: string;
-  input: Record<string, any>;
-  output?: any;
-  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
-  error?: string;
-  logs?: string[];
-  created_at: string;
-  started_at?: string;
-  completed_at?: string;
-  urls: {
-    get: string;
-    cancel: string;
-  };
-  webhook?: string;
-  webhook_events_filter?: string[];
-}
-
-/**
- * Interface for Replicate model response
- */
-export interface Model {
-  owner: string;
-  name: string;
-  description?: string;
-  visibility: 'public' | 'private';
-  github_url?: string;
-  paper_url?: string;
-  license_url?: string;
-  cover_image_url?: string;
-  default_example?: any;
-  latest_version?: {
-    id: string;
-    created_at: string;
-    cog_version: string;
-    openapi_schema?: any;
-  };
-}
-
-/**
- * Interface for model list response
- */
-export interface ModelList {
-  results: Model[];
-  next?: string;
-  previous?: string;
-}
-
-/**
- * Enhanced Replicate client with retry logic and performance monitoring
- */
-export class EnhancedReplicateClient {
+export class SimpleReplicateClient {
   private client: Replicate;
-  private retryManager: RetryManager;
-  private ctx?: any; // Convex context for performance monitoring
 
-  constructor(apiToken: string, ctx?: any) {
+  constructor(apiToken: string) {
     this.client = new Replicate({ auth: apiToken });
-    this.retryManager = new RetryManager();
-    this.ctx = ctx;
   }
 
   /**
-   * Create a new prediction with retry logic and performance monitoring
+   * Create a new prediction with basic retry logic
    */
-  async createPrediction(params: PredictionParams): Promise<Prediction> {
-    const operation = 'create_prediction';
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.predictions.create({
-          model: params.model,
-          input: params.input,
-          webhook: params.webhook,
-          webhook_events_filter: params.webhook_events_filter,
-          stream: params.stream,
-        });
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          params.model,
-          operation,
-          duration,
-          {
-            predictionId: result.id,
-            inputKeys: Object.keys(params.input),
-            hasWebhook: !!params.webhook,
-          }
-        );
-      }
-
-      return result as Prediction;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          params.model,
-          operation,
-          error,
-          duration,
-          {
-            inputKeys: Object.keys(params.input),
-            hasWebhook: !!params.webhook,
-          }
-        );
-      }
-
-      // Enhance error with classification
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
+  async createPrediction(
+    params: PredictionParams
+  ): Promise<Replicate.Prediction> {
+    return await this.withRetry(async () => {
+      return await this.client.predictions.create({
         model: params.model,
-        duration,
+        input: params.input,
+        webhook: params.webhook,
+        stream: params.stream,
       });
-
-      throw replicateError;
-    }
+    });
   }
 
   /**
-   * Get a prediction by ID with retry logic and performance monitoring
+   * Get a prediction by ID with basic retry logic
    */
-  async getPrediction(id: string): Promise<Prediction> {
-    const operation = 'get_prediction';
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.predictions.get(id);
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          result.model || 'unknown',
-          operation,
-          duration,
-          {
-            predictionId: id,
-            status: result.status,
-          }
-        );
-      }
-
-      return result as Prediction;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          'unknown', // We don't know the model for failed gets
-          operation,
-          error,
-          duration,
-          {
-            predictionId: id,
-          }
-        );
-      }
-
-      // Enhance error with classification
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
-        predictionId: id,
-        duration,
-      });
-
-      throw replicateError;
-    }
+  async getPrediction(id: string): Promise<Replicate.Prediction> {
+    return await this.withRetry(async () => {
+      return await this.client.predictions.get(id);
+    });
   }
 
   /**
-   * Cancel a prediction with retry logic
+   * Cancel a prediction
    */
-  async cancelPrediction(id: string): Promise<Prediction> {
-    const operation = 'cancel_prediction';
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.predictions.cancel(id);
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          result.model || 'unknown',
-          operation,
-          duration,
-          {
-            predictionId: id,
-          }
-        );
-      }
-
-      return result as Prediction;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          'unknown',
-          operation,
-          error,
-          duration,
-          {
-            predictionId: id,
-          }
-        );
-      }
-
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
-        predictionId: id,
-        duration,
-      });
-
-      throw replicateError;
-    }
+  async cancelPrediction(id: string): Promise<Replicate.Prediction> {
+    return await this.withRetry(async () => {
+      return await this.client.predictions.cancel(id);
+    });
   }
 
   /**
-   * List models with retry logic and performance monitoring
+   * List models
    */
-  async listModels(cursor?: string): Promise<ModelList> {
-    const operation = 'list_models';
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.models.list({ cursor });
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          'system', // System operation, not model-specific
-          operation,
-          duration,
-          {
-            cursor,
-            resultCount: result.results?.length || 0,
-          }
-        );
-      }
-
-      return result as ModelList;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          'system',
-          operation,
-          error,
-          duration,
-          {
-            cursor,
-          }
-        );
-      }
-
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
-        cursor,
-        duration,
-      });
-
-      throw replicateError;
-    }
+  async listModels(cursor?: string): Promise<{ results: Replicate.Model[] }> {
+    return await this.withRetry(async () => {
+      return await this.client.models.list();
+    });
   }
 
   /**
-   * Get a specific model with retry logic and performance monitoring
+   * Get a specific model
    */
-  async getModel(owner: string, name: string): Promise<Model> {
-    const operation = 'get_model';
-    const modelId = `${owner}/${name}`;
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.models.get(owner, name);
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          modelId,
-          operation,
-          duration,
-          {
-            owner,
-            name,
-            visibility: result.visibility,
-          }
-        );
-      }
-
-      return result as Model;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          modelId,
-          operation,
-          error,
-          duration,
-          {
-            owner,
-            name,
-          }
-        );
-      }
-
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
-        modelId,
-        duration,
-      });
-
-      throw replicateError;
-    }
+  async getModel(owner: string, name: string): Promise<Replicate.Model> {
+    return await this.withRetry(async () => {
+      return await this.client.models.get(owner, name);
+    });
   }
 
   /**
-   * List model versions with retry logic
+   * List model versions
    */
-  async listModelVersions(owner: string, name: string, cursor?: string): Promise<any> {
-    const operation = 'list_model_versions';
-    const modelId = `${owner}/${name}`;
-    const startTime = Date.now();
-
-    try {
-      const result = await this.retryManager.execute(async () => {
-        return await this.client.models.versions.list(owner, name, { cursor });
-      }, this.getRetryOptionsForOperation(operation));
-
-      // Record success metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordSuccess(
-          this.ctx,
-          modelId,
-          operation,
-          duration,
-          {
-            owner,
-            name,
-            cursor,
-            resultCount: result.results?.length || 0,
-          }
-        );
-      }
-
-      return result;
-    } catch (error) {
-      // Record failure metrics
-      const duration = Date.now() - startTime;
-      if (this.ctx) {
-        await defaultPerformanceMonitor.recordFailure(
-          this.ctx,
-          modelId,
-          operation,
-          error,
-          duration,
-          {
-            owner,
-            name,
-            cursor,
-          }
-        );
-      }
-
-      const replicateError = ReplicateError.from(error);
-      ReplicateErrorHandler.logError(error, {
-        operation,
-        modelId,
-        duration,
-      });
-
-      throw replicateError;
-    }
+  async listModelVersions(
+    owner: string,
+    name: string
+  ): Promise<Replicate.ModelVersion[]> {
+    return await this.withRetry(async () => {
+      return await this.client.models.versions.list(owner, name);
+    });
   }
 
   /**
-   * Get retry options based on operation type
+   * Basic retry logic with exponential backoff
    */
-  private getRetryOptionsForOperation(operation: string): RetryOptions {
-    switch (operation) {
-      case 'create_prediction':
-        // Prediction creation is critical, use more aggressive retries
-        return {
-          maxRetries: 5,
-          baseDelay: 2000,
-          maxDelay: 30000,
-          backoffMultiplier: 2,
-          jitterFactor: 0.2,
-        };
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error;
 
-      case 'get_prediction':
-        // Getting predictions should be fast and reliable
-        return {
-          maxRetries: 3,
-          baseDelay: 1000,
-          maxDelay: 10000,
-          backoffMultiplier: 2,
-          jitterFactor: 0.1,
-        };
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
 
-      case 'list_models':
-      case 'get_model':
-      case 'list_model_versions':
-        // Model operations are less time-sensitive
-        return {
-          maxRetries: 3,
-          baseDelay: 1500,
-          maxDelay: 15000,
-          backoffMultiplier: 2,
-          jitterFactor: 0.15,
-        };
+        // Don't retry on the last attempt
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
 
-      case 'cancel_prediction':
-        // Cancellation should be quick
-        return {
-          maxRetries: 2,
-          baseDelay: 1000,
-          maxDelay: 5000,
-          backoffMultiplier: 2,
-          jitterFactor: 0.1,
-        };
+        // Don't retry on client errors (4xx)
+        if (this.isClientError(error)) {
+          throw lastError;
+        }
 
-      default:
-        // Default retry options
-        return {
-          maxRetries: 3,
-          baseDelay: 1000,
-          maxDelay: 10000,
-          backoffMultiplier: 2,
-          jitterFactor: 0.1,
-        };
+        // Wait before retrying with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        await this.sleep(delay);
+      }
     }
+
+    throw lastError!;
   }
 
   /**
-   * Get the underlying Replicate client (for advanced use cases)
+   * Check if error is a client error (4xx status codes)
+   */
+  private isClientError(error: any): boolean {
+    const statusCode = error.status || error.statusCode;
+    return statusCode >= 400 && statusCode < 500;
+  }
+
+  /**
+   * Sleep utility
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Get the underlying Replicate client
    */
   getClient(): Replicate {
     return this.client;
   }
-
-  /**
-   * Update the Convex context for performance monitoring
-   */
-  setContext(ctx: any): void {
-    this.ctx = ctx;
-  }
-
-  /**
-   * Check if the client has a context for monitoring
-   */
-  hasContext(): boolean {
-    return !!this.ctx;
-  }
-
-  /**
-   * Create a new client instance with the same configuration but different context
-   */
-  withContext(ctx: any): EnhancedReplicateClient {
-    const newClient = new EnhancedReplicateClient(
-      this.client.auth || process.env.REPLICATE_API_TOKEN || '',
-      ctx
-    );
-    return newClient;
-  }
 }
 
 /**
- * Factory function to create an enhanced Replicate client
+ * Factory function to create a simple Replicate client
  */
-export function createEnhancedReplicateClient(
-  apiToken?: string,
-  ctx?: any
-): EnhancedReplicateClient {
+export function createReplicateClient(
+  apiToken?: string
+): SimpleReplicateClient {
   const token = apiToken || process.env.REPLICATE_API_TOKEN;
   if (!token) {
-    throw new Error('Replicate API token is required');
+    throw new Error("Replicate API token is required");
   }
-  
-  return new EnhancedReplicateClient(token, ctx);
+
+  return new SimpleReplicateClient(token);
 }
 
 /**
- * Default enhanced client instance (without context) - created lazily
+ * Default client instance
  */
-let _defaultEnhancedReplicateClient: EnhancedReplicateClient | null = null;
+let _defaultReplicateClient: SimpleReplicateClient | null = null;
 
-export function getDefaultEnhancedReplicateClient(): EnhancedReplicateClient {
-  if (!_defaultEnhancedReplicateClient) {
-    _defaultEnhancedReplicateClient = createEnhancedReplicateClient();
+export function getDefaultReplicateClient(): SimpleReplicateClient {
+  if (!_defaultReplicateClient) {
+    _defaultReplicateClient = createReplicateClient();
   }
-  return _defaultEnhancedReplicateClient;
+  return _defaultReplicateClient;
 }
 
 // For backward compatibility
-export const defaultEnhancedReplicateClient = {
+export const defaultReplicateClient = {
   get client() {
-    return getDefaultEnhancedReplicateClient();
-  }
+    return getDefaultReplicateClient();
+  },
 };
