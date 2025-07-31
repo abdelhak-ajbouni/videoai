@@ -630,15 +630,6 @@ export const changeSubscriptionPlan: any = action({
   },
 });
 
-// Test function to verify webhook endpoint is working
-export const testWebhook = action({
-  args: {},
-  handler: async (ctx) => {
-    console.log("Test webhook function called");
-    return "Webhook endpoint is working!";
-  },
-});
-
 // Get user by Stripe customer ID
 export const getUserByStripeCustomerId = query({
   args: { stripeCustomerId: v.string() },
