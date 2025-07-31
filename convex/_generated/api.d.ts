@@ -15,7 +15,6 @@ import type {
 } from "convex/server";
 import type * as configurations from "../configurations.js";
 import type * as creditPackages from "../creditPackages.js";
-import type * as credits from "../credits.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
 import type * as lib_replicateClient from "../lib/replicateClient.js";
@@ -40,7 +39,6 @@ import type * as videos from "../videos.js";
 declare const fullApi: ApiFromModules<{
   configurations: typeof configurations;
   creditPackages: typeof creditPackages;
-  credits: typeof credits;
   http: typeof http;
   init: typeof init;
   "lib/replicateClient": typeof lib_replicateClient;

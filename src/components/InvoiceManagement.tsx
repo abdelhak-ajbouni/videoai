@@ -28,11 +28,11 @@ export function InvoiceManagement() {
   const userData = useQuery(api.users.getCurrentUser);
   const subscriptionHistory = useQuery(
     api.subscriptions.getSubscriptionHistory,
-    userData?._id ? { userId: userData._id } : "skip"
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
   const creditHistory = useQuery(
-    api.credits.getCreditHistory,
-    userData?._id ? { userId: userData._id } : "skip"
+    api.userProfiles.getCreditHistory,
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
   const createPortalSession = useAction(api.stripe.createCustomerPortalSession);
 

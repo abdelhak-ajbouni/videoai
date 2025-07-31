@@ -301,7 +301,9 @@ export const getOrCreateStripePrice = action({
     );
 
     // Get plan from database
-    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, { planId });
+    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
+      planId,
+    });
     if (!plan) {
       throw new Error(`Plan not found: ${planId}`);
     }
@@ -318,7 +320,9 @@ export const getOrCreateStripePrice = action({
     } else {
       product = await stripe.products.create({
         name: `${plan.monthlyCredits} Credits - ${plan.name} Plan`,
-        description: plan.description || `Monthly subscription for ${plan.monthlyCredits} credits`,
+        description:
+          plan.description ||
+          `Monthly subscription for ${plan.monthlyCredits} credits`,
       });
     }
 

@@ -26,12 +26,12 @@ export function BillingDashboard() {
   // Fetch user data and billing information using getCurrentUser
   const userData = useQuery(api.users.getCurrentUser);
   const creditStats = useQuery(
-    api.credits.getCreditStats,
-    userData?._id ? { userId: userData._id } : "skip"
+    api.userProfiles.getCreditStats,
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
   const creditHistory = useQuery(
-    api.credits.getCreditHistory,
-    userData?._id ? { userId: userData._id } : "skip"
+    api.userProfiles.getCreditHistory,
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
 
   // Calculate usage insights

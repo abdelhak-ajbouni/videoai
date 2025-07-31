@@ -114,7 +114,7 @@ export const createSubscription: any = mutation({
     // No need to update user profile with subscription details
 
     // Grant initial monthly credits
-    await ctx.runMutation(api.credits.grantSubscriptionCredits, {
+    await ctx.runMutation(api.userProfiles.grantSubscriptionCredits, {
       clerkId,
       amount: plan.monthlyCredits,
       description: `Monthly credits for ${planId} subscription`,
@@ -327,7 +327,7 @@ export const allocateMonthlyCredits = mutation({
     }
 
     // Grant monthly credits
-    await ctx.runMutation(api.credits.grantSubscriptionCredits, {
+    await ctx.runMutation(api.userProfiles.grantSubscriptionCredits, {
       clerkId,
       amount: subscription.monthlyCredits,
       description: `Monthly credits for ${subscription.tier} subscription`,
@@ -554,7 +554,7 @@ export const changeSubscriptionPlan: any = mutation({
     // Note: User subscription tier is now managed via subscriptions table only
 
     // Grant initial monthly credits for new plan
-    await ctx.runMutation(api.credits.grantSubscriptionCredits, {
+    await ctx.runMutation(api.userProfiles.grantSubscriptionCredits, {
       clerkId,
       amount: newPlan.monthlyCredits,
       description: `Plan change to ${newPlanId} - monthly credits`,

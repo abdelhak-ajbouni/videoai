@@ -253,23 +253,23 @@ async function handleCheckoutSessionCompleted(
     mode: session.mode,
   });
 
-  const { type, userId, packageId, planId, newPlanId, credits } =
+  const { type, clerkId, packageId, planId, newPlanId, credits } =
     session.metadata || {};
 
-  if (type === "credit_purchase" && userId && credits) {
-    console.log("Processing credit purchase:", { userId, packageId, credits });
+  if (type === "credit_purchase" && clerkId && credits) {
+    console.log("Processing credit purchase:", { clerkId, packageId, credits });
 
     try {
       // Add credits to user account
-      const newBalance = await ctx.runMutation(api.credits.addCredits, {
-        userId: userId as Id<"users">,
+      const newBalance = await ctx.runMutation(api.userProfiles.addCreditsWithTransaction, {
+        clerkId: clerkId,
         amount: parseInt(credits),
         description: `Credit purchase - ${packageId} package`,
         stripePaymentIntentId: session.payment_intent as string,
       });
 
       console.log("Credits added successfully:", {
-        userId,
+        clerkId,
         credits,
         newBalance,
       });
@@ -277,8 +277,8 @@ async function handleCheckoutSessionCompleted(
       console.error("Error adding credits:", error);
       throw error;
     }
-  } else if (type === "subscription" && userId && planId) {
-    console.log("Processing subscription creation:", { userId, planId });
+  } else if (type === "subscription" && clerkId && planId) {
+    console.log("Processing subscription creation:", { clerkId, planId });
 
     try {
       // Handle subscription creation using the dedicated action

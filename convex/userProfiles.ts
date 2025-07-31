@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -188,5 +189,182 @@ export const updateUserProfile = mutation({
     });
 
     return profile._id;
+  },
+});
+
+// Grant subscription credits with transaction record
+export const grantSubscriptionCredits = mutation({
+  args: {
+    clerkId: v.string(),
+    amount: v.number(),
+    description: v.string(),
+    subscriptionId: v.optional(v.string()),
+  },
+  handler: async (ctx, { clerkId, amount, description, subscriptionId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const balanceBefore = profile.credits;
+    const balanceAfter = balanceBefore + amount;
+
+    // Update user's credit balance
+    await ctx.db.patch(profile._id, {
+      credits: balanceAfter,
+      updatedAt: Date.now(),
+    });
+
+    // Create credit transaction record
+    await ctx.db.insert("creditTransactions", {
+      clerkId,
+      type: "subscription_grant",
+      amount,
+      description,
+      subscriptionId,
+      balanceBefore,
+      balanceAfter,
+      createdAt: Date.now(),
+    });
+
+    return balanceAfter;
+  },
+});
+
+// Add credits with transaction record (for purchases)
+export const addCreditsWithTransaction = mutation({
+  args: {
+    clerkId: v.string(),
+    amount: v.number(),
+    description: v.string(),
+    stripePaymentIntentId: v.optional(v.string()),
+    videoId: v.optional(v.id("videos")),
+  },
+  handler: async (ctx, { clerkId, amount, description, stripePaymentIntentId, videoId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const balanceBefore = profile.credits;
+    const balanceAfter = balanceBefore + amount;
+
+    // Update user's credit balance
+    await ctx.db.patch(profile._id, {
+      credits: balanceAfter,
+      updatedAt: Date.now(),
+    });
+
+    // Create credit transaction record
+    await ctx.db.insert("creditTransactions", {
+      clerkId,
+      type: "purchase",
+      amount,
+      description,
+      stripePaymentIntentId,
+      videoId,
+      balanceBefore,
+      balanceAfter,
+      createdAt: Date.now(),
+    });
+
+    return balanceAfter;
+  },
+});
+
+// Get credit transaction history
+export const getCreditHistory = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    return await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .order("desc")
+      .collect();
+  },
+});
+
+// Get credit usage statistics
+export const getCreditStats = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    const transactions = await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .collect();
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    const stats = {
+      totalPurchased: 0,
+      totalUsed: 0,
+      totalRefunded: 0,
+      totalGranted: 0,
+      currentBalance: profile?.credits || 0,
+      monthlyUsage: 0,
+      averagePerMonth: 0,
+    };
+
+    // Calculate current month usage
+    const now = Date.now();
+    const currentMonthStart = new Date(now);
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+    const currentMonthTimestamp = currentMonthStart.getTime();
+
+    transactions.forEach((tx) => {
+      if (tx.type === "purchase") {
+        stats.totalPurchased += tx.amount;
+      } else if (tx.type === "video_generation") {
+        stats.totalUsed += Math.abs(tx.amount);
+        // Calculate monthly usage
+        if (tx.createdAt >= currentMonthTimestamp) {
+          stats.monthlyUsage += Math.abs(tx.amount);
+        }
+      } else if (tx.type === "refund") {
+        stats.totalRefunded += tx.amount;
+      } else if (tx.type === "subscription_grant") {
+        stats.totalGranted += tx.amount;
+      }
+    });
+
+    // Calculate average monthly usage (based on user's account age)
+    if (profile?.createdAt) {
+      const accountAgeInMonths = Math.max(
+        1,
+        (now - profile.createdAt) / (1000 * 60 * 60 * 24 * 30)
+      );
+      stats.averagePerMonth = Math.round(stats.totalUsed / accountAgeInMonths);
+    }
+
+    return stats;
+  },
+});
+
+// Get current user's credit history (using auth)
+export const getCurrentUserCreditHistory = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 50 }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    return await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .order("desc")
+      .take(limit);
   },
 });
