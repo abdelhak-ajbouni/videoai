@@ -5,7 +5,7 @@ import Replicate from "replicate";
  */
 export interface PredictionParams {
   model: string;
-  input: Record<string, any>;
+  input: Record<string, unknown>;
   webhook?: string;
   stream?: boolean;
 }
@@ -13,23 +13,9 @@ export interface PredictionParams {
 /**
  * Create a Replicate client instance
  */
-export function createReplicateClient(apiToken?: string): Replicate {
-  const token = apiToken || process.env.REPLICATE_API_TOKEN;
-  if (!token) {
-    throw new Error("Replicate API token is required");
-  }
+export function createReplicateClient(): Replicate {
+  const token = process.env.REPLICATE_API_TOKEN;
 
-  return new Replicate({ auth: token });
-}
-
-/**
- * Create an enhanced Replicate client with Convex context
- */
-export function createEnhancedReplicateClient(
-  apiToken: string,
-  ctx: unknown
-): Replicate {
-  const token = apiToken || process.env.REPLICATE_API_TOKEN;
   if (!token) {
     throw new Error("Replicate API token is required");
   }

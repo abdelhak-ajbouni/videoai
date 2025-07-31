@@ -476,7 +476,7 @@ export function VideoGenerationForm() {
                 <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-yellow-400">Quality tier not available</p>
-                  <p className="text-xs text-yellow-300/80 mt-1">Your current plan doesn't support {quality} quality. Upgrade to access higher quality tiers.</p>
+                  <p className="text-xs text-yellow-300/80 mt-1">Your current plan doesn&apos;t support {quality} quality. Upgrade to access higher quality tiers.</p>
                 </div>
               </div>
             )}
@@ -500,7 +500,7 @@ export function VideoGenerationForm() {
             </div>
             <div className="flex items-start space-x-3">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
-              <span>Include camera movements like "close-up", "wide shot", or "tracking shot"</span>
+              <span>Include camera movements like &quot;close-up&quot;, &quot;wide shot&quot;, or &quot;tracking shot&quot;</span>
             </div>
             <div className="flex items-start space-x-3">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>

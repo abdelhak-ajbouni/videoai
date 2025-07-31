@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
+import { createReplicateClient } from "./lib/replicateClient";
 
 // Query to get user's videos
 export const getUserVideos = query({
@@ -117,7 +118,7 @@ export const getLatestVideosFromOthers = query({
 
     // Filter out videos from current user and limit results
     const otherUsersVideos = allVideos
-      .filter(video => video.userId !== currentUser._id)
+      .filter((video) => video.userId !== currentUser._id)
       .slice(0, args.limit || 12);
 
     return otherUsersVideos;
@@ -380,12 +381,8 @@ export const generateVideo = action({
     try {
       console.log(`Starting video generation for video ID: ${args.videoId}`);
 
-      // Import Enhanced Replicate Client
-      const { createEnhancedReplicateClient } = require("../lib/replicateClient");
-      const replicate = createEnhancedReplicateClient(
-        process.env.REPLICATE_API_TOKEN,
-        ctx
-      );
+      // Create Replicate Client
+      const replicate = createReplicateClient();
 
       console.log(
         "Replicate client initialized, updating status to processing..."
@@ -463,7 +460,7 @@ export const generateVideo = action({
         });
       } else {
         // Production mode: Use real Replicate API
-        prediction = await replicate.createPrediction({
+        prediction = await replicate.predictions.create({
           model: video.model,
           input: input,
           webhook: `${process.env.CONVEX_SITE_URL}/api/webhooks/replicate`,
@@ -966,8 +963,6 @@ export const searchVideos = query({
     };
   },
 });
-
-
 
 // Update video metadata (for analytics tracking)
 export const updateVideoMetadata = mutation({
