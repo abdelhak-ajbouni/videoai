@@ -13,18 +13,9 @@ export const getUserVideos = query({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     return await ctx.db
       .query("videos")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .order("desc")
       .collect();
   },
@@ -44,8 +35,7 @@ export const getVideo = query({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -70,19 +60,10 @@ export const getVideosByStatus = query({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     return await ctx.db
       .query("videos")
-      .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", user._id).eq("status", args.status)
+      .withIndex("by_clerk_id_and_status", (q) =>
+        q.eq("clerkId", identity.subject).eq("status", args.status)
       )
       .order("desc")
       .collect();
@@ -100,15 +81,6 @@ export const getLatestVideosFromOthers = query({
       throw new Error("Not authenticated");
     }
 
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
     // Get all completed videos from all users except current user
     const allVideos = await ctx.db
       .query("videos")
@@ -118,7 +90,7 @@ export const getLatestVideosFromOthers = query({
 
     // Filter out videos from current user and limit results
     const otherUsersVideos = allVideos
-      .filter((video) => video.userId !== currentUser._id)
+      .filter((video) => video.clerkId !== identity.subject)
       .slice(0, args.limit || 12);
 
     return otherUsersVideos;
@@ -149,14 +121,21 @@ export const createVideo = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
+    // Get user profile to check credits and subscription
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: identity.subject,
+    });
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!userProfile) {
+      throw new Error("User profile not found");
     }
+
+    // Get subscription to check tier
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
+      clerkId: identity.subject,
+    });
+
+    const subscriptionTier = subscription?.tier || "free";
 
     // Validate model exists and is active
     const model = await ctx.db
@@ -186,7 +165,7 @@ export const createVideo = mutation({
 
     // Check quality access based on subscription
     const hasQualityAccess = checkQualityAccess(
-      user.subscriptionTier,
+      subscriptionTier,
       args.quality
     );
     if (!hasQualityAccess) {
@@ -204,7 +183,7 @@ export const createVideo = mutation({
     );
 
     // Check if user has enough credits
-    if (user.credits < creditsCost) {
+    if (userProfile.credits < creditsCost) {
       throw new Error("Insufficient credits");
     }
 
@@ -212,7 +191,7 @@ export const createVideo = mutation({
 
     // Create video record
     const videoId = await ctx.db.insert("videos", {
-      userId: user._id,
+      clerkId: identity.subject,
       title: args.title || undefined,
       prompt: args.prompt,
       model: args.model,
@@ -235,22 +214,21 @@ export const createVideo = mutation({
       updatedAt: now,
     });
 
-    // Deduct credits immediately
-    await ctx.db.patch(user._id, {
-      credits: user.credits - creditsCost,
-      totalCreditsUsed: user.totalCreditsUsed + creditsCost,
-      updatedAt: now,
+    // Deduct credits immediately using userProfiles
+    await ctx.runMutation(api.userProfiles.subtractCredits, {
+      clerkId: identity.subject,
+      amount: creditsCost,
     });
 
     // Record credit transaction
     await ctx.db.insert("creditTransactions", {
-      userId: user._id,
+      clerkId: identity.subject,
       type: "video_generation",
       amount: -creditsCost,
       description: `Video generation: ${args.title || "Untitled"}`,
       videoId,
-      balanceBefore: user.credits,
-      balanceAfter: user.credits - creditsCost,
+      balanceBefore: userProfile.credits,
+      balanceAfter: userProfile.credits - creditsCost,
       createdAt: now,
     });
 
@@ -335,8 +313,7 @@ export const deleteVideo = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -530,7 +507,7 @@ export const createGenerationJob = mutation({
     const now = Date.now();
 
     await ctx.db.insert("generationJobs", {
-      userId: video.userId,
+      clerkId: video.clerkId,
       videoId: args.videoId,
       replicateJobId: args.replicateJobId,
       status: args.status,
@@ -613,29 +590,31 @@ export const refundCredits = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user) {
-      throw new Error("User not found");
+    // Get user profile to refund credits
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: video.clerkId,
+    });
+    if (!userProfile) {
+      throw new Error("User profile not found");
     }
 
     const now = Date.now();
 
-    // Refund credits
-    await ctx.db.patch(user._id, {
-      credits: user.credits + video.creditsCost,
-      totalCreditsUsed: Math.max(0, user.totalCreditsUsed - video.creditsCost),
-      updatedAt: now,
+    // Refund credits using userProfiles
+    await ctx.runMutation(api.userProfiles.addCredits, {
+      clerkId: video.clerkId,
+      amount: video.creditsCost,
     });
 
     // Record refund transaction
     await ctx.db.insert("creditTransactions", {
-      userId: user._id,
+      clerkId: video.clerkId,
       type: "refund",
       amount: video.creditsCost,
       description: `Refund for failed video generation: ${video.title}`,
       videoId: args.videoId,
-      balanceBefore: user.credits,
-      balanceAfter: user.credits + video.creditsCost,
+      balanceBefore: userProfile.credits,
+      balanceAfter: userProfile.credits + video.creditsCost,
       createdAt: now,
     });
   },
@@ -838,18 +817,9 @@ export const searchVideos = query({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     let query = ctx.db
       .query("videos")
-      .withIndex("by_user", (q) => q.eq("userId", user._id));
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject));
 
     const videos = await query.collect();
 
@@ -1000,8 +970,7 @@ export const updateVideoMetadata = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -1098,8 +1067,7 @@ export const trackVideoInteraction = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -1139,8 +1107,7 @@ export const toggleVideoFavorite = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -1174,8 +1141,7 @@ export const updateVideoInfo = mutation({
       throw new Error("Video not found");
     }
 
-    const user = await ctx.db.get(video.userId);
-    if (!user || user.clerkId !== identity.subject) {
+    if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
@@ -1201,18 +1167,9 @@ export const getUserTags = query({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     const videos = await ctx.db
       .query("videos")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .collect();
 
     const tagCounts = new Map<string, number>();
@@ -1245,21 +1202,12 @@ export const cleanupFailedVideos = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     const cutoffTime = Date.now() - (args.daysOld || 7) * 24 * 60 * 60 * 1000;
 
     const failedVideos = await ctx.db
       .query("videos")
-      .withIndex("by_user_and_status", (q) =>
-        q.eq("userId", user._id).eq("status", "failed")
+      .withIndex("by_clerk_id_and_status", (q) =>
+        q.eq("clerkId", identity.subject).eq("status", "failed")
       )
       .filter((q) => q.lt(q.field("createdAt"), cutoffTime))
       .collect();

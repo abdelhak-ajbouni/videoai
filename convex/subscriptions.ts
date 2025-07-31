@@ -110,18 +110,12 @@ export const createSubscription: any = mutation({
         userStatus = "inactive";
     }
 
-    // Update user's subscription tier
-    await ctx.db.patch(userId, {
-      subscriptionTier: planId,
-      subscriptionStatus: userStatus,
-      stripeSubscriptionId,
-      subscriptionStartDate: currentPeriodStart,
-      subscriptionEndDate: currentPeriodEnd,
-    });
+    // Note: User subscription tier is now managed via subscriptions table only
+    // No need to update user profile with subscription details
 
     // Grant initial monthly credits
     await ctx.runMutation(api.credits.grantSubscriptionCredits, {
-      userId,
+      clerkId,
       amount: plan.monthlyCredits,
       description: `Monthly credits for ${planId} subscription`,
       subscriptionId: subscriptionId,
@@ -134,7 +128,7 @@ export const createSubscription: any = mutation({
 // Update subscription status
 export const updateSubscription = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
     status: v.union(
       v.literal("active"),
@@ -149,7 +143,7 @@ export const updateSubscription = mutation({
   },
   handler: async (
     ctx,
-    { userId, stripeSubscriptionId, status, cancelAtPeriodEnd }
+    { clerkId, stripeSubscriptionId, status, cancelAtPeriodEnd }
   ) => {
     // Update subscription record
     const subscription = await ctx.db
@@ -192,9 +186,7 @@ export const updateSubscription = mutation({
         userStatus = "inactive";
     }
 
-    await ctx.db.patch(userId, {
-      subscriptionStatus: userStatus,
-    });
+    // Note: User subscription status is now managed via subscriptions table only
 
     return subscription?._id;
   },
@@ -203,10 +195,10 @@ export const updateSubscription = mutation({
 // Cancel subscription
 export const cancelSubscription = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
     // Update subscription record
     const subscription = await ctx.db
       .query("subscriptions")
@@ -224,10 +216,7 @@ export const cancelSubscription = mutation({
       });
     }
 
-    // Update user's subscription status
-    await ctx.db.patch(userId, {
-      subscriptionStatus: "canceled",
-    });
+    // Note: User subscription status is now managed via subscriptions table only
 
     return subscription?._id;
   },
@@ -236,10 +225,10 @@ export const cancelSubscription = mutation({
 // Cancel subscription at period end (user keeps existing credits)
 export const cancelSubscriptionAtPeriodEnd = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
     // Get the subscription record
     const subscription = await ctx.db
       .query("subscriptions")
@@ -265,10 +254,7 @@ export const cancelSubscriptionAtPeriodEnd = mutation({
       updatedAt: Date.now(),
     });
 
-    // Update user's subscription status to show it's canceling
-    await ctx.db.patch(userId, {
-      subscriptionStatus: "canceled", // This indicates it's canceling but still active until period end
-    });
+    // Note: User subscription status is now managed via subscriptions table only
 
     return subscription._id;
   },
@@ -277,10 +263,10 @@ export const cancelSubscriptionAtPeriodEnd = mutation({
 // Reactivate subscription (remove cancel at period end)
 export const reactivateSubscription = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
     // Get the subscription record
     const subscription = await ctx.db
       .query("subscriptions")
@@ -306,10 +292,7 @@ export const reactivateSubscription = mutation({
       updatedAt: Date.now(),
     });
 
-    // Update user's subscription status back to active
-    await ctx.db.patch(userId, {
-      subscriptionStatus: "active",
-    });
+    // Note: User subscription status is now managed via subscriptions table only
 
     return subscription._id;
   },
@@ -318,10 +301,10 @@ export const reactivateSubscription = mutation({
 // Allocate monthly credits for subscription
 export const allocateMonthlyCredits = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
     const subscription = await ctx.db
       .query("subscriptions")
       .withIndex("by_stripe_subscription_id", (q) =>
@@ -345,7 +328,7 @@ export const allocateMonthlyCredits = mutation({
 
     // Grant monthly credits
     await ctx.runMutation(api.credits.grantSubscriptionCredits, {
-      userId,
+      clerkId,
       amount: subscription.monthlyCredits,
       description: `Monthly credits for ${subscription.tier} subscription`,
       subscriptionId: subscription._id,
@@ -361,11 +344,11 @@ export const allocateMonthlyCredits = mutation({
 
 // Get subscription usage statistics
 export const getSubscriptionStats: any = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
     const subscription = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
 
@@ -393,7 +376,7 @@ export const getSubscriptionStats: any = query({
 
     const transactions = await ctx.db
       .query("creditTransactions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .filter((q) =>
         q.and(
           q.gte(q.field("createdAt"), periodStart),
@@ -423,11 +406,11 @@ export const getSubscriptionStats: any = query({
 
 // Get subscription history
 export const getSubscriptionHistory = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
     return await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .order("desc")
       .collect();
   },
@@ -435,11 +418,11 @@ export const getSubscriptionHistory = query({
 
 // Get current subscription with cancellation details
 export const getCurrentSubscription: any = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
     const subscription = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
 
@@ -462,7 +445,7 @@ export const getCurrentSubscription: any = query({
 // Change subscription plan (deactivates old, creates new)
 export const changeSubscriptionPlan: any = mutation({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     newPlanId: v.union(
       v.literal("starter"),
       v.literal("pro"),
@@ -479,7 +462,7 @@ export const changeSubscriptionPlan: any = mutation({
   handler: async (
     ctx,
     {
-      userId,
+      clerkId,
       newPlanId,
       stripeSubscriptionId,
       stripeCustomerId,
@@ -501,7 +484,7 @@ export const changeSubscriptionPlan: any = mutation({
     // Deactivate all existing active subscriptions for this user
     const existingSubscriptions = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .filter((q) =>
         q.or(
           q.eq(q.field("status"), "active"),
@@ -521,7 +504,7 @@ export const changeSubscriptionPlan: any = mutation({
 
     // Create new subscription record
     const newSubscriptionId = await ctx.db.insert("subscriptions", {
-      userId,
+      clerkId,
       stripeSubscriptionId,
       stripeCustomerId,
       stripePriceId,
@@ -568,18 +551,11 @@ export const changeSubscriptionPlan: any = mutation({
         userStatus = "inactive";
     }
 
-    // Update user's subscription tier
-    await ctx.db.patch(userId, {
-      subscriptionTier: newPlanId,
-      subscriptionStatus: userStatus,
-      stripeSubscriptionId,
-      subscriptionStartDate: currentPeriodStart,
-      subscriptionEndDate: currentPeriodEnd,
-    });
+    // Note: User subscription tier is now managed via subscriptions table only
 
     // Grant initial monthly credits for new plan
     await ctx.runMutation(api.credits.grantSubscriptionCredits, {
-      userId,
+      clerkId,
       amount: newPlan.monthlyCredits,
       description: `Plan change to ${newPlanId} - monthly credits`,
       subscriptionId: newSubscriptionId,
