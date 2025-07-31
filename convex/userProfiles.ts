@@ -1,0 +1,192 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+// Create or get user profile
+export const createUserProfile = mutation({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if profile already exists
+    const existingProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (existingProfile) {
+      return existingProfile._id;
+    }
+
+    // Get free tier credits from configuration
+    const freeTierCredits = await ctx.db
+      .query("configurations")
+      .withIndex("by_key", (q: any) => q.eq("key", "free_tier_credits"))
+      .first();
+
+    const initialCredits = (freeTierCredits?.value as number) || 10; // Default to 10 if not configured
+
+    // Create new user profile with default values
+    const profileId = await ctx.db.insert("userProfiles", {
+      clerkId: args.clerkId,
+      credits: initialCredits,
+      totalCreditsUsed: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return profileId;
+  },
+});
+
+// Get user profile by clerkId
+export const getUserProfile = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+  },
+});
+
+// Get current user profile using Clerk auth
+export const getCurrentUserProfile = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+  },
+});
+
+// Update user credits
+export const updateCredits = mutation({
+  args: {
+    clerkId: v.string(),
+    creditAmount: v.number(),
+    operation: v.union(v.literal("add"), v.literal("subtract")),
+  },
+  handler: async (ctx, { clerkId, creditAmount, operation }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const newCredits = operation === "add" 
+      ? profile.credits + creditAmount 
+      : profile.credits - creditAmount;
+
+    const newTotalCreditsUsed = operation === "subtract" 
+      ? profile.totalCreditsUsed + creditAmount 
+      : profile.totalCreditsUsed;
+
+    // Ensure credits don't go negative
+    if (newCredits < 0) {
+      throw new Error("Insufficient credits");
+    }
+
+    await ctx.db.patch(profile._id, {
+      credits: newCredits,
+      totalCreditsUsed: newTotalCreditsUsed,
+      updatedAt: Date.now(),
+    });
+
+    return { 
+      success: true, 
+      newBalance: newCredits,
+      totalUsed: newTotalCreditsUsed
+    };
+  },
+});
+
+// Add credits to user account
+export const addCredits = mutation({
+  args: {
+    clerkId: v.string(),
+    amount: v.number(),
+  },
+  handler: async (ctx, { clerkId, amount }) => {
+    return await ctx.runMutation(ctx.functionRef("userProfiles:updateCredits"), {
+      clerkId,
+      creditAmount: amount,
+      operation: "add"
+    });
+  },
+});
+
+// Subtract credits from user account  
+export const subtractCredits = mutation({
+  args: {
+    clerkId: v.string(),
+    amount: v.number(),
+  },
+  handler: async (ctx, { clerkId, amount }) => {
+    return await ctx.runMutation(ctx.functionRef("userProfiles:updateCredits"), {
+      clerkId,
+      creditAmount: amount,
+      operation: "subtract"
+    });
+  },
+});
+
+// Get user credit balance
+export const getCreditBalance = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    return profile ? {
+      credits: profile.credits,
+      totalCreditsUsed: profile.totalCreditsUsed
+    } : null;
+  },
+});
+
+// Get all user profiles (admin function)
+export const getAllUserProfiles = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("userProfiles").collect();
+  },
+});
+
+// Update user profile
+export const updateUserProfile = mutation({
+  args: {
+    clerkId: v.string(),
+    updates: v.object({
+      credits: v.optional(v.number()),
+      totalCreditsUsed: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, { clerkId, updates }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    await ctx.db.patch(profile._id, {
+      ...updates,
+      updatedAt: Date.now(),
+    });
+
+    return profile._id;
+  },
+});

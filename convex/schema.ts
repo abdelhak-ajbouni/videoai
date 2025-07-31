@@ -2,48 +2,19 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  users: defineTable({
-    // Clerk user ID
-    clerkId: v.string(),
-    email: v.string(),
-    name: v.optional(v.string()),
-    imageUrl: v.optional(v.string()),
-
-    // Credit system
-    credits: v.number(),
-    totalCreditsUsed: v.number(),
-
-    // Subscription info
-    subscriptionTier: v.union(
-      v.literal("free"),
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("max")
-    ),
-    subscriptionStatus: v.union(
-      v.literal("active"),
-      v.literal("canceled"),
-      v.literal("past_due"),
-      v.literal("trialing"),
-      v.literal("inactive")
-    ),
-    stripeCustomerId: v.optional(v.string()),
-    stripeSubscriptionId: v.optional(v.string()),
-    subscriptionStartDate: v.optional(v.number()),
-    subscriptionEndDate: v.optional(v.number()),
-
-    // Timestamps
+  // Simplified user profiles - only app-specific data
+  userProfiles: defineTable({
+    clerkId: v.string(),           // Link to Clerk user
+    credits: v.number(),           // Current credit balance
+    totalCreditsUsed: v.number(),  // Lifetime usage tracking
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_clerk_id", ["clerkId"])
-    .index("by_email", ["email"])
-    .index("by_stripe_customer_id", ["stripeCustomerId"])
-    .index("by_subscription_status", ["subscriptionStatus"]),
+    .index("by_clerk_id", ["clerkId"]),
 
   videos: defineTable({
     // User relationship
-    userId: v.id("users"),
+    clerkId: v.string(),
 
     // Video metadata
     title: v.optional(v.string()),
@@ -134,22 +105,22 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkId"])
     .index("by_status", ["status"])
-    .index("by_user_and_status", ["userId", "status"])
+    .index("by_clerk_id_and_status", ["clerkId", "status"])
     .index("by_replicate_job_id", ["replicateJobId"])
     .index("by_created_at", ["createdAt"])
-    .index("by_user_and_created_at", ["userId", "createdAt"])
-    .index("by_user_and_favorite", ["userId", "isFavorite"])
-    .index("by_user_and_public", ["userId", "isPublic"])
-    .index("by_user_and_view_count", ["userId", "viewCount"])
+    .index("by_clerk_id_and_created_at", ["clerkId", "createdAt"])
+    .index("by_clerk_id_and_favorite", ["clerkId", "isFavorite"])
+    .index("by_clerk_id_and_public", ["clerkId", "isPublic"])
+    .index("by_clerk_id_and_view_count", ["clerkId", "viewCount"])
     .index("by_tags", ["tags"])
     .index("by_file_size", ["fileSize"])
     .index("by_last_viewed", ["lastViewedAt"]),
 
   creditTransactions: defineTable({
     // User relationship
-    userId: v.id("users"),
+    clerkId: v.string(),
 
     // Transaction details
     type: v.union(
@@ -174,9 +145,9 @@ export default defineSchema({
     // Timestamps
     createdAt: v.number(),
   })
-    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkId"])
     .index("by_type", ["type"])
-    .index("by_user_and_type", ["userId", "type"])
+    .index("by_clerk_id_and_type", ["clerkId", "type"])
     .index("by_video", ["videoId"])
     .index("by_created_at", ["createdAt"]),
 
@@ -207,12 +178,11 @@ export default defineSchema({
 
   subscriptionPlans: defineTable({
     // Plan identification
-    planId: v.string(), // "starter", "pro", "business"
-    name: v.string(), // "Starter", "Pro", "Business"
+    planId: v.string(), // "starter", "pro", "max"
+    name: v.string(), // "Starter", "Pro", "Max"
     description: v.optional(v.string()),
 
     // Pricing
-    priceId: v.string(), // Stripe price ID
     price: v.number(), // Price in cents
     currency: v.string(), // "usd"
 
@@ -234,7 +204,7 @@ export default defineSchema({
 
   subscriptions: defineTable({
     // User relationship
-    userId: v.id("users"),
+    clerkId: v.string(),
 
     // Stripe data
     stripeSubscriptionId: v.string(),
@@ -267,7 +237,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkId"])
     .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
     .index("by_stripe_customer_id", ["stripeCustomerId"])
     .index("by_status", ["status"])
@@ -275,7 +245,7 @@ export default defineSchema({
 
   generationJobs: defineTable({
     // User and video relationship
-    userId: v.id("users"),
+    clerkId: v.string(),
     videoId: v.id("videos"),
 
     // Job details
@@ -304,7 +274,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkId"])
     .index("by_video", ["videoId"])
     .index("by_replicate_job_id", ["replicateJobId"])
     .index("by_status", ["status"])

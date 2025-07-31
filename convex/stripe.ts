@@ -37,36 +37,31 @@ async function getSubscriptionPlan(ctx: ActionCtx, planId: string) {
   }
 
   return {
-    priceId: plan.priceId,
     credits: plan.monthlyCredits,
     price: plan.price,
   };
 }
 
-// Get user's Stripe customer ID or create one
-export const getOrCreateStripeCustomer = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const user = await ctx.db.get(userId);
-    if (!user) throw new Error("User not found");
+// Get user's Stripe customer ID or create one  
+export const getOrCreateStripeCustomer = action({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }): Promise<string> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
 
-    // If user already has a Stripe customer ID, return it
-    if (user.stripeCustomerId) {
-      return user.stripeCustomerId;
+    // Check if we already have a customer ID stored in subscriptions
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, { clerkId });
+    if (subscription?.stripeCustomerId) {
+      return subscription.stripeCustomerId;
     }
 
     // Create new Stripe customer
     const customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name,
+      email: identity.email || "",
+      name: identity.name || "",
       metadata: {
-        convexUserId: userId,
+        clerkId: clerkId,
       },
-    });
-
-    // Update user with Stripe customer ID
-    await ctx.db.patch(userId, {
-      stripeCustomerId: customer.id,
     });
 
     return customer.id;
@@ -76,7 +71,7 @@ export const getOrCreateStripeCustomer = mutation({
 // Create checkout session for credit purchase
 export const createCreditCheckoutSession = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     packageId: v.union(
       v.literal("small"),
       v.literal("medium"),
@@ -84,15 +79,12 @@ export const createCreditCheckoutSession = action({
       v.literal("xlarge")
     ),
   },
-  handler: async (ctx: ActionCtx, { userId, packageId }): Promise<string> => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user) throw new Error("User not found");
-
+  handler: async (ctx: ActionCtx, { clerkId, packageId }): Promise<string> => {
     const packageConfig = await getCreditPackage(ctx, packageId);
-    const customerId: string = await ctx.runMutation(
+    const customerId: string = await ctx.runAction(
       api.stripe.getOrCreateStripeCustomer,
       {
-        userId,
+        clerkId,
       }
     );
 
@@ -117,7 +109,7 @@ export const createCreditCheckoutSession = action({
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?success=true&credits=${packageConfig.credits}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?canceled=true`,
         metadata: {
-          userId,
+          clerkId,
           packageId,
           credits: packageConfig.credits.toString(),
           type: "credit_purchase",
@@ -131,19 +123,22 @@ export const createCreditCheckoutSession = action({
 // Create checkout session for subscription
 export const createSubscriptionCheckoutSession = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
   },
-  handler: async (ctx: ActionCtx, { userId, planId }): Promise<string> => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user) throw new Error("User not found");
-
+  handler: async (ctx: ActionCtx, { clerkId, planId }): Promise<string> => {
     const planConfig = await getSubscriptionPlan(ctx, planId);
-    const customerId: string = await ctx.runMutation(
+    const customerId: string = await ctx.runAction(
       api.stripe.getOrCreateStripeCustomer,
       {
-        userId,
+        clerkId,
       }
+    );
+
+    // Get or create Stripe price dynamically
+    const priceId = await ctx.runAction(
+      api.subscriptionPlans.getOrCreateStripePrice,
+      { planId }
     );
 
     const session: Stripe.Checkout.Session =
@@ -152,7 +147,7 @@ export const createSubscriptionCheckoutSession = action({
         payment_method_types: ["card"],
         line_items: [
           {
-            price: planConfig.priceId,
+            price: priceId,
             quantity: 1,
           },
         ],
@@ -160,7 +155,7 @@ export const createSubscriptionCheckoutSession = action({
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=success&plan=${planId}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=canceled`,
         metadata: {
-          userId,
+          clerkId,
           planId,
           type: "subscription",
         },
@@ -172,13 +167,13 @@ export const createSubscriptionCheckoutSession = action({
 
 // Create customer portal session
 export const createCustomerPortalSession = action({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user?.stripeCustomerId) throw new Error("No Stripe customer found");
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, { clerkId });
+    if (!subscription?.stripeCustomerId) throw new Error("No Stripe customer found");
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: subscription.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate`,
     });
 

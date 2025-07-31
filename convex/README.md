@@ -89,13 +89,7 @@ The seeding function is **idempotent** - it's safe to run multiple times. The fu
 
 ### Environment Variables
 
-The seeding system uses the following environment variables for Stripe price IDs:
-
-- `STRIPE_STARTER_PRICE_ID`
-- `STRIPE_PRO_PRICE_ID`
-- `STRIPE_MAX_PRICE_ID`
-
-If these are not set, placeholder values will be used.
+The system automatically creates Stripe products and prices dynamically using the `createStripeProducts` action. No environment variables are needed for price IDs.
 
 ### Customization
 
