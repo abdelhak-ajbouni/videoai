@@ -59,7 +59,7 @@ export default defineSchema({
       v.literal("ultra")
     ),
     duration: v.string(), // Accept any duration string
-    
+
     // Model-specific options
     resolution: v.optional(v.string()), // e.g., "720p", "1080p"
     aspectRatio: v.optional(v.string()), // e.g., "16:9", "9:16", "1:1"
@@ -382,7 +382,7 @@ export default defineSchema({
     replicateModelId: v.string(), // Full Replicate model identifier
     modelParameters: v.optional(v.any()), // Model-specific parameters
     requirements: v.optional(v.any()), // System requirements or constraints
-    
+
     // Model-specific options
     supportedResolutions: v.optional(v.array(v.string())), // ["720p", "1080p"]
     defaultResolution: v.optional(v.string()), // Default resolution
@@ -413,7 +413,7 @@ export default defineSchema({
     inputSchema: v.optional(v.any()), // OpenAPI schema for inputs
     outputSchema: v.optional(v.any()), // OpenAPI schema for outputs
     confidence: v.optional(v.number()), // Confidence score (0-100) that this is a video model
-    
+
     // Enhanced model metadata
     supportedInputTypes: v.optional(v.array(v.string())), // Types of inputs supported
     supportedOutputFormats: v.optional(v.array(v.string())), // Output formats supported
@@ -479,7 +479,7 @@ export default defineSchema({
     modelsRemoved: v.optional(v.number()),
     errors: v.optional(v.array(v.string())),
     duration: v.optional(v.number()),
-    
+
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
