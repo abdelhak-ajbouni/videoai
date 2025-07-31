@@ -399,6 +399,27 @@ export default defineSchema({
     averageGenerationTime: v.optional(v.number()), // Average generation time in seconds
     successRate: v.optional(v.number()), // Success rate percentage
 
+    // Health monitoring (added for performance monitoring)
+    lastHealthCheck: v.optional(v.number()), // Last health check timestamp
+    avgResponseTime: v.optional(v.number()), // Average response time in milliseconds
+    isHealthy: v.optional(v.boolean()), // Current health status
+    healthStatus: v.optional(v.string()), // 'healthy', 'degraded', 'critical', 'unknown'
+    healthIssues: v.optional(v.array(v.string())), // List of current health issues
+
+    // Discovery metadata (added for model discovery)
+    discoveredAt: v.optional(v.number()), // When the model was first discovered
+    lastValidatedAt: v.optional(v.number()), // Last time model schema was validated
+    schemaVersion: v.optional(v.string()), // Version of the model schema
+    inputSchema: v.optional(v.any()), // OpenAPI schema for inputs
+    outputSchema: v.optional(v.any()), // OpenAPI schema for outputs
+    confidence: v.optional(v.number()), // Confidence score (0-100) that this is a video model
+    
+    // Enhanced model metadata
+    supportedInputTypes: v.optional(v.array(v.string())), // Types of inputs supported
+    supportedOutputFormats: v.optional(v.array(v.string())), // Output formats supported
+    maxInputSize: v.optional(v.number()), // Maximum input size in bytes
+    estimatedProcessingTime: v.optional(v.number()), // Estimated processing time per second
+
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -410,5 +431,60 @@ export default defineSchema({
     .index("by_default", ["isDefault"])
     .index("by_provider", ["provider"])
     .index("by_category", ["category"])
-    .index("by_active_and_premium", ["isActive", "isPremium"]),
+    .index("by_active_and_premium", ["isActive", "isPremium"])
+    .index("by_provider", ["provider"])
+    .index("by_version", ["version"])
+    .index("by_health", ["lastHealthCheck"])
+    .index("by_discovery", ["discoveredAt"]),
+
+  replicateMetrics: defineTable({
+    // Model and operation identification
+    modelId: v.string(), // Model that was used
+    operation: v.string(), // "create_prediction", "get_prediction", "list_models", etc.
+
+    // Performance metrics
+    duration: v.number(), // Operation duration in milliseconds
+    success: v.boolean(), // Whether the operation succeeded
+
+    // Error information (for failed operations)
+    errorType: v.optional(v.string()), // ReplicateErrorType enum value
+    errorMessage: v.optional(v.string()), // Error message
+    errorStatus: v.optional(v.number()), // HTTP status code
+
+    // Additional context
+    context: v.optional(v.any()), // Additional context data
+
+    // Timestamp
+    timestamp: v.number(), // When the operation occurred
+  })
+    .index("by_model_id", ["modelId"])
+    .index("by_model_and_timestamp", ["modelId", "timestamp"])
+    .index("by_success", ["success"])
+    .index("by_error_type", ["errorType"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_operation", ["operation"]),
+
+  modelDiscoveryLogs: defineTable({
+    discoveryId: v.string(),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    modelsFound: v.optional(v.number()),
+    modelsUpdated: v.optional(v.number()),
+    modelsAdded: v.optional(v.number()),
+    modelsRemoved: v.optional(v.number()),
+    errors: v.optional(v.array(v.string())),
+    duration: v.optional(v.number()),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_discovery_id", ["discoveryId"])
+    .index("by_status", ["status"])
+    .index("by_started_at", ["startedAt"]),
 });

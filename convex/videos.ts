@@ -380,11 +380,12 @@ export const generateVideo = action({
     try {
       console.log(`Starting video generation for video ID: ${args.videoId}`);
 
-      // Import Replicate
-      const Replicate = require("replicate");
-      const replicate = new Replicate({
-        auth: process.env.REPLICATE_API_TOKEN,
-      });
+      // Import Enhanced Replicate Client
+      const { createEnhancedReplicateClient } = require("../lib/replicateClient");
+      const replicate = createEnhancedReplicateClient(
+        process.env.REPLICATE_API_TOKEN,
+        ctx
+      );
 
       console.log(
         "Replicate client initialized, updating status to processing..."
@@ -462,7 +463,7 @@ export const generateVideo = action({
         });
       } else {
         // Production mode: Use real Replicate API
-        prediction = await replicate.predictions.create({
+        prediction = await replicate.createPrediction({
           model: video.model,
           input: input,
           webhook: `${process.env.CONVEX_SITE_URL}/api/webhooks/replicate`,
