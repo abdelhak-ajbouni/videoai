@@ -26,7 +26,7 @@ export function SubscriptionPlans() {
   const subscriptionPlans = useQuery(api.subscriptionPlans.getActivePlans);
   const subscriptionStats = useQuery(
     api.subscriptions.getSubscriptionStats,
-    userData?._id ? { userId: userData._id } : "skip"
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
   const createSubscriptionSession = useAction(api.stripe.createSubscriptionCheckoutSession);
   const createPortalSession = useAction(api.stripe.createCustomerPortalSession);
@@ -42,7 +42,7 @@ export function SubscriptionPlans() {
       // If user already has a subscription, handle as plan change
       if (subscriptionStats?.hasActiveSubscription) {
         const checkoutUrl = await changeSubscriptionPlan({
-          userId: userData._id,
+          clerkId: userData.clerkId,
           newPlanId: planId as "starter" | "pro" | "max",
         });
 
@@ -51,7 +51,7 @@ export function SubscriptionPlans() {
       } else {
         // New subscription
         const checkoutUrl = await createSubscriptionSession({
-          userId: userData._id,
+          clerkId: userData.clerkId,
           planId: planId as "starter" | "pro" | "max",
         });
 
@@ -72,7 +72,7 @@ export function SubscriptionPlans() {
     setIsLoading(true);
     try {
       const portalUrl = await createPortalSession({
-        userId: userData._id,
+        clerkId: userData.clerkId,
       });
 
       // Redirect to Stripe customer portal
@@ -95,7 +95,7 @@ export function SubscriptionPlans() {
     setIsCanceling(true);
     try {
       await cancelSubscription({
-        userId: userData._id,
+        clerkId: userData.clerkId,
         stripeSubscriptionId: userData.stripeSubscriptionId,
       });
 
@@ -115,7 +115,7 @@ export function SubscriptionPlans() {
     setIsReactivating(true);
     try {
       await reactivateSubscription({
-        userId: userData._id,
+        clerkId: userData.clerkId,
         stripeSubscriptionId: userData.stripeSubscriptionId,
       });
 
