@@ -432,7 +432,6 @@ export default defineSchema({
     .index("by_provider", ["provider"])
     .index("by_category", ["category"])
     .index("by_active_and_premium", ["isActive", "isPremium"])
-    .index("by_provider", ["provider"])
     .index("by_version", ["version"])
     .index("by_health", ["lastHealthCheck"])
     .index("by_discovery", ["discoveredAt"]),
