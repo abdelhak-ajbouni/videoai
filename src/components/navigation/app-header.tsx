@@ -10,7 +10,7 @@ import {
   ChevronDown,
   LogOut,
   User,
-  Settings
+  Mail
 } from "lucide-react";
 import { useUser, SignOutButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -40,33 +40,49 @@ export function AppHeader({ className }: AppHeaderProps) {
 
   return (
     <header className={cn(
-      "h-16 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800 sticky top-0 z-50",
+      "h-16 bg-gray-950/95 backdrop-blur-xl border-b border-gray-800/50 sticky top-0 z-50",
       className
     )}>
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600">
+        <Link href="/generate" className="flex items-center space-x-3 group">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-bold text-white">VideoAI</span>
+          <span className="text-lg font-semibold text-white/90 group-hover:text-white transition-colors">VideoAI</span>
         </Link>
 
         {/* Right Section */}
-        <div className="flex items-center space-x-3">
-          {/* Credit Balance */}
+        <div className="flex items-center space-x-4">
+          {/* Credit Balance & Subscription */}
           {currentUser && (
-            <Link href="/dashboard/billing">
-              <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-blue-950/50 border border-blue-800 hover:bg-blue-950/70 transition-colors duration-200 cursor-pointer">
-                <CreditCard className="h-4 w-4 text-blue-400" />
-                <div className="text-right">
-                  <p className="text-xs text-blue-300">Credits</p>
-                  <p className="text-sm font-semibold text-blue-400">
-                    {currentUser.credits}
-                  </p>
+            <div className="hidden sm:flex items-center space-x-1">
+              {/* Credits */}
+              <Link href="/pricing">
+                <div className="flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900/60 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors"></div>
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+                      {currentUser.credits?.toLocaleString() || '0'}
+                    </span>
+                    <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">credits</span>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-700/50"></div>
+
+              {/* Subscription */}
+              <Link href="/pricing">
+                <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900/60 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors capitalize">
+                    {currentUser.subscriptionTier || 'Free'}
+                  </span>
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 group-hover:bg-emerald-300 transition-colors"></div>
+                </div>
+              </Link>
+            </div>
           )}
 
           {/* User Menu */}
@@ -75,25 +91,25 @@ export function AppHeader({ className }: AppHeaderProps) {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center space-x-2 px-2 py-1.5 h-auto hover:bg-gray-800"
+                  className="flex items-center space-x-3 px-3 py-2 h-auto hover:bg-gray-800/50 rounded-full transition-all duration-200 group"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg ring-2 ring-gray-800 group-hover:ring-gray-700 transition-all duration-200">
+                    <span className="text-white text-sm font-semibold">
                       {user.firstName?.[0] || "U"}
                     </span>
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
                       {user.firstName}
                     </p>
                   </div>
-                  <ChevronDown className="h-3 w-3 text-gray-400" />
+                  <ChevronDown className="h-3 w-3 text-gray-500 group-hover:text-gray-400 transition-colors" />
                 </Button>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent
                 align="end"
-                className="w-48 bg-gray-950 border border-gray-800"
+                className="w-52 bg-gray-950/95 backdrop-blur-xl border border-gray-800/50 shadow-2xl"
               >
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
@@ -109,24 +125,24 @@ export function AppHeader({ className }: AppHeaderProps) {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer">
+                  <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/billing" className="cursor-pointer">
+                  <Link href="/pricing" className="cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing</span>
+                    <span>Pricing</span>
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
+                  <a href="mailto:support@videoai.com?subject=Support Request&body=Hello VideoAI Support Team,%0D%0A%0D%0A" className="cursor-pointer">
+                    <Mail className="mr-2 h-4 w-4" />
+                    <span>Contact Us</span>
+                  </a>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

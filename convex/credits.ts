@@ -22,6 +22,32 @@ export const getCreditHistory = query({
   },
 });
 
+// Get user transactions for billing page
+export const getUserTransactions = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 50 }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(limit);
+  },
+});
+
 // Add credits to user account
 export const addCredits = mutation({
   args: {

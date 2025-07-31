@@ -185,32 +185,54 @@ export function VideoGenerationForm() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Main Form */}
-      <Card className="shadow-lg border-0 bg-white dark:bg-gray-900">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center space-x-2 text-lg">
-            <Wand2 className="h-5 w-5 text-purple-500" />
-            <span>Create New Video</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* AI Model Selection - Moved to top */}
+    <div className="space-y-4">
+      <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-lg font-medium text-white/95">
+          Create New Video
+        </CardTitle>
+        <p className="text-sm text-gray-400 mt-1">
+          Generate AI-powered videos from your description
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Prompt */}
             <div className="space-y-3">
-              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300">AI Model</Label>
+              <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
+                Video Description
+              </Label>
+              <Textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe your video in detail... Be specific about scenes, actions, and visual style for best results."
+                className="min-h-32 resize-none bg-gray-800/50 border-gray-700/50 text-white placeholder:text-gray-500 focus:border-gray-600 focus:ring-1 focus:ring-gray-600"
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500">{prompt.length}/500 characters</span>
+                {prompt.length > 450 && (
+                  <span className="text-yellow-400">Almost at limit</span>
+                )}
+              </div>
+            </div>
+
+            {/* AI Model Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-white/90">AI Model</Label>
               <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
-                <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 h-14 text-base">
+                <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
                   <SelectValue placeholder="Select an AI model" />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl min-w-[400px]">
+                <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
                   {activeModels?.map((model) => (
-                    <SelectItem key={model.modelId} value={model.modelId} className="py-4">
-                      <div className="flex items-start space-x-4 w-full">
+                    <SelectItem key={model.modelId} value={model.modelId} className="focus:bg-gray-800 focus:text-white">
+                      <div className="flex items-center space-x-3 py-1">
                         {getModelIcon(model)}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-gray-900 dark:text-white text-sm truncate">{model.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{model.description}</div>
+                        <div>
+                          <div className="font-medium text-white text-sm">{model.name}</div>
+                          <div className="text-xs text-gray-400 line-clamp-1">{model.description}</div>
                         </div>
                       </div>
                     </SelectItem>
@@ -218,97 +240,73 @@ export function VideoGenerationForm() {
                 </SelectContent>
               </Select>
               {isLoading && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Loading available models...</p>
+                <p className="text-sm text-gray-500">Loading available models...</p>
               )}
             </div>
 
-
-
-            {/* Prompt */}
-            <div className="space-y-2">
-              <Label htmlFor="prompt" className="text-sm font-medium">Video Description</Label>
-              <Textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your video in detail..."
-                className="min-h-24 resize-none border-gray-300 focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600"
-                maxLength={500}
-              />
-              <p className="text-xs text-gray-500">{prompt.length}/500</p>
-            </div>
-
-            <Separator />
-
-            {/* Settings */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Settings className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Settings</span>
+            {/* Settings Row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Quality */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-white/90">Quality</Label>
+                <Select value={quality} onValueChange={(value: "standard" | "high" | "ultra") => setQuality(value)}>
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                    <SelectItem value="standard" className="focus:bg-gray-800 focus:text-white">
+                      <div className="flex items-center justify-between w-full">
+                        <span>Standard</span>
+                        <Badge variant="secondary" className="ml-2">720p</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="high" disabled={!canAccessQuality("high")} className="focus:bg-gray-800 focus:text-white">
+                      <div className="flex items-center justify-between w-full">
+                        <span>High</span>
+                        <Badge className="ml-2 bg-blue-500/20 text-blue-400 border-blue-500/30">1080p</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="ultra" disabled={!canAccessQuality("ultra")} className="focus:bg-gray-800 focus:text-white">
+                      <div className="flex items-center justify-between w-full">
+                        <span>Ultra</span>
+                        <Badge className="ml-2 bg-purple-500/20 text-purple-400 border-purple-500/30">4K</Badge>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Quality and Duration */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold text-gray-700 dark:text-gray-300">Quality</Label>
-                  <Select value={quality} onValueChange={(value: "standard" | "high" | "ultra") => setQuality(value)}>
-                    <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 h-14 text-base">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
-                      <SelectItem value="standard" className="py-3">
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-gray-900 dark:text-white text-base">Standard</span>
-                          {getQualityBadge("standard", canAccessQuality("standard"))}
+              {/* Duration */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-white/90">Duration</Label>
+                <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                    {getValidDurations(currentModel).map((item) => (
+                      <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-gray-400" />
+                          <span>{item.label}</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value="high" disabled={!canAccessQuality("high")} className="py-3">
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-gray-900 dark:text-white text-base">High</span>
-                          {getQualityBadge("high", canAccessQuality("high"))}
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="ultra" disabled={!canAccessQuality("ultra")} className="py-3">
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-gray-900 dark:text-white text-base">Ultra</span>
-                          {getQualityBadge("ultra", canAccessQuality("ultra"))}
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold text-gray-700 dark:text-gray-300">Duration</Label>
-                  <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                    <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 h-14 text-base">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
-                      {getValidDurations(currentModel).map((item) => (
-                        <SelectItem key={item.value} value={item.value.toString()} className="py-3">
-                          <div className="flex items-center space-x-3">
-                            <Clock className="h-5 w-5 text-gray-500" />
-                            <span className="text-gray-900 dark:text-white text-base">{item.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3"
+              className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
               disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || !canAccessQuality(quality) || isLoading}
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  Generating Video...
                 </>
               ) : isLoading ? (
                 <>
@@ -316,48 +314,66 @@ export function VideoGenerationForm() {
                   Loading...
                 </>
               ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Video
-                  <span className="ml-2 text-xs opacity-90">({creditsCost} credits)</span>
-                </>
+                <div className="flex items-center justify-center w-full relative">
+                  <div className="flex items-center">
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Video
+                  </div>
+                  {creditsCost > 0 && (
+                    <div className="absolute right-0 flex items-center space-x-1 text-sm opacity-80">
+                      <span>{creditsCost}</span>
+                      <span>credits</span>
+                    </div>
+                  )}
+                </div>
               )}
             </Button>
 
-            {/* Credit Warning */}
+            {/* Error Messages */}
             {!hasEnoughCredits && (
-              <Alert className="mt-3">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Insufficient credits. Upgrade your plan to get more credits.
-                </AlertDescription>
-              </Alert>
+              <div className="flex items-start space-x-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-400">Insufficient credits</p>
+                  <p className="text-xs text-red-300/80 mt-1">You need {creditsCost} credits but only have {currentUser?.credits || 0}. Upgrade your plan to get more credits.</p>
+                </div>
+              </div>
+            )}
+
+            {!canAccessQuality(quality) && (
+              <div className="flex items-start space-x-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-400">Quality tier not available</p>
+                  <p className="text-xs text-yellow-300/80 mt-1">Your current plan doesn't support {quality} quality. Upgrade to access higher quality tiers.</p>
+                </div>
+              </div>
             )}
           </form>
         </CardContent>
       </Card>
 
       {/* Quick Tips */}
-      <Card className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center space-x-2 text-sm">
-            <Info className="h-4 w-4 text-blue-500" />
+      <Card className="hidden lg:block bg-gray-900/30 backdrop-blur-sm border-gray-800/50">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center space-x-2 text-sm font-medium text-white/90">
+            <Info className="h-4 w-4 text-blue-400" />
             <span>Quick Tips</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-            <div className="flex items-start space-x-2">
-              <Target className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
-              <span>Be specific about scenes, actions, and visual style</span>
+          <div className="space-y-3 text-sm text-gray-300">
+            <div className="flex items-start space-x-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+              <span>Be specific about scenes, actions, and visual style for better results</span>
             </div>
-            <div className="flex items-start space-x-2">
-              <Target className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
-              <span>Include camera movements like &quot;close-up&quot; or &quot;wide shot&quot;</span>
+            <div className="flex items-start space-x-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+              <span>Include camera movements like "close-up", "wide shot", or "tracking shot"</span>
             </div>
-            <div className="flex items-start space-x-2">
-              <Target className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
-              <span>Mention lighting and mood for better results</span>
+            <div className="flex items-start space-x-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+              <span>Mention lighting and mood to enhance the atmosphere</span>
             </div>
           </div>
         </CardContent>

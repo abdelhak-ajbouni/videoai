@@ -9,23 +9,65 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { AppLayout } from "@/components/layouts/app-layout";
+import { Progress } from "@/components/ui/progress";
 
-import { Video, Clock, Sparkles, Play, Zap, Download, CreditCard } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { Video, Clock, Sparkles, Play, Download, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { VideoModal } from "@/components/VideoModal";
+import { useRouter } from "next/navigation";
 
 export default function GeneratePage() {
   const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  const recentVideos = useQuery(
+  const router = useRouter();
+  
+  // Get videos in different states
+  const pendingVideos = useQuery(
+    api.videos.getVideosByStatus,
+    currentUser ? { status: "pending" } : "skip"
+  );
+  const processingVideos = useQuery(
+    api.videos.getVideosByStatus,
+    currentUser ? { status: "processing" } : "skip"
+  );
+  const completedVideos = useQuery(
     api.videos.getVideosByStatus,
     currentUser ? { status: "completed" } : "skip"
   );
+  
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  // Get the current video (most recent pending or processing)
+  const currentVideo = processingVideos?.[0] || pendingVideos?.[0] || completedVideos?.[0] || null;
+  
+  // Simulate progress for processing videos
+  useEffect(() => {
+    if (processingVideos && processingVideos.length > 0) {
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = prev + Math.random() * 3;
+          return newProgress > 95 ? 95 : newProgress;
+        });
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    } else if (completedVideos && completedVideos.length > 0) {
+      setProgress(100);
+    } else {
+      setProgress(0);
+    }
+  }, [processingVideos, completedVideos]);
+
+  // Redirect to landing page if user is not authenticated
+  useEffect(() => {
+    if (isLoaded && currentUser === null) {
+      router.push("/");
+    }
+  }, [isLoaded, currentUser, router]);
 
   // Show loading state while authentication and user data are being loaded
-  if (!isLoaded || !currentUser) {
+  if (!isLoaded || currentUser === undefined) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -35,8 +77,16 @@ export default function GeneratePage() {
     );
   }
 
-  // Get recent videos (last 6 for better showcase)
-  const recentCompletedVideos = recentVideos?.slice(0, 6) || [];
+  // This should not happen due to the useEffect redirect, but keep as fallback
+  if (!currentUser) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loading text="Redirecting..." />
+        </div>
+      </AppLayout>
+    );
+  }
 
   const handleVideoClick = (video: Doc<"videos">) => {
     if (video.videoUrl) {
@@ -44,10 +94,7 @@ export default function GeneratePage() {
     }
   };
 
-  const handleDownload = (video: Doc<"videos">, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-    }
+  const handleDownload = (video: Doc<"videos">) => {
     if (video.videoUrl) {
       const link = document.createElement('a');
       link.href = video.videoUrl;
@@ -62,196 +109,163 @@ export default function GeneratePage() {
     setSelectedVideo(null);
   };
 
+  const getVideoStatus = () => {
+    if (processingVideos && processingVideos.length > 0) return 'processing';
+    if (pendingVideos && pendingVideos.length > 0) return 'pending';
+    if (completedVideos && completedVideos.length > 0) return 'completed';
+    return 'none';
+  };
+
+  const status = getVideoStatus();
+
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
-        <div className="px-4 py-8">
-          {/* Top Header with Credits */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Create Amazing Videos
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
-                Transform your ideas into stunning videos with AI
-              </p>
-            </div>
+      <div className="min-h-screen bg-gray-950">
+        <div className="px-6 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-white/95 mb-1">
+              Generate Video
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Create stunning videos with AI
+            </p>
           </div>
 
-          {/* Main Layout - 40% Left, 60% Right */}
-          <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
-            {/* Left Side - Video Generation Form (40%) */}
-            <div className="lg:col-span-4">
+          {/* Main Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Side - Video Generation Form */}
+            <div>
               <div className="sticky top-8">
                 <VideoGenerationForm />
               </div>
             </div>
 
-            {/* Right Side - Recent Videos (60%) */}
-            <div className="lg:col-span-6">
-              <div className="space-y-6">
-                {/* Recent Videos Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500">
-                      <Video className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        Recent Videos
-                      </h2>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Your latest AI-generated content
-                      </p>
-                    </div>
-                  </div>
-                  <Link href="/library">
-                    <Button variant="outline" size="sm" className="hover:bg-blue-50 dark:hover:bg-blue-900/20">
-                      <Zap className="h-4 w-4 mr-2" />
-                      View All
-                    </Button>
-                  </Link>
-                </div>
+            {/* Right Side - Current Video Player */}
+            <div>
+              <div className="sticky top-8">
+                <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Video Player Area */}
+                    <div className="aspect-video bg-gray-900 relative flex items-center justify-center">
+                      {status === 'none' && (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                            <Video className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-400 text-sm">
+                            Your generated video will appear here
+                          </p>
+                        </div>
+                      )}
 
-                {/* Videos Grid */}
-                {recentCompletedVideos.length === 0 ? (
-                  <Card className="border-2 border-dashed border-gray-300 dark:border-gray-600">
-                    <CardContent className="text-center py-16">
-                      <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 w-fit mx-auto mb-4">
-                        <Video className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        No videos yet
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
-                        Generate your first video using the form on the left to see your creations here
-                      </p>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Sparkles className="h-4 w-4" />
-                        <span>Your AI-generated videos will appear here</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {recentCompletedVideos.map((video) => (
-                      <Card
-                        key={video._id}
-                        className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer"
-                        onClick={() => handleVideoClick(video)}
-                      >
-                        {/* Video Thumbnail */}
-                        <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                          {video.videoUrl ? (
-                            <video
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              poster={video.thumbnailUrl}
-                              muted
-                            >
-                              <source src={video.videoUrl} type="video/mp4" />
-                            </video>
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Video className="h-12 w-12 text-gray-400" />
+                      {status === 'pending' && (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+                            <Clock className="h-8 w-8 text-yellow-400" />
+                          </div>
+                          <p className="text-yellow-400 text-sm font-medium mb-2">
+                            Video Queued
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            Waiting to start processing...
+                          </p>
+                        </div>
+                      )}
+
+                      {status === 'processing' && (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                            <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
+                          </div>
+                          <p className="text-blue-400 text-sm font-medium mb-2">
+                            Generating Video
+                          </p>
+                          <p className="text-gray-400 text-xs mb-4">
+                            This may take a few minutes...
+                          </p>
+                          <div className="w-48 mx-auto">
+                            <Progress 
+                              value={progress} 
+                              className="h-2 bg-gray-800"
+                            />
+                            <p className="text-xs text-gray-500 mt-2">
+                              {Math.round(progress)}% complete
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {status === 'completed' && currentVideo?.videoUrl && (
+                        <div className="relative w-full h-full">
+                          <video
+                            className="w-full h-full object-cover"
+                            poster={currentVideo.thumbnailUrl}
+                            controls
+                            preload="metadata"
+                          >
+                            <source src={currentVideo.videoUrl} type="video/mp4" />
+                          </video>
+                        </div>
+                      )}
+
+                      {status === 'completed' && !currentVideo?.videoUrl && (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-red-400" />
+                          </div>
+                          <p className="text-red-400 text-sm font-medium mb-2">
+                            Generation Failed
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            Please try generating again
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Video Info */}
+                    {currentVideo && (
+                      <div className="p-2 lg:p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-white font-medium mb-1">
+                              {currentVideo.title}
+                            </h3>
+                            <div className="flex items-center space-x-4 text-sm text-gray-400">
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-3 w-3" />
+                                <span>{currentVideo.duration}s</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <span className="capitalize">{currentVideo.quality}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {status === 'completed' && (
+                            <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                                <span className="text-sm text-gray-400">Ready</span>
+                              </div>
+                              {currentVideo.videoUrl && (
+                                <Button
+                                  onClick={() => handleDownload(currentVideo)}
+                                  size="icon"
+                                  className="bg-gray-800/50 hover:bg-gray-700/70 text-white border-gray-700/50 h-8 w-8"
+                                  variant="outline"
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
                           )}
-
-                          {/* Play Button Overlay */}
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                            <div className="p-3 rounded-full bg-white bg-opacity-90 group-hover:bg-opacity-100 transition-all duration-300 transform scale-0 group-hover:scale-100">
-                              <Play className="h-5 w-5 text-gray-800 ml-0.5" />
-                            </div>
-                          </div>
-
-                          {/* Quality Badge */}
-                          <div className="absolute top-3 right-3">
-                            <span className="px-2 py-1 text-xs font-medium bg-black bg-opacity-70 text-white rounded-full">
-                              {video.quality}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Video Info */}
-                        <CardContent className="p-4">
-                          <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {video.title}
-                          </h3>
-
-                          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-3">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{video.duration}s</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <CreditCard className="h-3 w-3" />
-                              <span className="font-medium text-blue-600 dark:text-blue-400">
-                                {video.creditsCost} credits
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleVideoClick(video);
-                              }}
-                            >
-                              <Play className="h-3 w-3 mr-1" />
-                              Play
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 hover:bg-gray-50 dark:hover:bg-gray-800"
-                              onClick={(e) => handleDownload(video, e)}
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              Download
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-
-                {/* Quick Stats */}
-                {recentCompletedVideos.length > 0 && (
-                  <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-6">
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {recentCompletedVideos.length}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Total Videos
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            {recentCompletedVideos.reduce((sum, video) => sum + (Number(video.creditsCost) || 0), 0)}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Credits Used
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            {Math.round(recentCompletedVideos.reduce((sum, video) => sum + (Number(video.duration) || 0), 0) / 60 * 10) / 10}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Minutes Created
-                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>

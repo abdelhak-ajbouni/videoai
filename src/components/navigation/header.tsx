@@ -58,7 +58,7 @@ export function Header({
         {/* Left Section - Title/Logo */}
         <div className="flex items-center space-x-4">
           {/* Logo for standalone header */}
-          <Link href="/dashboard" className="flex items-center space-x-3 lg:hidden">
+          <Link href="/generate" className="flex items-center space-x-3 lg:hidden">
             <div className="p-2 rounded-lg bg-gradient-ai">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
@@ -133,19 +133,39 @@ export function Header({
           {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* Credit Balance (Desktop) */}
+          {/* Credit Balance & Subscription (Desktop) */}
           {currentUser && (
-            <Link href="/dashboard/billing">
-              <div className="hidden lg:flex items-center space-x-2 px-3 py-2 rounded-lg bg-ai-primary-50 dark:bg-ai-primary-900/20 border border-ai-primary-200 dark:border-ai-primary-800 hover:bg-ai-primary-100 dark:hover:bg-ai-primary-900/30 transition-colors duration-normal cursor-pointer">
-                <CreditCard className="h-4 w-4 text-ai-primary-600 dark:text-ai-primary-400" />
-                <div className="text-right">
-                  <p className="text-xs text-ai-primary-700 dark:text-ai-primary-300">Credits</p>
-                  <p className="text-sm font-bold text-ai-primary-600 dark:text-ai-primary-400">
-                    {currentUser.credits}
-                  </p>
+            <div className="hidden lg:flex items-center space-x-3">
+              {/* Credits */}
+              <Link href="/subscriptions">
+                <div className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-ai-primary-50 to-ai-primary-100 dark:from-ai-primary-900/20 dark:to-ai-primary-800/20 border border-ai-primary-200 dark:border-ai-primary-700 hover:from-ai-primary-100 hover:to-ai-primary-150 dark:hover:from-ai-primary-800/30 dark:hover:to-ai-primary-700/30 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-md">
+                  <div className="p-1.5 rounded-lg bg-ai-primary-500 group-hover:bg-ai-primary-600 transition-colors">
+                    <Sparkles className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-medium text-ai-primary-700 dark:text-ai-primary-300 uppercase tracking-wide">Credits</p>
+                    <p className="text-lg font-bold text-ai-primary-800 dark:text-ai-primary-200 leading-tight">
+                      {currentUser.credits?.toLocaleString() || '0'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              {/* Subscription */}
+              <Link href="/subscriptions">
+                <div className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 border border-emerald-200 dark:border-emerald-700 hover:from-emerald-100 hover:to-emerald-150 dark:hover:from-emerald-800/30 dark:hover:to-emerald-700/30 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-md">
+                  <div className="p-1.5 rounded-lg bg-emerald-500 group-hover:bg-emerald-600 transition-colors">
+                    <CreditCard className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">Plan</p>
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200 leading-tight capitalize">
+                      {currentUser.subscriptionTier || 'Free'}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            </div>
           )}
 
           {/* User Menu */}
@@ -191,14 +211,14 @@ export function Header({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile" className="cursor-pointer">
+                  <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile Settings</span>
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/billing" className="cursor-pointer">
+                  <Link href="/subscriptions" className="cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Billing & Credits</span>
                   </Link>
