@@ -108,15 +108,7 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkId"])
     .index("by_status", ["status"])
     .index("by_clerk_id_and_status", ["clerkId", "status"])
-    .index("by_replicate_job_id", ["replicateJobId"])
-    .index("by_created_at", ["createdAt"])
-    .index("by_clerk_id_and_created_at", ["clerkId", "createdAt"])
-    .index("by_clerk_id_and_favorite", ["clerkId", "isFavorite"])
-    .index("by_clerk_id_and_public", ["clerkId", "isPublic"])
-    .index("by_clerk_id_and_view_count", ["clerkId", "viewCount"])
-    .index("by_tags", ["tags"])
-    .index("by_file_size", ["fileSize"])
-    .index("by_last_viewed", ["lastViewedAt"]),
+    .index("by_replicate_job_id", ["replicateJobId"]),
 
   creditTransactions: defineTable({
     // User relationship
@@ -145,11 +137,7 @@ export default defineSchema({
     // Timestamps
     createdAt: v.number(),
   })
-    .index("by_clerk_id", ["clerkId"])
-    .index("by_type", ["type"])
-    .index("by_clerk_id_and_type", ["clerkId", "type"])
-    .index("by_video", ["videoId"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_clerk_id", ["clerkId"]),
 
   creditPackages: defineTable({
     // Package identification
@@ -173,8 +161,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_package_id", ["packageId"])
-    .index("by_active", ["isActive"])
-    .index("by_price", ["price"]),
+    .index("by_active", ["isActive"]),
 
   subscriptionPlans: defineTable({
     // Plan identification
@@ -199,8 +186,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_plan_id", ["planId"])
-    .index("by_active", ["isActive"])
-    .index("by_price", ["price"]),
+    .index("by_active", ["isActive"]),
 
   subscriptions: defineTable({
     // User relationship
@@ -274,11 +260,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_clerk_id", ["clerkId"])
     .index("by_video", ["videoId"])
-    .index("by_replicate_job_id", ["replicateJobId"])
-    .index("by_status", ["status"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_replicate_job_id", ["replicateJobId"]),
 
   configurations: defineTable({
     // Configuration identification
@@ -369,27 +352,6 @@ export default defineSchema({
     averageGenerationTime: v.optional(v.number()), // Average generation time in seconds
     successRate: v.optional(v.number()), // Success rate percentage
 
-    // Health monitoring (added for performance monitoring)
-    lastHealthCheck: v.optional(v.number()), // Last health check timestamp
-    avgResponseTime: v.optional(v.number()), // Average response time in milliseconds
-    isHealthy: v.optional(v.boolean()), // Current health status
-    healthStatus: v.optional(v.string()), // 'healthy', 'degraded', 'critical', 'unknown'
-    healthIssues: v.optional(v.array(v.string())), // List of current health issues
-
-    // Discovery metadata (added for model discovery)
-    discoveredAt: v.optional(v.number()), // When the model was first discovered
-    lastValidatedAt: v.optional(v.number()), // Last time model schema was validated
-    schemaVersion: v.optional(v.string()), // Version of the model schema
-    inputSchema: v.optional(v.any()), // OpenAPI schema for inputs
-    outputSchema: v.optional(v.any()), // OpenAPI schema for outputs
-    confidence: v.optional(v.number()), // Confidence score (0-100) that this is a video model
-
-    // Enhanced model metadata
-    supportedInputTypes: v.optional(v.array(v.string())), // Types of inputs supported
-    supportedOutputFormats: v.optional(v.array(v.string())), // Output formats supported
-    maxInputSize: v.optional(v.number()), // Maximum input size in bytes
-    estimatedProcessingTime: v.optional(v.number()), // Estimated processing time per second
-
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -401,32 +363,6 @@ export default defineSchema({
     .index("by_default", ["isDefault"])
     .index("by_provider", ["provider"])
     .index("by_category", ["category"])
-    .index("by_active_and_premium", ["isActive", "isPremium"])
-    .index("by_version", ["version"])
-    .index("by_health", ["lastHealthCheck"])
-    .index("by_discovery", ["discoveredAt"]),
+    .index("by_active_and_premium", ["isActive", "isPremium"]),
 
-  modelDiscoveryLogs: defineTable({
-    discoveryId: v.string(),
-    startedAt: v.number(),
-    completedAt: v.optional(v.number()),
-    status: v.union(
-      v.literal("running"),
-      v.literal("completed"),
-      v.literal("failed")
-    ),
-    modelsFound: v.optional(v.number()),
-    modelsUpdated: v.optional(v.number()),
-    modelsAdded: v.optional(v.number()),
-    modelsRemoved: v.optional(v.number()),
-    errors: v.optional(v.array(v.string())),
-    duration: v.optional(v.number()),
-
-    // Timestamps
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_discovery_id", ["discoveryId"])
-    .index("by_status", ["status"])
-    .index("by_started_at", ["startedAt"]),
 });

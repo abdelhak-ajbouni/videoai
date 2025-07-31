@@ -498,33 +498,3 @@ export const validateModelCapabilities = query({
   },
 });
 
-// Migration: Add isFast field to existing models
-export const migrateAddIsFastField = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const models = await ctx.db.query("models").collect();
-
-    for (const model of models) {
-      // Check if model already has isFast field
-      if (model.isFast === undefined) {
-        // Determine if model is fast based on tags and category
-        let isFast = false;
-
-        if (
-          model.tags?.includes("ultra-fast") ||
-          model.tags?.includes("fast") ||
-          model.category === "budget"
-        ) {
-          isFast = true;
-        }
-
-        await ctx.db.patch(model._id, {
-          isFast,
-          updatedAt: Date.now(),
-        });
-      }
-    }
-
-    return { updated: models.length };
-  },
-});
