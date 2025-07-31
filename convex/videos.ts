@@ -136,6 +136,11 @@ export const createVideo = mutation({
       v.literal("ultra")
     ),
     duration: v.string(), // Keep as string for compatibility
+    // Model-specific options
+    resolution: v.optional(v.string()),
+    aspectRatio: v.optional(v.string()),
+    loop: v.optional(v.boolean()),
+    cameraConcept: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -214,6 +219,11 @@ export const createVideo = mutation({
       duration: args.duration,
       status: "pending",
       creditsCost,
+      // Model-specific options
+      resolution: args.resolution,
+      aspectRatio: args.aspectRatio,
+      loop: args.loop,
+      cameraConcept: args.cameraConcept,
       // Initialize new metadata fields
       viewCount: 0,
       downloadCount: 0,

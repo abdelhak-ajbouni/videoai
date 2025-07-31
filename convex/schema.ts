@@ -59,6 +59,14 @@ export default defineSchema({
       v.literal("ultra")
     ),
     duration: v.string(), // Accept any duration string
+    
+    // Model-specific options
+    resolution: v.optional(v.string()), // e.g., "720p", "1080p"
+    aspectRatio: v.optional(v.string()), // e.g., "16:9", "9:16", "1:1"
+    loop: v.optional(v.boolean()), // For Luma Ray models
+    cameraConcept: v.optional(v.string()), // Camera movement concept
+    startImageUrl: v.optional(v.string()), // Start frame image URL
+    endImageUrl: v.optional(v.string()), // End frame image URL
 
     // Status and processing
     status: v.union(
@@ -374,6 +382,17 @@ export default defineSchema({
     replicateModelId: v.string(), // Full Replicate model identifier
     modelParameters: v.optional(v.any()), // Model-specific parameters
     requirements: v.optional(v.any()), // System requirements or constraints
+    
+    // Model-specific options
+    supportedResolutions: v.optional(v.array(v.string())), // ["720p", "1080p"]
+    defaultResolution: v.optional(v.string()), // Default resolution
+    supportedAspectRatios: v.optional(v.array(v.string())), // ["16:9", "9:16", "1:1"]
+    defaultAspectRatio: v.optional(v.string()), // Default aspect ratio
+    supportsLoop: v.optional(v.boolean()), // Supports looping videos
+    supportsCameraConcepts: v.optional(v.boolean()), // Supports camera movements
+    cameraConcepts: v.optional(v.array(v.string())), // Available camera concepts
+    supportsStartEndImages: v.optional(v.boolean()), // Supports start/end frame images
+    supportsAudio: v.optional(v.boolean()), // Supports audio generation
 
     // Usage statistics
     totalGenerations: v.optional(v.number()), // Total generations using this model

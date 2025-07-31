@@ -35,6 +35,12 @@ export function VideoGenerationForm() {
   const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
   const [duration, setDuration] = useState<number>(5);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Model-specific options
+  const [resolution, setResolution] = useState<string>("");
+  const [aspectRatio, setAspectRatio] = useState<string>("");
+  const [loop, setLoop] = useState<boolean>(false);
+  const [cameraConcept, setCameraConcept] = useState<string>("");
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
@@ -111,6 +117,29 @@ export function VideoGenerationForm() {
     }
   }, [currentModel, duration]);
 
+  // Reset model-specific options when model changes
+  useEffect(() => {
+    if (currentModel) {
+      // Set default resolution
+      if (currentModel.supportedResolutions && currentModel.defaultResolution) {
+        setResolution(currentModel.defaultResolution);
+      } else {
+        setResolution("");
+      }
+
+      // Set default aspect ratio
+      if (currentModel.supportedAspectRatios && currentModel.defaultAspectRatio) {
+        setAspectRatio(currentModel.defaultAspectRatio);
+      } else {
+        setAspectRatio("");
+      }
+
+      // Reset other options
+      setLoop(false);
+      setCameraConcept("");
+    }
+  }, [currentModel]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -142,6 +171,10 @@ export function VideoGenerationForm() {
         model: modelId,
         quality,
         duration: duration.toString(),
+        resolution: resolution || undefined,
+        aspectRatio: aspectRatio || undefined,
+        loop: loop || undefined,
+        cameraConcept: cameraConcept || undefined,
       });
 
       toast.success("Video generation started! Check your library to see progress.");
@@ -152,6 +185,11 @@ export function VideoGenerationForm() {
       setModelId(activeModels && activeModels.length > 0 ? activeModels[0].modelId : "");
       setQuality("standard");
       setDuration(5);
+      // Reset model-specific options
+      setResolution("");
+      setAspectRatio("");
+      setLoop(false);
+      setCameraConcept("");
 
     } catch (error) {
       console.error("Error creating video:", error);
@@ -228,11 +266,11 @@ export function VideoGenerationForm() {
                 <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
                   {activeModels?.map((model) => (
                     <SelectItem key={model.modelId} value={model.modelId} className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-center space-x-3 py-1">
+                      <div className="flex items-start space-x-3 py-1 text-left">
                         {getModelIcon(model)}
-                        <div>
-                          <div className="font-medium text-white text-sm">{model.name}</div>
-                          <div className="text-xs text-gray-400 line-clamp-1">{model.description}</div>
+                        <div className="text-left">
+                          <div className="font-medium text-white text-sm text-left">{model.name}</div>
+                          <div className="text-xs text-gray-400 line-clamp-1 text-left">{model.description}</div>
                         </div>
                       </div>
                     </SelectItem>
@@ -296,6 +334,99 @@ export function VideoGenerationForm() {
                 </Select>
               </div>
             </div>
+
+            {/* Model-Specific Options */}
+            {currentModel && (
+              <div className="space-y-4">
+                {/* Resolution (for Google Veo-3) */}
+                {currentModel.supportedResolutions && currentModel.supportedResolutions.length > 1 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-white/90">Resolution</Label>
+                    <Select value={resolution} onValueChange={setResolution}>
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectValue placeholder="Select resolution" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                        {currentModel.supportedResolutions.map((res) => (
+                          <SelectItem key={res} value={res} className="focus:bg-gray-800 focus:text-white">
+                            <div className="flex items-center space-x-2">
+                              <Video className="h-4 w-4 text-gray-400" />
+                              <span>{res}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Aspect Ratio (for Luma Ray models) */}
+                {currentModel.supportedAspectRatios && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
+                    <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectValue placeholder="Select aspect ratio" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                        {currentModel.supportedAspectRatios.map((ratio) => (
+                          <SelectItem key={ratio} value={ratio} className="focus:bg-gray-800 focus:text-white">
+                            <div className="flex items-center space-x-2">
+                              <Target className="h-4 w-4 text-gray-400" />
+                              <span>{ratio}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Camera Concept (for Luma Ray models) */}
+                {currentModel.supportsCameraConcepts && currentModel.cameraConcepts && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
+                    <Select value={cameraConcept} onValueChange={setCameraConcept}>
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectValue placeholder="Optional camera movement" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                        <SelectItem value="" className="focus:bg-gray-800 focus:text-white">
+                          <div className="flex items-center space-x-2">
+                            <Wand2 className="h-4 w-4 text-gray-400" />
+                            <span>None (Auto)</span>
+                          </div>
+                        </SelectItem>
+                        {currentModel.cameraConcepts.map((concept) => (
+                          <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
+                            <div className="flex items-center space-x-2">
+                              <Video className="h-4 w-4 text-gray-400" />
+                              <span className="capitalize">{concept.replace('_', ' ')}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Loop Option (for Luma Ray models) */}
+                {currentModel.supportsLoop && (
+                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-gray-800/30 border border-gray-700/50">
+                    <input
+                      id="loop"
+                      type="checkbox"
+                      checked={loop}
+                      onChange={(e) => setLoop(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                    />
+                    <Label htmlFor="loop" className="text-sm font-medium text-white/90 cursor-pointer">
+                      Create looping video
+                    </Label>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Submit Button */}
             <Button

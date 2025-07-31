@@ -244,6 +244,10 @@ export const initializeDefaultModels = mutation({
           minCredits: 396,
           maxDuration: 8,
         },
+        // Model-specific options
+        supportedResolutions: ["720p", "1080p"],
+        defaultResolution: "720p",
+        supportsAudio: true,
       },
       {
         modelId: "luma/ray-2-720p",
@@ -272,6 +276,15 @@ export const initializeDefaultModels = mutation({
           minCredits: 60,
           maxDuration: 9,
         },
+        // Model-specific options
+        supportedResolutions: ["720p"],
+        defaultResolution: "720p",
+        supportedAspectRatios: ["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"],
+        defaultAspectRatio: "16:9",
+        supportsLoop: true,
+        supportsCameraConcepts: true,
+        cameraConcepts: ["pan_right", "pan_left", "zoom_in", "zoom_out", "aerial_drone", "truck_left", "truck_right", "low_angle", "high_angle"],
+        supportsStartEndImages: true,
       },
       {
         modelId: "luma/ray-flash-2-540p",
@@ -300,6 +313,15 @@ export const initializeDefaultModels = mutation({
           minCredits: 40,
           maxDuration: 9,
         },
+        // Model-specific options
+        supportedResolutions: ["540p"],
+        defaultResolution: "540p",
+        supportedAspectRatios: ["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"],
+        defaultAspectRatio: "16:9",
+        supportsLoop: true,
+        supportsCameraConcepts: true,
+        cameraConcepts: ["pan_right", "pan_left", "zoom_in", "zoom_out", "aerial_drone", "truck_left", "truck_right", "low_angle", "high_angle"],
+        supportsStartEndImages: true,
       },
     ];
 
