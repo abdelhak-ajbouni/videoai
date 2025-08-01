@@ -108,7 +108,7 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
                         </span>
                         <span className="text-white/60 text-xs">•</span>
                         <span className="text-white/80 text-xs capitalize">
-                          {video.quality}
+
                         </span>
                       </div>
                     </div>

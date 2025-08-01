@@ -35,7 +35,6 @@ export function VideoLibrary() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [qualityFilter, setQualityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
   // Filter and sort videos
@@ -48,9 +47,8 @@ export function VideoLibrary() {
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || video.status === statusFilter;
-      const matchesQuality = qualityFilter === "all" || video.quality === qualityFilter;
 
-      return matchesSearch && matchesStatus && matchesQuality;
+      return matchesSearch && matchesStatus;
     });
 
     // Sort videos
@@ -70,7 +68,7 @@ export function VideoLibrary() {
     });
 
     return filtered;
-  }, [videos, searchQuery, statusFilter, qualityFilter, sortBy]);
+  }, [videos, searchQuery, statusFilter, sortBy]);
 
   const handleDownload = async (video: { _id: Id<"videos">; videoUrl?: string; title?: string }) => {
     if (!video.videoUrl) {
@@ -205,11 +203,10 @@ export function VideoLibrary() {
   const getEstimatedTime = (video: {
     status: string;
     processingStartedAt?: number;
-    quality: string;
   }) => {
     if (video.status === "processing" && video.processingStartedAt) {
       const processingTime = Date.now() - video.processingStartedAt;
-      const estimatedTotal = video.quality === "high" ? 300000 : 180000; // 5min or 3min
+      const estimatedTotal = 180000; // 3min default
       const remaining = Math.max(0, estimatedTotal - processingTime);
       const remainingMinutes = Math.ceil(remaining / 60000);
       return `~${remainingMinutes} min remaining`;
@@ -253,16 +250,7 @@ export function VideoLibrary() {
             </SelectContent>
           </Select>
 
-          <Select value={qualityFilter} onValueChange={setQualityFilter}>
-            <SelectTrigger className="w-full sm:w-32 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <SelectValue placeholder="Quality" />
-            </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xl">
-              <SelectItem value="all" className="py-2 text-gray-900 dark:text-white">All Quality</SelectItem>
-              <SelectItem value="standard" className="py-2 text-gray-900 dark:text-white">Standard</SelectItem>
-              <SelectItem value="high" className="py-2 text-gray-900 dark:text-white">High</SelectItem>
-            </SelectContent>
-          </Select>
+
 
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-full sm:w-32 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -291,7 +279,6 @@ export function VideoLibrary() {
           <Button variant="outline" onClick={() => {
             setSearchQuery("");
             setStatusFilter("all");
-            setQualityFilter("all");
           }}>
             Clear Filters
           </Button>
@@ -341,9 +328,6 @@ export function VideoLibrary() {
                       <span className="flex items-center">
                         <Timer className="h-4 w-4 mr-1" />
                         {video.duration}s
-                      </span>
-                      <span className="capitalize">
-                        {video.quality}
                       </span>
                     </div>
                     <span className="text-blue-600 font-medium">

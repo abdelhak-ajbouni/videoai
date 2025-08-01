@@ -149,7 +149,7 @@ export default function ExplorePage() {
                       {video.prompt}
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span className="capitalize">{video.quality}</span>
+
                       {video.viewCount && (
                         <span className="flex items-center">
                           <Eye className="h-3 w-3 mr-1" />

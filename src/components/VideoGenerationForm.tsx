@@ -8,14 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Sparkles,
   Clock,
   AlertCircle,
   Loader2,
   Video,
-  Info,
   Crown,
   Zap,
   Wand2,
@@ -28,7 +26,6 @@ import { Doc } from "../../convex/_generated/dataModel";
 export function VideoGenerationForm() {
   const [prompt, setPrompt] = useState("");
   const [modelId, setModelId] = useState<string>("");
-  const [quality, setQuality] = useState<"standard" | "high" | "ultra">("standard");
   const [duration, setDuration] = useState<number>(5);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -44,7 +41,7 @@ export function VideoGenerationForm() {
 
   const creditCost = useQuery(api.pricing.getCreditCost, {
     modelId: modelId || "",
-    quality,
+    quality: "standard",
     duration
   });
 
@@ -70,22 +67,6 @@ export function VideoGenerationForm() {
 
   // Get current model information
   const currentModel = activeModels?.find(m => m.modelId === modelId);
-
-  // Check if user can access quality tiers based on subscription
-  const canAccessQuality = (qualityTier: string) => {
-    if (!currentUser) return false;
-
-    switch (qualityTier) {
-      case "standard":
-        return true; // Available to all
-      case "high":
-        return ["starter", "pro", "max"].includes(currentUser.subscriptionTier);
-      case "ultra":
-        return ["max"].includes(currentUser.subscriptionTier);
-      default:
-        return false;
-    }
-  };
 
   // Get valid durations for the selected model
   const getValidDurations = (model: Doc<"models"> | undefined) => {
@@ -154,18 +135,13 @@ export function VideoGenerationForm() {
       return;
     }
 
-    if (!canAccessQuality(quality)) {
-      toast.error("Your subscription plan doesn't support this quality tier");
-      return;
-    }
-
     setIsGenerating(true);
 
     try {
       await createVideo({
         prompt: prompt.trim(),
         model: modelId,
-        quality,
+        quality: "standard",
         duration: duration.toString(),
         resolution: resolution || undefined,
         aspectRatio: aspectRatio || undefined,
@@ -177,7 +153,6 @@ export function VideoGenerationForm() {
       setPrompt("");
       // Reset to first available model or empty string
       setModelId(activeModels && activeModels.length > 0 ? activeModels[0].modelId : "");
-      setQuality("standard");
       setDuration(5);
       // Reset model-specific options
       setResolution("");
@@ -193,7 +168,6 @@ export function VideoGenerationForm() {
     }
   };
 
-
   const getModelIcon = (model: Doc<"models">) => {
     if (model.isPremium) return <Crown className="h-5 w-5 text-purple-500 mt-1 flex-shrink-0" />;
     if (model.isFast) return <Zap className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />;
@@ -207,12 +181,12 @@ export function VideoGenerationForm() {
           <CardTitle className="text-lg font-medium text-white/95">
             Create New Video
           </CardTitle>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-gray-400">
             Generate AI-powered videos from your description
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-2">
             {/* Prompt */}
             <div className="space-y-3">
               <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
@@ -260,62 +234,30 @@ export function VideoGenerationForm() {
               )}
             </div>
 
-            {/* Settings Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Quality */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-white/90">Quality</Label>
-                <Select value={quality} onValueChange={(value: "standard" | "high" | "ultra") => setQuality(value)}>
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                    <SelectItem value="standard" className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-center justify-between w-full">
-                        <span>Standard</span>
-                        <Badge variant="secondary" className="ml-2">720p</Badge>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="high" disabled={!canAccessQuality("high")} className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-center justify-between w-full">
-                        <span>High</span>
-                        <Badge className="ml-2 bg-blue-500/20 text-blue-400 border-blue-500/30">1080p</Badge>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="ultra" disabled={!canAccessQuality("ultra")} className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-center justify-between w-full">
-                        <span>Ultra</span>
-                        <Badge className="ml-2 bg-purple-500/20 text-purple-400 border-purple-500/30">4K</Badge>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
-              {/* Duration */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-white/90">Duration</Label>
-                <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                    {getValidDurations(currentModel).map((item) => (
-                      <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-gray-400" />
-                          <span>{item.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Duration */}
+            <div className="space-y-3 w-1/2">
+              <Label className="text-sm font-medium text-white/90">Duration</Label>
+              <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
+                <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                  {getValidDurations(currentModel).map((item) => (
+                    <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span>{item.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Model-Specific Options */}
             {currentModel && (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Resolution (for Google Veo-3) */}
                 {currentModel.supportedResolutions && currentModel.supportedResolutions.length > 1 && (
                   <div className="space-y-3">
@@ -344,7 +286,7 @@ export function VideoGenerationForm() {
                     <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
                     <Select value={aspectRatio} onValueChange={setAspectRatio}>
                       <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                        <SelectValue placeholder="Select aspect ratio" />
+                        <SelectValue placeholder="select aspect ratio" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
                         {currentModel.supportedAspectRatios.map((ratio) => (
@@ -390,7 +332,7 @@ export function VideoGenerationForm() {
 
                 {/* Loop Option (for Luma Ray models) */}
                 {currentModel.supportsLoop && (
-                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-gray-800/30 border border-gray-700/50">
+                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-gray-800/30 border border-gray-700/50 md:col-span-2">
                     <input
                       id="loop"
                       type="checkbox"
@@ -406,11 +348,12 @@ export function VideoGenerationForm() {
               </div>
             )}
 
+
             {/* Submit Button */}
             <Button
               type="submit"
               className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
-              disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || !canAccessQuality(quality) || isLoading}
+              disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || isLoading}
             >
               {isGenerating ? (
                 <>
@@ -448,21 +391,9 @@ export function VideoGenerationForm() {
                 </div>
               </div>
             )}
-
-            {!canAccessQuality(quality) && (
-              <div className="flex items-start space-x-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-400">Quality tier not available</p>
-                  <p className="text-xs text-yellow-300/80 mt-1">Your current plan doesn&apos;t support {quality} quality. Upgrade to access higher quality tiers.</p>
-                </div>
-              </div>
-            )}
           </form>
         </CardContent>
       </Card>
-
-
     </div>
   );
 } 

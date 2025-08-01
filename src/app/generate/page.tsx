@@ -263,7 +263,7 @@ function GeneratePageContent() {
                                 <span>{currentVideo.duration}s</span>
                               </div>
                               <div className="flex items-center space-x-1">
-                                <span className="capitalize">{currentVideo.quality}</span>
+
                               </div>
                             </div>
                           </div>

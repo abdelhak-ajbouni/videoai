@@ -81,7 +81,7 @@ export function VideoModal({
             <div className="flex items-center gap-4 text-sm text-text-tertiary">
               <span>{video.duration}s</span>
               <span>•</span>
-              <span className="capitalize">{video.quality}</span>
+
               <span>•</span>
               <span>{video.creditsCost} credits</span>
               {video.viewCount && (

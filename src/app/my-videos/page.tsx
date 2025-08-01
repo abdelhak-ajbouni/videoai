@@ -7,13 +7,13 @@ import { Doc } from "../../../convex/_generated/dataModel";
 import { Loading } from "@/components/ui/loading";
 import { AppLayout } from "@/components/layouts/app-layout";
 import { Button } from "@/components/ui/button";
-import { 
-  Video, 
-  Play, 
-  Download, 
-  Trash2, 
+import {
+  Video,
+  Play,
+  Download,
+  Trash2,
   Calendar,
-  MoreHorizontal 
+  MoreHorizontal
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { VideoModal } from "@/components/VideoModal";
@@ -175,7 +175,7 @@ export default function MyVideosPage() {
               <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
                 Create your first AI-generated video to get started
               </p>
-              <Button 
+              <Button
                 onClick={() => window.location.href = '/generate'}
                 className="bg-white hover:bg-gray-100 text-gray-900"
               >
@@ -231,14 +231,14 @@ export default function MyVideosPage() {
                         <DropdownMenuContent align="end" className="bg-gray-900 border-gray-700">
                           {video.status === 'completed' && video.videoUrl && (
                             <>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleVideoClick(video)}
                                 className="focus:bg-gray-800 focus:text-white"
                               >
                                 <Play className="h-4 w-4 mr-2" />
                                 Play
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleDownload(video)}
                                 className="focus:bg-gray-800 focus:text-white"
                               >
@@ -247,7 +247,7 @@ export default function MyVideosPage() {
                               </DropdownMenuItem>
                             </>
                           )}
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDelete(video)}
                             className="focus:bg-red-600 focus:text-white text-red-400"
                           >
@@ -260,7 +260,7 @@ export default function MyVideosPage() {
 
                     {/* Play Button Overlay for completed videos */}
                     {video.status === 'completed' && video.videoUrl && (
-                      <div 
+                      <div
                         className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center cursor-pointer"
                         onClick={() => handleVideoClick(video)}
                       >
@@ -290,7 +290,7 @@ export default function MyVideosPage() {
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-600">
                       <div className="flex items-center space-x-2">
-                        <span className="capitalize">{video.quality}</span>
+
                         <span>•</span>
                         <span className="flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
