@@ -13,9 +13,7 @@
     "test:coverage": "jest --coverage",
     "dev-mode": "node scripts/toggle-mode.js dev",
     "prod-mode": "node scripts/toggle-mode.js prod",
-    "check-mode": "node scripts/toggle-mode.js",
-    "init-configs": "node scripts/initialize-configs.js",
-    "init-models": "node scripts/initialize-models.js"
+    "check-mode": "node scripts/toggle-mode.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.1.1",

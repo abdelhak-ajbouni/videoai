@@ -12,7 +12,6 @@ import {
   Play, 
   Download, 
   Trash2, 
-  Clock, 
   Calendar,
   MoreHorizontal 
 } from "lucide-react";

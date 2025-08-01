@@ -1,11 +1,11 @@
 "use client";
 
-import { useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useUser, SignUpButton } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { PlayCircle, Sparkles, Zap, ArrowRight, Video, Star, Globe } from "lucide-react";
+import { Sparkles, Zap, ArrowRight, Video, Globe } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -13,14 +13,14 @@ import { toast } from "sonner";
 export default function Home() {
   const { isSignedIn, user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  const createUser = useMutation(api.users.createUser);
+  const createUser = useMutation(api.userProfiles.createUserProfile);
   const router = useRouter();
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
   const videos = [
     "/videos/tmp7uoz8hjv.mp4",
-    "/videos/tmpi29yh_f0.mp4", 
+    "/videos/tmpi29yh_f0.mp4",
     "/videos/tmpxsomu815.mp4"
   ];
 
@@ -34,9 +34,6 @@ export default function Home() {
           try {
             await createUser({
               clerkId: user.id,
-              email: user.primaryEmailAddress?.emailAddress || "",
-              name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || undefined,
-              imageUrl: user.imageUrl || undefined,
             });
             toast.success("Welcome to VideoAI!");
             router.push("/generate");
@@ -115,14 +112,13 @@ export default function Home() {
           {videos.map((videoSrc, index) => (
             <video
               key={videoSrc}
-              ref={(el) => (videoRefs.current[index] = el)}
+              ref={(el) => { videoRefs.current[index] = el; }}
               autoPlay
               loop
               muted
               playsInline
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-                index === currentVideoIndex ? 'opacity-70' : 'opacity-0'
-              }`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${index === currentVideoIndex ? 'opacity-70' : 'opacity-0'
+                }`}
             >
               <source src={videoSrc} type="video/mp4" />
             </video>
@@ -151,7 +147,7 @@ export default function Home() {
                 <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-blue-400/60 via-purple-400/60 to-pink-400/60 rounded-full transform scale-x-0 animate-scale-x"></div>
               </span>
             </h1>
-            
+
             {/* Enhanced Subtitle */}
             <div className="max-w-4xl mx-auto mb-12">
               <p className="hero-text text-2xl md:text-3xl lg:text-4xl text-gray-200 font-light leading-tight">
@@ -166,24 +162,24 @@ export default function Home() {
                 <Button size="lg" className="relative group overflow-hidden bg-gradient-to-r from-white via-gray-50 to-white text-gray-900 hover:from-gray-50 hover:via-white hover:to-gray-50 px-12 py-6 text-xl font-bold rounded-2xl border-2 border-white/20 shadow-2xl hover:shadow-white/30 transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-1">
                   {/* Animated background gradient */}
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  
+
                   {/* Shimmer effect */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  
+
                   <div className="relative flex items-center">
                     <div className="relative mr-4">
                       <Sparkles className="h-6 w-6 text-blue-600 group-hover:text-purple-600 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
                       {/* Pulsing ring */}
                       <div className="absolute inset-0 rounded-full border-2 border-blue-400/30 group-hover:border-purple-400/50 animate-pulse"></div>
                     </div>
-                    
+
                     <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:via-purple-600 group-hover:to-pink-600 transition-all duration-300">
                       Create Your First Video
                     </span>
-                    
+
                     <ArrowRight className="ml-4 h-6 w-6 text-blue-600 group-hover:text-purple-600 group-hover:translate-x-2 transition-all duration-300" />
                   </div>
-                  
+
                   {/* Bottom glow */}
                   <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-3/4 h-1 bg-gradient-to-r from-blue-400/50 via-purple-400/50 to-pink-400/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm"></div>
                 </Button>
@@ -271,7 +267,7 @@ export default function Home() {
               </div>
               <span className="text-gray-400">VideoAI</span>
             </div>
-            
+
             <div className="flex flex-wrap items-center justify-center space-x-6 text-sm text-gray-500">
               <a href="/privacy-policy" className="hover:text-gray-300 transition-colors">
                 Privacy Policy
@@ -283,7 +279,7 @@ export default function Home() {
                 Refund & Fraud Policy
               </a>
             </div>
-            
+
             <p className="text-gray-500 text-sm">
               &copy; 2024 VideoAI. Transform your ideas into videos.
             </p>

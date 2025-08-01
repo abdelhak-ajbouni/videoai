@@ -61,7 +61,7 @@ export function LayoutShowcase() {
                       <span className="text-text-secondary">{container.description}</span>
                     </div>
                     <div className="relative bg-surface-elevated rounded-lg p-4 border border-border">
-                      <Container size={container.size as 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | 'full'} className="bg-ai-primary-50 dark:bg-ai-primary-900/20 rounded-lg p-4 border border-ai-primary-200 dark:border-ai-primary-800">
+                      <Container size={['3xl', '4xl', '5xl', '6xl', '7xl'].includes(container.size) ? '2xl' : container.size as 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'} className="bg-ai-primary-50 dark:bg-ai-primary-900/20 rounded-lg p-4 border border-ai-primary-200 dark:border-ai-primary-800">
                         <div className="text-center text-sm text-ai-primary-600 dark:text-ai-primary-400">
                           Container {container.size} - Max width: {container.width}
                         </div>
@@ -92,7 +92,7 @@ export function LayoutShowcase() {
                         <span className="text-text-secondary ml-2">({item.px})</span>
                       </div>
                       <div className="bg-surface-elevated rounded-lg border border-border overflow-hidden">
-                        <Container size="full" padding={item.padding as 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'} className="bg-ai-electric-50 dark:bg-ai-electric-900/20 py-3">
+                        <Container size="full" padding={item.padding as 'none' | 'sm' | 'md' | 'lg' | 'xl'} className="bg-ai-electric-50 dark:bg-ai-electric-900/20 py-3">
                           <div className="bg-ai-electric-100 dark:bg-ai-electric-900/30 rounded text-center text-xs text-ai-electric-600 dark:text-ai-electric-400 py-2">
                             {item.description}
                           </div>
@@ -133,7 +133,7 @@ export function LayoutShowcase() {
                 ].map((grid) => (
                   <div key={grid.cols} className="space-y-2">
                     <h4 className="text-sm font-medium text-text-secondary">{grid.label}</h4>
-                    <Grid cols={grid.cols as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12} gap={4}>
+                    <Grid cols={grid.cols as 1 | 2 | 3 | 4 | 5 | 6 | 12} gap={4}>
                       {Array.from({ length: grid.cols }, (_, i) => (
                         <div
                           key={i}
@@ -253,7 +253,7 @@ export function LayoutShowcase() {
                       <span className="text-sm font-medium text-text-primary">{section.label}</span>
                       <span className="text-xs text-text-secondary">{section.description}</span>
                     </div>
-                    <Section background={section.bg as 'default' | 'surface' | 'muted' | 'accent'} spacing="sm" className="rounded-lg">
+                    <Section background={section.bg as 'none' | 'surface' | 'elevated' | 'primary' | 'electric' | 'neural' | 'gradient'} spacing="sm" className="rounded-lg">
                       <Container size="full" padding="md">
                         <div className="text-center text-sm text-text-primary">
                           Section with {section.label.toLowerCase()} background

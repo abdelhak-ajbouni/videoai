@@ -65,7 +65,7 @@ export function InvoiceManagement() {
     setIsLoading(true);
     try {
       const portalUrl = await createPortalSession({
-        userId: userData._id,
+        clerkId: userData.clerkId,
       });
 
       // Redirect to Stripe customer portal
@@ -131,15 +131,15 @@ export function InvoiceManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Customer ID</CardTitle>
+            <CardTitle className="text-sm font-medium">Subscription Tier</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-sm font-mono">
-              {userData.stripeCustomerId || "Not set"}
+            <div className="text-sm font-medium capitalize">
+              {userData.subscriptionTier}
             </div>
             <p className="text-xs text-muted-foreground">
-              Stripe customer identifier
+              Current subscription tier
             </p>
           </CardContent>
         </Card>

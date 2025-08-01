@@ -11,15 +11,15 @@ import { Loading } from "@/components/ui/loading";
 import { AppLayout } from "@/components/layouts/app-layout";
 import { Progress } from "@/components/ui/progress";
 
-import { Video, Clock, Sparkles, Play, Download, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Video, Clock, Download, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
 import { VideoModal } from "@/components/VideoModal";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-export default function GeneratePage() {
-  const { user, isLoaded } = useUser();
+function GeneratePageContent() {
+  const { isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -118,11 +118,6 @@ export default function GeneratePage() {
     );
   }
 
-  const handleVideoClick = (video: Doc<"videos">) => {
-    if (video.videoUrl) {
-      setSelectedVideo(video);
-    }
-  };
 
   const handleDownload = (video: Doc<"videos">) => {
     if (video.videoUrl) {
@@ -311,5 +306,19 @@ export default function GeneratePage() {
         />
       </div>
     </AppLayout>
+  );
+}
+
+export default function GeneratePage() {
+  return (
+    <Suspense fallback={
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loading text="Loading..." />
+        </div>
+      </AppLayout>
+    }>
+      <GeneratePageContent />
+    </Suspense>
   );
 } 

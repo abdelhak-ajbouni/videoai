@@ -9,13 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import {
   Sparkles,
   Clock,
-  Settings,
-  Coins,
   AlertCircle,
   Loader2,
   Video,
@@ -40,7 +36,7 @@ export function VideoGenerationForm() {
   const [resolution, setResolution] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [loop, setLoop] = useState<boolean>(false);
-  const [cameraConcept, setCameraConcept] = useState<string>("");
+  const [cameraConcept, setCameraConcept] = useState<string>("none");
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
@@ -136,7 +132,7 @@ export function VideoGenerationForm() {
 
       // Reset other options
       setLoop(false);
-      setCameraConcept("");
+      setCameraConcept("none");
     }
   }, [currentModel]);
 
@@ -174,7 +170,7 @@ export function VideoGenerationForm() {
         resolution: resolution || undefined,
         aspectRatio: aspectRatio || undefined,
         loop: loop || undefined,
-        cameraConcept: cameraConcept || undefined,
+        cameraConcept: cameraConcept === "none" ? undefined : cameraConcept || undefined,
       });
 
       // Reset form
@@ -187,7 +183,7 @@ export function VideoGenerationForm() {
       setResolution("");
       setAspectRatio("");
       setLoop(false);
-      setCameraConcept("");
+      setCameraConcept("none");
 
     } catch (error) {
       console.error("Error creating video:", error);
@@ -197,22 +193,6 @@ export function VideoGenerationForm() {
     }
   };
 
-  const getQualityBadge = (qualityTier: string, available: boolean) => {
-    if (!available) {
-      return <Badge variant="secondary" className="opacity-50">Upgrade Required</Badge>;
-    }
-
-    switch (qualityTier) {
-      case "standard":
-        return <Badge variant="secondary">720p</Badge>;
-      case "high":
-        return <Badge className="bg-blue-100 text-blue-800">1080p HD</Badge>;
-      case "ultra":
-        return <Badge className="bg-purple-100 text-purple-800">4K Ultra</Badge>;
-      default:
-        return <Badge variant="secondary">{qualityTier}</Badge>;
-    }
-  };
 
   const getModelIcon = (model: Doc<"models">) => {
     if (model.isPremium) return <Crown className="h-5 w-5 text-purple-500 mt-1 flex-shrink-0" />;
@@ -389,7 +369,7 @@ export function VideoGenerationForm() {
                         <SelectValue placeholder="Optional camera movement" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        <SelectItem value="" className="focus:bg-gray-800 focus:text-white">
+                        <SelectItem value="none" className="focus:bg-gray-800 focus:text-white">
                           <div className="flex items-center space-x-2">
                             <Wand2 className="h-4 w-4 text-gray-400" />
                             <span>None (Auto)</span>

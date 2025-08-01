@@ -134,7 +134,7 @@ export function MobileNav({ className }: MobileNavProps) {
 
             {/* Navigation Items */}
             <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
-              {mobileNavItems.map((item, index) => {
+              {mobileNavItems.map((item) => {
                 const active = isActive(item.href);
                 const isGenerateVideo = item.id === "generate";
 

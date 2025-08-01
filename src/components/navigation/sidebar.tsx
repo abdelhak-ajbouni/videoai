@@ -65,7 +65,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation Items */}
       <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
-        {navigationItems.map((item, index) => {
+        {navigationItems.map((item) => {
           const active = isActive(item.href);
           const isGenerateVideo = item.id === "generate";
 

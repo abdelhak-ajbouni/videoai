@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Brain, Sparkles, Zap } from "lucide-react";
+import { Brain } from "lucide-react";
 
 interface LoadingProps {
   text?: string;

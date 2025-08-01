@@ -12,9 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   User,
-  Mail,
   Shield,
-  Calendar,
   Settings,
   Eye,
   EyeOff,
@@ -325,7 +323,11 @@ export default function ProfilePage() {
                     ••••••••••••
                   </div>
                   <p className="text-xs text-gray-500">
-                    Last updated: {formatDate(user.passwordEnabled ? user.updatedAt : user.createdAt)}
+                    Last updated: {(() => {
+                      const date = user.passwordEnabled ? user.updatedAt : user.createdAt;
+                      if (!date) return 'Never';
+                      return formatDate(typeof date === 'number' ? date : date.getTime());
+                    })()}
                   </p>
                 </div>
               ) : (

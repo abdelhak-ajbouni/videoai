@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -117,11 +118,23 @@ export const addCredits = mutation({
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
-    return await ctx.runMutation(ctx.functionRef("userProfiles:updateCredits"), {
-      clerkId,
-      creditAmount: amount,
-      operation: "add"
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const newCredits = profile.credits + amount;
+
+    await ctx.db.patch(profile._id, {
+      credits: newCredits,
+      updatedAt: Date.now(),
     });
+
+    return newCredits;
   },
 });
 
@@ -132,11 +145,29 @@ export const subtractCredits = mutation({
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
-    return await ctx.runMutation(ctx.functionRef("userProfiles:updateCredits"), {
-      clerkId,
-      creditAmount: amount,
-      operation: "subtract"
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const newCredits = profile.credits - amount;
+    const newTotalCreditsUsed = profile.totalCreditsUsed + amount;
+
+    if (newCredits < 0) {
+      throw new Error("Insufficient credits");
+    }
+
+    await ctx.db.patch(profile._id, {
+      credits: newCredits,
+      totalCreditsUsed: newTotalCreditsUsed,
+      updatedAt: Date.now(),
     });
+
+    return newCredits;
   },
 });
 

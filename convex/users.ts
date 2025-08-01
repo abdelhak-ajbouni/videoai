@@ -2,35 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 
-// Create user (now redirects to userProfiles)
-export const createUser = mutation({
-  args: {
-    clerkId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // Redirect to userProfiles creation
-    return await ctx.runMutation(api.userProfiles.createUserProfile, {
-      clerkId: args.clerkId,
-    });
-  },
-});
-
-// Update user (deprecated - user profile data now handled by Clerk)
-export const updateUser = mutation({
-  args: {
-    clerkId: v.string(),
-    name: v.optional(v.string()),
-    imageUrl: v.optional(v.string()),
-    email: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // User profile data (name, email, imageUrl) is now handled by Clerk
-    // Only create userProfile if it doesn't exist
-    return await ctx.runMutation(api.userProfiles.createUserProfile, {
-      clerkId: args.clerkId,
-    });
-  },
-});
 
 // Deprecated - Stripe customer IDs now stored in subscriptions table
 export const updateUserStripeCustomerId = mutation({
@@ -56,18 +27,21 @@ export const getCurrentUser = query({
     }
 
     // Get user profile from userProfiles table
-    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
-      clerkId: identity.subject,
-    });
+    const userProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
 
     if (!userProfile) {
       return null;
     }
 
     // Get subscription information
-    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
-      clerkId: identity.subject,
-    });
+    const subscription = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
 
     // Combine userProfile data with Clerk identity data and subscription info
     return {
@@ -98,9 +72,10 @@ export const getUser = query({
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.runQuery(api.userProfiles.getUserProfile, {
-      clerkId: args.clerkId,
-    });
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
   },
 });
 
@@ -121,8 +96,9 @@ export const getUserByStripeCustomerId = query({
     }
 
     // Return the user profile for this clerkId
-    return await ctx.runQuery(api.userProfiles.getUserProfile, {
-      clerkId: subscription.clerkId,
-    });
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", subscription.clerkId))
+      .first();
   },
 });

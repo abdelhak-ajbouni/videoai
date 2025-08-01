@@ -645,7 +645,7 @@ export const pollReplicateStatus = action({
           await ctx.runMutation(api.videos.updateVideoStatus, {
             videoId: args.videoId,
             status: "failed",
-            errorMessage: prediction.error || "Video generation failed",
+            errorMessage: typeof prediction.error === 'string' ? prediction.error : JSON.stringify(prediction.error) || "Video generation failed",
           });
 
           // Refund credits

@@ -286,22 +286,31 @@ async function handleCheckoutSessionCompleted(
     });
 
     try {
-      // Handle subscription creation using the dedicated action
-      const result = await ctx.runAction(api.stripe.handleSubscriptionCreation, {
-        clerkId: clerkId,
+      // Get Stripe subscription details
+      const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+
+      // Create subscription in database
+      const subscriptionId = await ctx.runMutation(api.subscriptions.createSubscription, {
+        clerkId,
         stripeSubscriptionId: session.subscription as string,
         planId: planId as "starter" | "pro" | "max",
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: (subscription as any).current_period_start * 1000,
+        currentPeriodEnd: (subscription as any).current_period_end * 1000,
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
       });
 
       console.log("Subscription created successfully:", { 
         clerkId, 
         planId, 
-        result,
+        subscriptionId,
         sessionId: session.id 
       });
     } catch (error) {
       console.error("Error creating subscription:", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         clerkId,
         planId,
         sessionId: session.id,
@@ -313,11 +322,20 @@ async function handleCheckoutSessionCompleted(
     console.log("Processing plan change:", { clerkId, newPlanId });
 
     try {
-      // Handle plan change using the dedicated action
-      await ctx.runAction(api.stripe.handlePlanChange, {
+      // Handle plan change inline to avoid circular dependency
+      const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+
+      // Handle plan change in database
+      await ctx.runMutation(api.subscriptions.changeSubscriptionPlan, {
         clerkId: clerkId,
-        stripeSubscriptionId: session.subscription as string,
         newPlanId: newPlanId as "starter" | "pro" | "max",
+        stripeSubscriptionId: session.subscription as string,
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: (subscription as any).current_period_start * 1000,
+        currentPeriodEnd: (subscription as any).current_period_end * 1000,
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
       });
 
       console.log("Plan change processed successfully:", { clerkId, newPlanId });
@@ -410,66 +428,6 @@ async function handleSubscriptionDeleted(
   }
 }
 
-// Action to handle subscription creation from webhook
-export const handleSubscriptionCreation = action({
-  args: {
-    clerkId: v.string(),
-    stripeSubscriptionId: v.string(),
-    planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
-  },
-  handler: async (ctx, { clerkId, stripeSubscriptionId, planId }) => {
-    console.log("Handling subscription creation:", {
-      clerkId,
-      stripeSubscriptionId,
-      planId,
-    });
-
-    try {
-      // Get Stripe subscription details
-      const subscription =
-        await stripe.subscriptions.retrieve(stripeSubscriptionId);
-
-      console.log("Retrieved Stripe subscription:", {
-        id: subscription.id,
-        status: subscription.status,
-        customer: subscription.customer,
-        priceId: subscription.items.data[0].price.id,
-        periodStart: subscription.current_period_start,
-        periodEnd: subscription.current_period_end,
-      });
-
-      // Create subscription in database
-      const subscriptionId = await ctx.runMutation(api.subscriptions.createSubscription, {
-        clerkId,
-        stripeSubscriptionId,
-        planId,
-        stripeCustomerId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
-        subscriptionStatus: subscription.status,
-        currentPeriodStart: (subscription as any).current_period_start * 1000,
-        currentPeriodEnd: (subscription as any).current_period_end * 1000,
-        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-      });
-
-      console.log("Subscription created successfully:", { 
-        clerkId, 
-        planId, 
-        subscriptionId,
-        stripeSubscriptionId 
-      });
-      return { success: true, subscriptionId };
-    } catch (error) {
-      console.error("Error creating subscription:", {
-        error: error.message,
-        stack: error.stack,
-        clerkId,
-        stripeSubscriptionId,
-        planId
-      });
-      throw error;
-    }
-  },
-});
 
 // Action to handle plan change from webhook
 export const handlePlanChange = action({
@@ -600,69 +558,4 @@ export const reactivateSubscription = action({
   },
 });
 
-// Change subscription plan in Stripe
-export const changeSubscriptionPlan: any = action({
-  args: {
-    clerkId: v.string(),
-    newPlanId: v.union(
-      v.literal("starter"),
-      v.literal("pro"),
-      v.literal("max")
-    ),
-  },
-  handler: async (ctx, { clerkId, newPlanId }) => {
-    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, { clerkId });
-    if (!subscription) throw new Error("No active subscription found");
-
-    try {
-      // Get the new plan configuration
-      const newPlan = await getSubscriptionPlan(ctx, newPlanId);
-      
-      // Get or create Stripe price dynamically
-      const priceId = await ctx.runAction(
-        api.subscriptionPlans.getOrCreateStripePrice,
-        { planId: newPlanId }
-      );
-
-      // Create a new checkout session for the plan change
-      const session = await stripe.checkout.sessions.create({
-        customer: subscription.stripeCustomerId,
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        mode: "subscription",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=success&plan=${newPlanId}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=canceled`,
-        metadata: {
-          clerkId,
-          newPlanId,
-          type: "plan_change",
-        },
-        // Set subscription_data to handle plan changes
-        subscription_data: {
-          metadata: {
-            clerkId,
-            newPlanId,
-            type: "plan_change",
-          },
-        },
-      });
-
-      console.log("Plan change checkout session created:", {
-        clerkId,
-        newPlanId,
-        sessionId: session.id,
-      });
-
-      return session.url!;
-    } catch (error) {
-      console.error("Error creating plan change session:", error);
-      throw new Error(`Failed to create plan change session: ${error}`);
-    }
-  },
-});
 

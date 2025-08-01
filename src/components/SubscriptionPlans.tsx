@@ -28,36 +28,29 @@ export function SubscriptionPlans() {
     api.subscriptions.getSubscriptionStats,
     userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
   );
+  const currentSubscription = useQuery(
+    api.subscriptions.getCurrentSubscription,
+    userData?.clerkId ? { clerkId: userData.clerkId } : "skip"
+  );
   const createSubscriptionSession = useAction(api.stripe.createSubscriptionCheckoutSession);
   const createPortalSession = useAction(api.stripe.createCustomerPortalSession);
   const cancelSubscription = useAction(api.stripe.cancelSubscriptionAtPeriodEnd);
   const reactivateSubscription = useAction(api.stripe.reactivateSubscription);
-  const changeSubscriptionPlan = useAction(api.stripe.changeSubscriptionPlan);
+  // Note: Plan changes now use regular subscribe flow
 
   const handleSubscribe = async (planId: string) => {
     if (!userData) return;
 
     setIsLoading(true);
     try {
-      // If user already has a subscription, handle as plan change
-      if (subscriptionStats?.hasActiveSubscription) {
-        const checkoutUrl = await changeSubscriptionPlan({
-          clerkId: userData.clerkId,
-          newPlanId: planId as "starter" | "pro" | "max",
-        });
+      // For both new subscriptions and plan changes, use regular subscription flow
+      const checkoutUrl = await createSubscriptionSession({
+        clerkId: userData.clerkId,
+        planId: planId as "starter" | "pro" | "max",
+      });
 
-        // Redirect to Stripe checkout for plan change
-        window.location.href = checkoutUrl;
-      } else {
-        // New subscription
-        const checkoutUrl = await createSubscriptionSession({
-          clerkId: userData.clerkId,
-          planId: planId as "starter" | "pro" | "max",
-        });
-
-        // Redirect to Stripe checkout
-        window.location.href = checkoutUrl;
-      }
+      // Redirect to Stripe checkout
+      window.location.href = checkoutUrl;
     } catch (error) {
       console.error("Error creating subscription session:", error);
       alert("Failed to create subscription session. Please try again.");
@@ -86,7 +79,7 @@ export function SubscriptionPlans() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!userData || !userData.stripeSubscriptionId) return;
+    if (!userData || !currentSubscription?.stripeSubscriptionId) return;
 
     if (!confirm("Are you sure you want to cancel your subscription? You&apos;ll keep all your existing credits, but won&apos;t receive new monthly credits after your current billing period ends.")) {
       return;
@@ -96,7 +89,7 @@ export function SubscriptionPlans() {
     try {
       await cancelSubscription({
         clerkId: userData.clerkId,
-        stripeSubscriptionId: userData.stripeSubscriptionId,
+        stripeSubscriptionId: currentSubscription.stripeSubscriptionId,
       });
 
       alert("Your subscription has been canceled. You&apos;ll keep all your existing credits until the end of your current billing period.");
@@ -110,13 +103,13 @@ export function SubscriptionPlans() {
   };
 
   const handleReactivateSubscription = async () => {
-    if (!userData || !userData.stripeSubscriptionId) return;
+    if (!userData || !currentSubscription?.stripeSubscriptionId) return;
 
     setIsReactivating(true);
     try {
       await reactivateSubscription({
         clerkId: userData.clerkId,
-        stripeSubscriptionId: userData.stripeSubscriptionId,
+        stripeSubscriptionId: currentSubscription.stripeSubscriptionId,
       });
 
       alert("Your subscription has been reactivated!");
@@ -227,7 +220,7 @@ export function SubscriptionPlans() {
                   <div>
                     <h4 className="font-medium text-yellow-800">Subscription Canceling</h4>
                     <p className="text-sm text-yellow-700 mt-1">
-                      Your subscription will end on {formatDate(subscriptionStats.nextBillingDate)}.
+                      Your subscription will end on {subscriptionStats.nextBillingDate ? formatDate(subscriptionStats.nextBillingDate) : 'Unknown date'}.
                       You&apos;ll keep all your existing credits, but won&apos;t receive new monthly credits after this date.
                     </p>
                     <Button

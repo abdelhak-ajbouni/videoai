@@ -39,7 +39,7 @@ export const getAllSubscriptions = query({
 });
 
 // Create new subscription (called from webhook)
-export const createSubscription: any = mutation({
+export const createSubscription = mutation({
   args: {
     clerkId: v.string(),
     stripeSubscriptionId: v.string(),
@@ -65,10 +65,12 @@ export const createSubscription: any = mutation({
       cancelAtPeriodEnd,
     }
   ) => {
-    // Get plan from database
-    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
-      planId,
-    });
+    // Get plan from database - inline to avoid circular dependency
+    const plan = await ctx.db
+      .query("subscriptionPlans")
+      .withIndex("by_plan_id", (q) => q.eq("planId", planId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .first();
     if (!plan) {
       throw new Error(`Subscription plan not found: ${planId}`);
     }
@@ -125,12 +127,35 @@ export const createSubscription: any = mutation({
     // Note: User subscription tier is now managed via subscriptions table only
     // No need to update user profile with subscription details
 
-    // Grant initial monthly credits
-    await ctx.runMutation(api.userProfiles.grantSubscriptionCredits, {
+    // Grant initial monthly credits - inline to avoid circular dependency
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const balanceBefore = profile.credits;
+    const balanceAfter = balanceBefore + plan.monthlyCredits;
+
+    // Update user's credit balance
+    await ctx.db.patch(profile._id, {
+      credits: balanceAfter,
+      updatedAt: Date.now(),
+    });
+
+    // Create credit transaction record
+    await ctx.db.insert("creditTransactions", {
       clerkId,
+      type: "subscription_grant",
       amount: plan.monthlyCredits,
       description: `Monthly credits for ${planId} subscription`,
       subscriptionId: subscriptionId,
+      balanceBefore,
+      balanceAfter,
+      createdAt: Date.now(),
     });
 
     return subscriptionId;
@@ -355,7 +380,7 @@ export const allocateMonthlyCredits = mutation({
 });
 
 // Get subscription usage statistics
-export const getSubscriptionStats: any = query({
+export const getSubscriptionStats = query({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
     const subscription = await ctx.db
@@ -377,10 +402,12 @@ export const getSubscriptionStats: any = query({
       };
     }
 
-    // Get subscription plan details for pricing
-    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
-      planId: subscription.tier,
-    });
+    // Get subscription plan details for pricing - inline to avoid circular dependency
+    const plan = await ctx.db
+      .query("subscriptionPlans")
+      .withIndex("by_plan_id", (q) => q.eq("planId", subscription.tier))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .first();
 
     // Calculate credits used this period
     const periodStart = subscription.currentPeriodStart;
@@ -429,7 +456,7 @@ export const getSubscriptionHistory = query({
 });
 
 // Get current subscription with cancellation details
-export const getCurrentSubscription: any = query({
+export const getCurrentSubscription = query({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
     const subscription = await ctx.db
@@ -442,10 +469,12 @@ export const getCurrentSubscription: any = query({
       return null;
     }
 
-    // Get subscription plan details for pricing
-    const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
-      planId: subscription.tier,
-    });
+    // Get subscription plan details for pricing - inline to avoid circular dependency
+    const plan = await ctx.db
+      .query("subscriptionPlans")
+      .withIndex("by_plan_id", (q) => q.eq("planId", subscription.tier))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .first();
 
     return {
       ...subscription,
@@ -455,7 +484,7 @@ export const getCurrentSubscription: any = query({
 });
 
 // Change subscription plan (deactivates old, creates new)
-export const changeSubscriptionPlan: any = mutation({
+export const changeSubscriptionPlan = mutation({
   args: {
     clerkId: v.string(),
     newPlanId: v.union(
@@ -485,10 +514,12 @@ export const changeSubscriptionPlan: any = mutation({
       cancelAtPeriodEnd,
     }
   ) => {
-    // Get new plan from database
-    const newPlan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
-      planId: newPlanId,
-    });
+    // Get new plan from database - inline to avoid circular dependency
+    const newPlan = await ctx.db
+      .query("subscriptionPlans")
+      .withIndex("by_plan_id", (q) => q.eq("planId", newPlanId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .first();
     if (!newPlan) {
       throw new Error(`Subscription plan not found: ${newPlanId}`);
     }
@@ -565,12 +596,35 @@ export const changeSubscriptionPlan: any = mutation({
 
     // Note: User subscription tier is now managed via subscriptions table only
 
-    // Grant initial monthly credits for new plan
-    await ctx.runMutation(api.userProfiles.grantSubscriptionCredits, {
+    // Grant initial monthly credits for new plan - inline to avoid circular dependency
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const balanceBefore = profile.credits;
+    const balanceAfter = balanceBefore + newPlan.monthlyCredits;
+
+    // Update user's credit balance
+    await ctx.db.patch(profile._id, {
+      credits: balanceAfter,
+      updatedAt: Date.now(),
+    });
+
+    // Create credit transaction record
+    await ctx.db.insert("creditTransactions", {
       clerkId,
+      type: "subscription_grant",
       amount: newPlan.monthlyCredits,
       description: `Plan change to ${newPlanId} - monthly credits`,
       subscriptionId: newSubscriptionId,
+      balanceBefore,
+      balanceAfter,
+      createdAt: Date.now(),
     });
 
     return newSubscriptionId;

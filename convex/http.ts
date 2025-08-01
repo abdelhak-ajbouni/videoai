@@ -29,15 +29,9 @@ http.route({
           return new Response("No primary email", { status: 400 });
         }
 
-        // Create user in our database with 10 free credits
-        await ctx.runMutation(api.users.createUser, {
+        // Create user profile in our database with free tier credits
+        await ctx.runMutation(api.userProfiles.createUserProfile, {
           clerkId: id,
-          email: primaryEmail.email_address,
-          name:
-            first_name && last_name
-              ? `${first_name} ${last_name}`
-              : first_name || undefined,
-          imageUrl: image_url || undefined,
         });
 
         console.log("User created successfully:", id);
@@ -53,14 +47,9 @@ http.route({
         );
 
         if (primaryEmail) {
-          await ctx.runMutation(api.users.updateUser, {
+          // User profile data is handled by Clerk, just ensure userProfile exists
+          await ctx.runMutation(api.userProfiles.createUserProfile, {
             clerkId: id,
-            email: primaryEmail.email_address,
-            name:
-              first_name && last_name
-                ? `${first_name} ${last_name}`
-                : first_name || undefined,
-            imageUrl: image_url || undefined,
           });
 
           console.log("User updated successfully:", id);
@@ -93,44 +82,36 @@ http.route({
         return new Response("Missing prediction ID", { status: 400 });
       }
 
-      // Find the generation job by Replicate ID
-      const job = await ctx.runQuery(api.videos.getGenerationJobByReplicateId, {
+      // Find the video by Replicate job ID
+      const video = await ctx.runQuery(api.videos.getVideoByReplicateJobId, {
         replicateJobId: payload.id,
       });
 
-      if (!job) {
-        console.log("No job found for Replicate ID:", payload.id);
-        return new Response("Job not found", { status: 404 });
+      if (!video) {
+        console.log("No video found for Replicate ID:", payload.id);
+        return new Response("Video not found", { status: 404 });
       }
 
       // Handle different webhook events
       switch (payload.status) {
         case "starting":
-          await ctx.runMutation(api.videos.updateGenerationJob, {
-            replicateJobId: payload.id,
-            status: "starting",
-            logs: payload.logs || [],
+          await ctx.runMutation(api.videos.updateVideoStatus, {
+            videoId: video._id,
+            status: "processing",
           });
           break;
 
         case "processing":
-          await ctx.runMutation(api.videos.updateGenerationJob, {
-            replicateJobId: payload.id,
-            status: "processing",
-            progress: payload.progress
-              ? Math.round(payload.progress * 100)
-              : undefined,
-            logs: payload.logs || [],
-          });
+          // Video status is already "processing", no need to update
           break;
 
         case "succeeded":
-          await handleSuccessfulGeneration(ctx, payload, job.videoId);
+          await handleSuccessfulGeneration(ctx, payload, video._id);
           break;
 
         case "failed":
         case "canceled":
-          await handleFailedGeneration(ctx, payload, job.videoId);
+          await handleFailedGeneration(ctx, payload, video._id);
           break;
 
         default:
@@ -178,15 +159,6 @@ async function handleSuccessfulGeneration(
   videoId: string
 ) {
   try {
-    // Update generation job
-    await ctx.runMutation(api.videos.updateGenerationJob, {
-      replicateJobId: payload.id,
-      status: "succeeded",
-      progress: 100,
-      output: payload.output,
-      logs: payload.logs || [],
-    });
-
     // Get the video URL from the output
     let videoUrl = null;
     if (payload.output) {
@@ -200,7 +172,14 @@ async function handleSuccessfulGeneration(
     }
 
     if (videoUrl) {
-      // Download and store the video
+      // Update video status and store the URL
+      await ctx.runMutation(api.videos.updateVideoStatus, {
+        videoId,
+        status: "completed",
+        videoUrl,
+      });
+
+      // Download and store the video in Convex storage
       await ctx.runAction(api.videos.downloadAndStoreVideo, {
         videoId,
         videoUrl,
@@ -232,18 +211,10 @@ async function handleSuccessfulGeneration(
 // Helper function to handle failed video generation
 async function handleFailedGeneration(ctx: any, payload: any, videoId: string) {
   try {
-    // Update generation job
-    await ctx.runMutation(api.videos.updateGenerationJob, {
-      replicateJobId: payload.id,
-      status: payload.status === "canceled" ? "canceled" : "failed",
-      error: payload.error || "Generation failed",
-      logs: payload.logs || [],
-    });
-
     // Update video status
     await ctx.runMutation(api.videos.updateVideoStatus, {
       videoId,
-      status: "failed",
+      status: payload.status === "canceled" ? "canceled" : "failed",
       errorMessage: payload.error || "Generation failed",
     });
 

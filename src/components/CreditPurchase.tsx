@@ -31,7 +31,7 @@ export function CreditPurchase() {
     setIsLoading(true);
     try {
       const checkoutUrl = await createCheckoutSession({
-        userId: userData._id,
+        clerkId: userData.clerkId,
         packageId: packageId as "small" | "medium" | "large" | "xlarge",
       });
 
