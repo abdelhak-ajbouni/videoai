@@ -27,19 +27,21 @@ function GeneratePageContent() {
   // Get videos in different states
   const pendingVideos = useQuery(
     api.videos.getVideosByStatus,
-    currentUser ? { status: "pending" } : "skip"
+    isLoaded && currentUser ? { status: "pending" } : "skip"
   );
   const processingVideos = useQuery(
     api.videos.getVideosByStatus,
-    currentUser ? { status: "processing" } : "skip"
+    isLoaded && currentUser ? { status: "processing" } : "skip"
   );
   const completedVideos = useQuery(
     api.videos.getVideosByStatus,
-    currentUser ? { status: "completed" } : "skip"
+    isLoaded && currentUser ? { status: "completed" } : "skip"
   );
+
 
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
   const [progress, setProgress] = useState(0);
+  const [lastCompletedVideoId, setLastCompletedVideoId] = useState<string | null>(null);
 
   // Handle Stripe redirect parameters
   useEffect(() => {
@@ -71,12 +73,16 @@ function GeneratePageContent() {
   // Get the current video (most recent pending or processing)
   const currentVideo = processingVideos?.[0] || pendingVideos?.[0] || completedVideos?.[0] || null;
 
-  // Simulate progress for processing videos
+  // Better progress tracking
   useEffect(() => {
     if (processingVideos && processingVideos.length > 0) {
+      // Start from 0 when a new video starts processing
+      setProgress(0);
+      
       const interval = setInterval(() => {
         setProgress(prev => {
-          const newProgress = prev + Math.random() * 3;
+          // More realistic progress based on time elapsed
+          const newProgress = prev + Math.random() * 2 + 1; // Progress 1-3% each second
           return newProgress > 95 ? 95 : newProgress;
         });
       }, 1000);
@@ -84,10 +90,20 @@ function GeneratePageContent() {
       return () => clearInterval(interval);
     } else if (completedVideos && completedVideos.length > 0) {
       setProgress(100);
+      
+      // Show completion toast for newly completed videos (only once per video)
+      const latestCompleted = completedVideos[0];
+      if (latestCompleted && latestCompleted.status === 'completed' && 
+          latestCompleted._id !== lastCompletedVideoId) {
+        setLastCompletedVideoId(latestCompleted._id);
+        setTimeout(() => {
+          toast.success("Video generation completed! Your video is ready.");
+        }, 500);
+      }
     } else {
       setProgress(0);
     }
-  }, [processingVideos, completedVideos]);
+  }, [processingVideos, completedVideos, lastCompletedVideoId]);
 
   // Redirect to landing page if user is not authenticated
   useEffect(() => {
@@ -142,6 +158,7 @@ function GeneratePageContent() {
   };
 
   const status = getVideoStatus();
+
 
   return (
     <AppLayout>

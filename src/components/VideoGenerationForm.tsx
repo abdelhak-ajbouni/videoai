@@ -152,8 +152,9 @@ export function VideoGenerationForm() {
 
       // Reset form
       setPrompt("");
-      // Reset to first available model or empty string
-      setModelId(activeModels && activeModels.length > 0 ? activeModels[0].modelId : "");
+      // Reset to default model or keep current model
+      const defaultModel = activeModels?.find(model => model.isDefault);
+      setModelId(defaultModel ? defaultModel.modelId : modelId);
       setDuration(5);
       // Reset model-specific options
       setResolution("");

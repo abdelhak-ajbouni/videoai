@@ -189,10 +189,7 @@ export const createVideo = mutation({
     }
 
     // Check quality access based on subscription
-    const hasQualityAccess = checkQualityAccess(
-      subscriptionTier,
-      args.quality
-    );
+    const hasQualityAccess = checkQualityAccess(subscriptionTier, args.quality);
     if (!hasQualityAccess) {
       throw new Error(
         "Your subscription plan doesn't support this quality tier"
@@ -348,7 +345,6 @@ export const deleteVideo = mutation({
     }
 
     await ctx.db.delete(args.videoId);
-
   },
 });
 
@@ -401,7 +397,7 @@ export const generateVideo = action({
       } = {
         prompt: video.prompt,
         duration_seconds: parseInt(video.duration),
-        aspect_ratio: "16:9",
+        aspect_ratio: video.aspectRatio || "16:9",
       };
 
       // Add random seed for variation
@@ -465,13 +461,18 @@ export const generateVideo = action({
 
         // Only set webhook in production environment (not localhost)
         const siteUrl = process.env.CONVEX_SITE_URL;
-        if (siteUrl && !siteUrl.includes('localhost')) {
+        if (siteUrl && !siteUrl.includes("localhost")) {
           createOptions.webhook = `${siteUrl}/api/webhooks/replicate`;
-          createOptions.webhook_events_filter = ["start", "output", "logs", "completed"];
+          createOptions.webhook_events_filter = [
+            "start",
+            "output",
+            "logs",
+            "completed",
+          ];
         }
 
         prediction = await replicate.predictions.create(createOptions);
-        
+
         // If no webhook, schedule polling to check status
         if (!createOptions.webhook) {
           console.log("No webhook configured, will poll for status updates");
@@ -490,7 +491,6 @@ export const generateVideo = action({
         status: "processing",
         replicateJobId: prediction.id,
       });
-
 
       console.log(
         `Video generation started successfully for video ID: ${args.videoId}`
@@ -515,8 +515,6 @@ export const generateVideo = action({
     }
   },
 });
-
-
 
 // Mutation to refund credits for failed generation
 export const refundCredits = mutation({
@@ -558,6 +556,7 @@ export const refundCredits = mutation({
 });
 
 // Query to get video by Replicate job ID
+
 export const getVideoByReplicateJobId = query({
   args: { replicateJobId: v.string() },
   handler: async (ctx, args) => {
@@ -599,7 +598,6 @@ export const getVideoFileUrl = query({
   },
 });
 
-
 // Action to poll Replicate status
 export const pollReplicateStatus = action({
   args: {
@@ -611,7 +609,10 @@ export const pollReplicateStatus = action({
       const replicate = createReplicateClient();
       const prediction = await replicate.predictions.get(args.replicateJobId);
 
-      console.log(`Polling Replicate status for ${args.replicateJobId}:`, prediction.status);
+      console.log(
+        `Polling Replicate status for ${args.replicateJobId}:`,
+        prediction.status
+      );
 
       switch (prediction.status) {
         case "starting":
@@ -625,8 +626,10 @@ export const pollReplicateStatus = action({
 
         case "succeeded":
           if (prediction.output) {
-            const videoUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
-            
+            const videoUrl = Array.isArray(prediction.output)
+              ? prediction.output[0]
+              : prediction.output;
+
             await ctx.runMutation(api.videos.updateVideoStatus, {
               videoId: args.videoId,
               status: "completed",
@@ -645,7 +648,10 @@ export const pollReplicateStatus = action({
           await ctx.runMutation(api.videos.updateVideoStatus, {
             videoId: args.videoId,
             status: "failed",
-            errorMessage: typeof prediction.error === 'string' ? prediction.error : JSON.stringify(prediction.error) || "Video generation failed",
+            errorMessage:
+              typeof prediction.error === "string"
+                ? prediction.error
+                : JSON.stringify(prediction.error) || "Video generation failed",
           });
 
           // Refund credits
@@ -676,7 +682,7 @@ export const pollReplicateStatus = action({
       }
     } catch (error) {
       console.error("Error polling Replicate status:", error);
-      
+
       // Mark as failed after polling error
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -720,10 +726,8 @@ export const downloadAndStoreVideo = action({
       const format = "mp4"; // Most common format from Replicate
       const codec = "h264"; // Most common codec
 
-      // Estimate dimensions based on quality (Replicate's typical outputs)
-      const video = await ctx.runQuery(api.videos.getVideo, {
-        videoId: args.videoId,
-      });
+      // Get video data directly from database (bypass authentication)
+      const video = await ctx.db.get(args.videoId);
       const dimensions =
         video?.quality === "high"
           ? { width: 1920, height: 1080 }
@@ -807,11 +811,13 @@ export const generateThumbnail = action({
         0x08, 0x06, 0x00, 0x00, 0x00, 0x5d, 0xd5, 0x45, 0x38, 0x00, 0x00, 0x00,
         0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
         0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
-        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
+        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
       ]);
 
-      const thumbnailBlob = new Blob([placeholderThumbnailData], { type: 'image/png' });
-      
+      const thumbnailBlob = new Blob([placeholderThumbnailData], {
+        type: "image/png",
+      });
+
       // Store thumbnail in Convex storage
       const thumbnailFileId = await ctx.storage.store(thumbnailBlob);
       const thumbnailUrl = await ctx.storage.getUrl(thumbnailFileId);
@@ -836,7 +842,7 @@ export const generateThumbnail = action({
       // Don't fail the whole video generation if thumbnail fails
       // Use video URL with timestamp as fallback
       const fallbackThumbnail = args.videoUrl + "#t=1";
-      
+
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
@@ -1325,7 +1331,6 @@ export const mockGenerationStart = action({
     console.log(`🚀 Mock: Generation started for video ${args.videoId}`);
 
     try {
-
       // Schedule progress updates
       const progressInterval = Math.floor(args.totalTime / 5); // 5 progress updates
 
@@ -1408,7 +1413,6 @@ export const mockGenerationComplete = action({
           `❌ Mock: Simulating generation failure for video ${args.videoId}`
         );
 
-
         await ctx.runMutation(api.videos.updateVideoStatus, {
           videoId: args.videoId,
           status: "failed",
@@ -1425,7 +1429,6 @@ export const mockGenerationComplete = action({
 
       // Generate realistic mock video URLs based on quality
       const mockVideos = generateMockVideoUrls(video.quality, video.duration);
-
 
       // Mark video as completed
       await ctx.runMutation(api.videos.updateVideoStatus, {
@@ -1529,3 +1532,4 @@ function generateMockVideoUrls(quality: string, duration: string) {
     bitrate: specs.bitrate,
   };
 }
+
