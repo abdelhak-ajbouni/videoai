@@ -1,3 +1,5 @@
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/abdelhak-ajbouni/videoai?utm_source=oss&utm_medium=github&utm_campaign=abdelhak-ajbouni%2Fvideoai&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 # VideoAI - AI Video Generation Platform
 
 A complete SaaS platform that enables users to generate high-quality videos from text prompts using multiple AI models. Features a comprehensive credit-based pricing system, subscription management, and real-time video processing.
