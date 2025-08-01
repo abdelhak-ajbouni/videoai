@@ -25,7 +25,7 @@ export const createUserProfile = mutation({
       .withIndex("by_key", (q: any) => q.eq("key", "free_tier_credits"))
       .first();
 
-    const initialCredits = (freeTierCredits?.value as number) || 10; // Default to 10 if not configured
+    const initialCredits = (freeTierCredits?.value as number) || 40; // Default to 40 if not configured
 
     // Create new user profile with default values
     const profileId = await ctx.db.insert("userProfiles", {
@@ -84,13 +84,15 @@ export const updateCredits = mutation({
       throw new Error("User profile not found");
     }
 
-    const newCredits = operation === "add" 
-      ? profile.credits + creditAmount 
-      : profile.credits - creditAmount;
+    const newCredits =
+      operation === "add"
+        ? profile.credits + creditAmount
+        : profile.credits - creditAmount;
 
-    const newTotalCreditsUsed = operation === "subtract" 
-      ? profile.totalCreditsUsed + creditAmount 
-      : profile.totalCreditsUsed;
+    const newTotalCreditsUsed =
+      operation === "subtract"
+        ? profile.totalCreditsUsed + creditAmount
+        : profile.totalCreditsUsed;
 
     // Ensure credits don't go negative
     if (newCredits < 0) {
@@ -103,10 +105,10 @@ export const updateCredits = mutation({
       updatedAt: Date.now(),
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       newBalance: newCredits,
-      totalUsed: newTotalCreditsUsed
+      totalUsed: newTotalCreditsUsed,
     };
   },
 });
@@ -138,7 +140,7 @@ export const addCredits = mutation({
   },
 });
 
-// Subtract credits from user account  
+// Subtract credits from user account
 export const subtractCredits = mutation({
   args: {
     clerkId: v.string(),
@@ -180,10 +182,12 @@ export const getCreditBalance = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .first();
 
-    return profile ? {
-      credits: profile.credits,
-      totalCreditsUsed: profile.totalCreditsUsed
-    } : null;
+    return profile
+      ? {
+          credits: profile.credits,
+          totalCreditsUsed: profile.totalCreditsUsed,
+        }
+      : null;
   },
 });
 
@@ -275,7 +279,10 @@ export const addCreditsWithTransaction = mutation({
     stripePaymentIntentId: v.optional(v.string()),
     videoId: v.optional(v.id("videos")),
   },
-  handler: async (ctx, { clerkId, amount, description, stripePaymentIntentId, videoId }) => {
+  handler: async (
+    ctx,
+    { clerkId, amount, description, stripePaymentIntentId, videoId }
+  ) => {
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))

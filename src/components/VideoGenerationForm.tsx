@@ -18,7 +18,8 @@ import {
   Zap,
   Wand2,
   Target,
-  Star
+  Star,
+  Repeat
 } from "lucide-react";
 import { toast } from "sonner";
 import { Doc } from "../../convex/_generated/dataModel";
@@ -235,29 +236,28 @@ export function VideoGenerationForm() {
             </div>
 
 
-            {/* Duration */}
-            <div className="space-y-3 w-1/2">
-              <Label className="text-sm font-medium text-white/90">Duration</Label>
-              <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                  {getValidDurations(currentModel).map((item) => (
-                    <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span>{item.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Model-Specific Options */}
             {currentModel && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Duration */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-white/90">Duration</Label>
+                  <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
+                    <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                      {getValidDurations(currentModel).map((item) => (
+                        <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span>{item.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {/* Resolution (for Google Veo-3) */}
                 {currentModel.supportedResolutions && currentModel.supportedResolutions.length > 1 && (
                   <div className="space-y-3">
@@ -332,17 +332,40 @@ export function VideoGenerationForm() {
 
                 {/* Loop Option (for Luma Ray models) */}
                 {currentModel.supportsLoop && (
-                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-gray-800/30 border border-gray-700/50 md:col-span-2">
-                    <input
-                      id="loop"
-                      type="checkbox"
-                      checked={loop}
-                      onChange={(e) => setLoop(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-2"
-                    />
-                    <Label htmlFor="loop" className="text-sm font-medium text-white/90 cursor-pointer">
-                      Create looping video
-                    </Label>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-white/90">Loop Video</Label>
+                    <div
+                      className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-12 flex items-center"
+                      onClick={() => setLoop(!loop)}
+                    >
+                      <div className="flex items-center space-x-3 w-full">
+                        <div className="relative">
+                          <input
+                            id="loop"
+                            type="checkbox"
+                            checked={loop}
+                            onChange={(e) => setLoop(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${loop
+                            ? 'bg-blue-600 border-blue-600'
+                            : 'bg-gray-700 border-gray-600 group-hover:border-gray-500'
+                            }`}>
+                            {loop && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Repeat className="h-4 w-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                          <span className="text-sm text-white/90">
+                            Create looping video
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

@@ -104,7 +104,7 @@ export const initializeDefaultConfigs = mutation({
         category: "business",
         name: "Free Tier Credits",
         description: "Number of credits given to new users",
-        value: 10,
+        value: 40,
         dataType: "number",
         isActive: true,
         isEditable: true,
