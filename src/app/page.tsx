@@ -35,11 +35,9 @@ export default function Home() {
             await createUser({
               clerkId: user.id,
             });
-            toast.success("Welcome to VideoAI!");
             router.push("/generate");
           } catch (error) {
             console.error("Error creating user:", error);
-            toast.error("Welcome to VideoAI! Please refresh the page if you don't see the generate page.");
           }
         };
 

@@ -462,31 +462,7 @@ export function VideoGenerationForm() {
         </CardContent>
       </Card>
 
-      {/* Quick Tips */}
-      <Card className="hidden lg:block bg-gray-900/30 backdrop-blur-sm border-gray-800/50">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center space-x-2 text-sm font-medium text-white/90">
-            <Info className="h-4 w-4 text-blue-400" />
-            <span>Quick Tips</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 text-sm text-gray-300">
-            <div className="flex items-start space-x-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
-              <span>Be specific about scenes, actions, and visual style for better results</span>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
-              <span>Include camera movements like &quot;close-up&quot;, &quot;wide shot&quot;, or &quot;tracking shot&quot;</span>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
-              <span>Mention lighting and mood to enhance the atmosphere</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 } 

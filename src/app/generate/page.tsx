@@ -6,12 +6,12 @@ import { api } from "../../../convex/_generated/api";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { AppLayout } from "@/components/layouts/app-layout";
 import { Progress } from "@/components/ui/progress";
 
-import { Video, Clock, Download, Loader2, AlertCircle } from "lucide-react";
+import { Video, Clock, Download, Loader2, AlertCircle, Info } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 import { VideoModal } from "@/components/VideoModal";
 import { useRouter } from "next/navigation";
@@ -168,7 +168,7 @@ function GeneratePageContent() {
 
             {/* Right Side - Current Video Player */}
             <div>
-              <div className="sticky top-8">
+              <div className="sticky top-8 space-y-6">
                 <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50 overflow-hidden">
                   <CardContent className="p-0">
                     {/* Video Player Area */}
@@ -289,6 +289,32 @@ function GeneratePageContent() {
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Tips */}
+                <Card className="bg-gray-900/30 backdrop-blur-sm border-gray-800/50">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center space-x-2 text-sm font-medium text-white/90">
+                      <Info className="h-4 w-4 text-blue-400" />
+                      <span>Quick Tips</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3 text-sm text-gray-300">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+                        <span>Be specific about scenes, actions, and visual style for better results</span>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+                        <span>Include camera movements like &quot;close-up&quot;, &quot;wide shot&quot;, or &quot;tracking shot&quot;</span>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0"></div>
+                        <span>Mention lighting and mood to enhance the atmosphere</span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
