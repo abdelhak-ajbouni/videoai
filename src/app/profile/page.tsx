@@ -15,7 +15,6 @@ import {
   Mail,
   Shield,
   Calendar,
-  CreditCard,
   Settings,
   Eye,
   EyeOff,
@@ -445,39 +444,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Account Overview */}
-          <Card className="bg-gray-900/30 border-gray-800/50">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center space-x-2">
-                <CreditCard className="h-5 w-5 text-purple-400" />
-                <span>Account Overview</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                  <div className="text-2xl font-bold text-white mb-1">
-                    {currentUser.credits?.toLocaleString() || '0'}
-                  </div>
-                  <div className="text-sm text-gray-400">Credits Available</div>
-                </div>
 
-                <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                  <div className="text-2xl font-bold text-white mb-1 capitalize">
-                    {currentUser.subscriptionTier || 'Free'}
-                  </div>
-                  <div className="text-sm text-gray-400">Current Plan</div>
-                </div>
-
-                <div className="text-center p-4 bg-gray-800/30 rounded-lg">
-                  <div className="text-2xl font-bold text-white mb-1">
-                    {currentUser.totalCreditsUsed?.toLocaleString() || '0'}
-                  </div>
-                  <div className="text-sm text-gray-400">Total Credits Used</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </AppLayout>

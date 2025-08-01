@@ -46,7 +46,7 @@ export const updateUserStripeCustomerId = mutation({
   },
 });
 
-// Get current user (now returns userProfile + Clerk data)
+// Get current user (now returns userProfile + Clerk data + subscription info)
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -64,7 +64,12 @@ export const getCurrentUser = query({
       return null;
     }
 
-    // Combine userProfile data with Clerk identity data
+    // Get subscription information
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
+      clerkId: identity.subject,
+    });
+
+    // Combine userProfile data with Clerk identity data and subscription info
     return {
       _id: userProfile._id,
       clerkId: userProfile.clerkId,
@@ -73,6 +78,8 @@ export const getCurrentUser = query({
       imageUrl: identity.pictureUrl || "",
       credits: userProfile.credits,
       totalCreditsUsed: userProfile.totalCreditsUsed,
+      subscriptionTier: subscription?.tier || "free",
+      hasActiveSubscription: !!subscription,
       createdAt: userProfile.createdAt,
       updatedAt: userProfile.updatedAt,
     };

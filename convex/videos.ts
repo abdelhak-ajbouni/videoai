@@ -4,7 +4,7 @@ import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 
-// Query to get user's videos
+// Query to get user's videos with file URLs
 export const getUserVideos = query({
   args: {},
   handler: async (ctx) => {
@@ -13,15 +13,31 @@ export const getUserVideos = query({
       throw new Error("Not authenticated");
     }
 
-    return await ctx.db
+    const videos = await ctx.db
       .query("videos")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .order("desc")
       .collect();
+
+    // Add file URLs for completed videos with stored files
+    const videosWithUrls = await Promise.all(
+      videos.map(async (video) => {
+        if (video.convexFileId && video.status === "completed") {
+          const fileUrl = await ctx.storage.getUrl(video.convexFileId);
+          return {
+            ...video,
+            videoUrl: fileUrl || video.videoUrl, // Use Convex URL if available
+          };
+        }
+        return video;
+      })
+    );
+
+    return videosWithUrls;
   },
 });
 
-// Query to get a specific video
+// Query to get a specific video with file URL
 export const getVideo = query({
   args: { videoId: v.id("videos") },
   handler: async (ctx, args) => {
@@ -37,6 +53,15 @@ export const getVideo = query({
 
     if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
+    }
+
+    // Add file URL if stored in Convex
+    if (video.convexFileId && video.status === "completed") {
+      const fileUrl = await ctx.storage.getUrl(video.convexFileId);
+      return {
+        ...video,
+        videoUrl: fileUrl || video.videoUrl, // Use Convex URL if available
+      };
     }
 
     return video;
@@ -255,6 +280,7 @@ export const updateVideoStatus = mutation({
     videoUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
     convexFileId: v.optional(v.id("_storage")),
+    thumbnailFileId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const video = await ctx.db.get(args.videoId);
@@ -285,6 +311,10 @@ export const updateVideoStatus = mutation({
 
     if (args.convexFileId) {
       updateData.convexFileId = args.convexFileId;
+    }
+
+    if (args.thumbnailFileId) {
+      updateData.thumbnailFileId = args.thumbnailFileId;
     }
 
     if (args.status === "processing" && !video.processingStartedAt) {
@@ -437,12 +467,28 @@ export const generateVideo = action({
         });
       } else {
         // Production mode: Use real Replicate API
-        prediction = await replicate.predictions.create({
+        const createOptions: any = {
           model: video.model,
           input: input,
-          webhook: `${process.env.CONVEX_SITE_URL}/api/webhooks/replicate`,
-          webhook_events_filter: ["start", "output", "logs", "completed"],
-        });
+        };
+
+        // Only set webhook in production environment (not localhost)
+        const siteUrl = process.env.CONVEX_SITE_URL;
+        if (siteUrl && !siteUrl.includes('localhost')) {
+          createOptions.webhook = `${siteUrl}/api/webhooks/replicate`;
+          createOptions.webhook_events_filter = ["start", "output", "logs", "completed"];
+        }
+
+        prediction = await replicate.predictions.create(createOptions);
+        
+        // If no webhook, schedule polling to check status
+        if (!createOptions.webhook) {
+          console.log("No webhook configured, will poll for status updates");
+          await ctx.scheduler.runAfter(5000, api.videos.pollReplicateStatus, {
+            videoId: args.videoId,
+            replicateJobId: prediction.id,
+          });
+        }
       }
 
       console.log(`Replicate prediction created with ID: ${prediction.id}`);
@@ -620,6 +666,48 @@ export const refundCredits = mutation({
   },
 });
 
+// Query to get video by Replicate job ID
+export const getVideoByReplicateJobId = query({
+  args: { replicateJobId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("videos")
+      .withIndex("by_replicate_job_id", (q) =>
+        q.eq("replicateJobId", args.replicateJobId)
+      )
+      .first();
+  },
+});
+
+// Query to get video file URL from Convex storage
+export const getVideoFileUrl = query({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const video = await ctx.db.get(args.videoId);
+    if (!video) {
+      throw new Error("Video not found");
+    }
+
+    if (video.clerkId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    // If we have a Convex file ID, get the URL from storage
+    if (video.convexFileId) {
+      const fileUrl = await ctx.storage.getUrl(video.convexFileId);
+      return fileUrl;
+    }
+
+    // Fallback to original video URL
+    return video.videoUrl;
+  },
+});
+
 // Query to get generation job by Replicate ID
 export const getGenerationJobByReplicateId = query({
   args: { replicateJobId: v.string() },
@@ -630,6 +718,98 @@ export const getGenerationJobByReplicateId = query({
         q.eq("replicateJobId", args.replicateJobId)
       )
       .first();
+  },
+});
+
+// Action to poll Replicate status
+export const pollReplicateStatus = action({
+  args: {
+    videoId: v.id("videos"),
+    replicateJobId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const replicate = createReplicateClient();
+      const prediction = await replicate.predictions.get(args.replicateJobId);
+
+      console.log(`Polling Replicate status for ${args.replicateJobId}:`, prediction.status);
+
+      switch (prediction.status) {
+        case "starting":
+        case "processing":
+          // Continue polling
+          await ctx.scheduler.runAfter(5000, api.videos.pollReplicateStatus, {
+            videoId: args.videoId,
+            replicateJobId: args.replicateJobId,
+          });
+          break;
+
+        case "succeeded":
+          if (prediction.output) {
+            const videoUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            
+            await ctx.runMutation(api.videos.updateVideoStatus, {
+              videoId: args.videoId,
+              status: "completed",
+              videoUrl: videoUrl,
+            });
+
+            // Schedule video download and storage
+            await ctx.runAction(api.videos.downloadAndStoreVideo, {
+              videoId: args.videoId,
+              videoUrl: videoUrl,
+            });
+          }
+          break;
+
+        case "failed":
+          await ctx.runMutation(api.videos.updateVideoStatus, {
+            videoId: args.videoId,
+            status: "failed",
+            errorMessage: prediction.error || "Video generation failed",
+          });
+
+          // Refund credits
+          await ctx.runMutation(api.videos.refundCredits, {
+            videoId: args.videoId,
+          });
+          break;
+
+        case "canceled":
+          await ctx.runMutation(api.videos.updateVideoStatus, {
+            videoId: args.videoId,
+            status: "canceled",
+          });
+
+          // Refund credits
+          await ctx.runMutation(api.videos.refundCredits, {
+            videoId: args.videoId,
+          });
+          break;
+
+        default:
+          console.log("Unknown Replicate status:", prediction.status);
+          // Continue polling for unknown statuses
+          await ctx.scheduler.runAfter(10000, api.videos.pollReplicateStatus, {
+            videoId: args.videoId,
+            replicateJobId: args.replicateJobId,
+          });
+      }
+    } catch (error) {
+      console.error("Error polling Replicate status:", error);
+      
+      // Mark as failed after polling error
+      await ctx.runMutation(api.videos.updateVideoStatus, {
+        videoId: args.videoId,
+        status: "failed",
+        errorMessage: "Failed to get generation status",
+      });
+
+      // Refund credits
+      await ctx.runMutation(api.videos.refundCredits, {
+        videoId: args.videoId,
+      });
+    }
   },
 });
 
@@ -670,12 +850,15 @@ export const downloadAndStoreVideo = action({
           ? { width: 1920, height: 1080 }
           : { width: 1280, height: 720 };
 
+      // Get the Convex file URL for serving
+      const convexVideoUrl = await ctx.storage.getUrl(fileId);
+
       // Update video with metadata and mark as completed
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
         convexFileId: fileId,
-        videoUrl: args.videoUrl,
+        videoUrl: convexVideoUrl || args.videoUrl, // Use Convex URL if available, fallback to original
       });
 
       // Update video metadata
@@ -729,21 +912,42 @@ export const generateThumbnail = action({
   },
   handler: async (ctx, args) => {
     try {
-      // For now, we'll use a placeholder thumbnail generation
-      // In production, you'd use FFmpeg or a thumbnail service
+      // For development, we'll create a simple placeholder thumbnail
+      // In production, you could use:
+      // 1. FFmpeg to extract a frame at 1-2 seconds
+      // 2. A service like Cloudinary for thumbnail generation
+      // 3. Canvas API to generate thumbnails from video frames
 
-      // Create a simple thumbnail URL (you could use a service like Cloudinary)
-      // For demo purposes, we'll just store the video URL as thumbnail
-      const thumbnailUrl = args.videoUrl + "#t=1"; // Video frame at 1 second
+      console.log("Generating thumbnail for video:", args.videoId);
 
-      // In a real implementation, you would:
-      // 1. Extract a frame from the video at 1-2 seconds
-      // 2. Resize to thumbnail dimensions (e.g., 320x180)
-      // 3. Store as a separate image file
+      // Create a placeholder thumbnail blob (1x1 pixel transparent PNG)
+      // This is just for demonstration - in production you'd extract a real frame
+      const placeholderThumbnailData = new Uint8Array([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x01, 0x40, 0x00, 0x00, 0x00, 0xf0,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x5d, 0xd5, 0x45, 0x38, 0x00, 0x00, 0x00,
+        0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
+      ]);
 
+      const thumbnailBlob = new Blob([placeholderThumbnailData], { type: 'image/png' });
+      
+      // Store thumbnail in Convex storage
+      const thumbnailFileId = await ctx.storage.store(thumbnailBlob);
+      const thumbnailUrl = await ctx.storage.getUrl(thumbnailFileId);
+
+      // Update video with thumbnail information
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed", // Keep status as completed
+        thumbnailUrl: thumbnailUrl || undefined,
+        thumbnailFileId,
+      });
+
+      console.log("Thumbnail generated and stored:", {
+        videoId: args.videoId,
+        thumbnailFileId,
         thumbnailUrl,
       });
 
@@ -751,7 +955,16 @@ export const generateThumbnail = action({
     } catch (error) {
       console.error("Error generating thumbnail:", error);
       // Don't fail the whole video generation if thumbnail fails
-      return null;
+      // Use video URL with timestamp as fallback
+      const fallbackThumbnail = args.videoUrl + "#t=1";
+      
+      await ctx.runMutation(api.videos.updateVideoStatus, {
+        videoId: args.videoId,
+        status: "completed",
+        thumbnailUrl: fallbackThumbnail,
+      });
+
+      return fallbackThumbnail;
     }
   },
 });

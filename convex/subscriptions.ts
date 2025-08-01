@@ -14,6 +14,18 @@ export const getSubscription = query({
   },
 });
 
+// Get subscription by Stripe customer ID
+export const getSubscriptionByStripeCustomerId = query({
+  args: { stripeCustomerId: v.string() },
+  handler: async (ctx, { stripeCustomerId }) => {
+    return await ctx.db
+      .query("subscriptions")
+      .withIndex("by_stripe_customer_id", (q) => q.eq("stripeCustomerId", stripeCustomerId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+  },
+});
+
 // Get all subscriptions for a user (including inactive)
 export const getAllSubscriptions = query({
   args: { clerkId: v.string() },

@@ -278,33 +278,49 @@ async function handleCheckoutSessionCompleted(
       throw error;
     }
   } else if (type === "subscription" && clerkId && planId) {
-    console.log("Processing subscription creation:", { clerkId, planId });
+    console.log("Processing subscription creation:", { 
+      clerkId, 
+      planId, 
+      sessionId: session.id,
+      stripeSubscriptionId: session.subscription 
+    });
 
     try {
       // Handle subscription creation using the dedicated action
-      await ctx.runAction(api.stripe.handleSubscriptionCreation, {
-        userId: userId as Id<"users">,
+      const result = await ctx.runAction(api.stripe.handleSubscriptionCreation, {
+        clerkId: clerkId,
         stripeSubscriptionId: session.subscription as string,
         planId: planId as "starter" | "pro" | "max",
       });
 
-      console.log("Subscription created successfully:", { userId, planId });
+      console.log("Subscription created successfully:", { 
+        clerkId, 
+        planId, 
+        result,
+        sessionId: session.id 
+      });
     } catch (error) {
-      console.error("Error creating subscription:", error);
+      console.error("Error creating subscription:", {
+        error: error.message,
+        clerkId,
+        planId,
+        sessionId: session.id,
+        stripeSubscriptionId: session.subscription
+      });
       throw error;
     }
-  } else if (type === "plan_change" && userId && newPlanId) {
-    console.log("Processing plan change:", { userId, newPlanId });
+  } else if (type === "plan_change" && clerkId && newPlanId) {
+    console.log("Processing plan change:", { clerkId, newPlanId });
 
     try {
       // Handle plan change using the dedicated action
       await ctx.runAction(api.stripe.handlePlanChange, {
-        userId: userId as Id<"users">,
+        clerkId: clerkId,
         stripeSubscriptionId: session.subscription as string,
         newPlanId: newPlanId as "starter" | "pro" | "max",
       });
 
-      console.log("Plan change processed successfully:", { userId, newPlanId });
+      console.log("Plan change processed successfully:", { clerkId, newPlanId });
     } catch (error) {
       console.error("Error processing plan change:", error);
       throw error;
@@ -312,7 +328,7 @@ async function handleCheckoutSessionCompleted(
   } else {
     console.log("Unknown checkout session type or missing metadata:", {
       type,
-      userId,
+      clerkId,
       planId,
       credits,
     });
@@ -327,17 +343,26 @@ async function handleInvoicePaymentSucceeded(
   // Check if this invoice is for a subscription and has a customer
   const subscriptionId = (invoice as any).subscription;
   if (subscriptionId && invoice.customer) {
-    // Find user by Stripe customer ID
-    const user = await ctx.runQuery(api.users.getUserByStripeCustomerId, {
+    // Find subscription by Stripe customer ID
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscriptionByStripeCustomerId, {
       stripeCustomerId: invoice.customer as string,
     });
 
-    if (user) {
-      // Allocate monthly credits for subscription
-      await ctx.runMutation(api.subscriptions.allocateMonthlyCredits, {
-        userId: user._id,
-        stripeSubscriptionId: subscriptionId,
-      });
+    if (subscription) {
+      // Only allocate credits for recurring invoices, not the initial subscription
+      // The initial credits are handled by createSubscription during checkout.session.completed
+      const subscriptionAge = Date.now() - subscription.createdAt;
+      const isInitialInvoice = subscriptionAge < 60000; // Less than 1 minute old
+      
+      if (!isInitialInvoice) {
+        // Allocate monthly credits for subscription renewal
+        await ctx.runMutation(api.subscriptions.allocateMonthlyCredits, {
+          clerkId: subscription.clerkId,
+          stripeSubscriptionId: subscriptionId,
+        });
+      } else {
+        console.log("Skipping credit allocation for initial subscription invoice");
+      }
     }
   }
 }
@@ -347,13 +372,13 @@ async function handleSubscriptionUpdated(
   ctx: ActionCtx,
   subscription: Stripe.Subscription
 ) {
-  const user = await ctx.runQuery(api.users.getUserByStripeCustomerId, {
+  const existingSubscription = await ctx.runQuery(api.subscriptions.getSubscriptionByStripeCustomerId, {
     stripeCustomerId: subscription.customer as string,
   });
 
-  if (user) {
+  if (existingSubscription) {
     await ctx.runMutation(api.subscriptions.updateSubscription, {
-      userId: user._id,
+      clerkId: existingSubscription.clerkId,
       stripeSubscriptionId: subscription.id,
       status: subscription.status as
         | "active"
@@ -373,13 +398,13 @@ async function handleSubscriptionDeleted(
   ctx: ActionCtx,
   subscription: Stripe.Subscription
 ) {
-  const user = await ctx.runQuery(api.users.getUserByStripeCustomerId, {
+  const existingSubscription = await ctx.runQuery(api.subscriptions.getSubscriptionByStripeCustomerId, {
     stripeCustomerId: subscription.customer as string,
   });
 
-  if (user) {
+  if (existingSubscription) {
     await ctx.runMutation(api.subscriptions.cancelSubscription, {
-      userId: user._id,
+      clerkId: existingSubscription.clerkId,
       stripeSubscriptionId: subscription.id,
     });
   }
@@ -388,13 +413,13 @@ async function handleSubscriptionDeleted(
 // Action to handle subscription creation from webhook
 export const handleSubscriptionCreation = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
     planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId, planId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId, planId }) => {
     console.log("Handling subscription creation:", {
-      userId,
+      clerkId,
       stripeSubscriptionId,
       planId,
     });
@@ -404,24 +429,43 @@ export const handleSubscriptionCreation = action({
       const subscription =
         await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-      // Create subscription in database
-      // TODO: Fix createSubscription API export issue
-      // await ctx.runMutation(api.subscriptions.createSubscription, {
-      //   userId,
-      //   stripeSubscriptionId,
-      //   planId,
-      //   stripeCustomerId: subscription.customer as string,
-      //   stripePriceId: subscription.items.data[0].price.id,
-      //   subscriptionStatus: subscription.status,
-      //   currentPeriodStart: (subscription as any).current_period_start * 1000,
-      //   currentPeriodEnd: (subscription as any).current_period_end * 1000,
-      //   cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-      // });
+      console.log("Retrieved Stripe subscription:", {
+        id: subscription.id,
+        status: subscription.status,
+        customer: subscription.customer,
+        priceId: subscription.items.data[0].price.id,
+        periodStart: subscription.current_period_start,
+        periodEnd: subscription.current_period_end,
+      });
 
-      console.log("Subscription created successfully:", { userId, planId });
-      return { success: true };
+      // Create subscription in database
+      const subscriptionId = await ctx.runMutation(api.subscriptions.createSubscription, {
+        clerkId,
+        stripeSubscriptionId,
+        planId,
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: (subscription as any).current_period_start * 1000,
+        currentPeriodEnd: (subscription as any).current_period_end * 1000,
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+      });
+
+      console.log("Subscription created successfully:", { 
+        clerkId, 
+        planId, 
+        subscriptionId,
+        stripeSubscriptionId 
+      });
+      return { success: true, subscriptionId };
     } catch (error) {
-      console.error("Error creating subscription:", error);
+      console.error("Error creating subscription:", {
+        error: error.message,
+        stack: error.stack,
+        clerkId,
+        stripeSubscriptionId,
+        planId
+      });
       throw error;
     }
   },
@@ -430,7 +474,7 @@ export const handleSubscriptionCreation = action({
 // Action to handle plan change from webhook
 export const handlePlanChange = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
     newPlanId: v.union(
       v.literal("starter"),
@@ -438,9 +482,9 @@ export const handlePlanChange = action({
       v.literal("max")
     ),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId, newPlanId }) => {
+  handler: async (ctx, { clerkId, stripeSubscriptionId, newPlanId }) => {
     console.log("Handling plan change:", {
-      userId,
+      clerkId,
       stripeSubscriptionId,
       newPlanId,
     });
@@ -451,20 +495,19 @@ export const handlePlanChange = action({
         await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
       // Handle plan change in database
-      // TODO: Fix changeSubscriptionPlan API export issue
-      // await ctx.runMutation(api.subscriptions.changeSubscriptionPlan, {
-      //   userId,
-      //   newPlanId,
-      //   stripeSubscriptionId,
-      //   stripeCustomerId: subscription.customer as string,
-      //   stripePriceId: subscription.items.data[0].price.id,
-      //   subscriptionStatus: subscription.status,
-      //   currentPeriodStart: (subscription as any).current_period_start * 1000,
-      //   currentPeriodEnd: (subscription as any).current_period_end * 1000,
-      //   cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-      // });
+      await ctx.runMutation(api.subscriptions.changeSubscriptionPlan, {
+        clerkId,
+        newPlanId,
+        stripeSubscriptionId,
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: (subscription as any).current_period_start * 1000,
+        currentPeriodEnd: (subscription as any).current_period_end * 1000,
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+      });
 
-      console.log("Plan change processed successfully:", { userId, newPlanId });
+      console.log("Plan change processed successfully:", { clerkId, newPlanId });
       return { success: true };
     } catch (error) {
       console.error("Error processing plan change:", error);
@@ -476,12 +519,12 @@ export const handlePlanChange = action({
 // Cancel subscription at period end in Stripe
 export const cancelSubscriptionAtPeriodEnd = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user) throw new Error("User not found");
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, { clerkId });
+    if (!userProfile) throw new Error("User profile not found");
 
     try {
       // Cancel the subscription at period end in Stripe
@@ -494,12 +537,12 @@ export const cancelSubscriptionAtPeriodEnd = action({
 
       // Update our database to reflect the cancellation
       await ctx.runMutation(api.subscriptions.cancelSubscriptionAtPeriodEnd, {
-        userId,
+        clerkId,
         stripeSubscriptionId,
       });
 
       console.log("Subscription canceled at period end:", {
-        userId,
+        clerkId,
         stripeSubscriptionId,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       });
@@ -518,12 +561,12 @@ export const cancelSubscriptionAtPeriodEnd = action({
 // Reactivate subscription in Stripe
 export const reactivateSubscription = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     stripeSubscriptionId: v.string(),
   },
-  handler: async (ctx, { userId, stripeSubscriptionId }) => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user) throw new Error("User not found");
+  handler: async (ctx, { clerkId, stripeSubscriptionId }) => {
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, { clerkId });
+    if (!userProfile) throw new Error("User profile not found");
 
     try {
       // Reactivate the subscription in Stripe
@@ -536,12 +579,12 @@ export const reactivateSubscription = action({
 
       // Update our database to reflect the reactivation
       await ctx.runMutation(api.subscriptions.reactivateSubscription, {
-        userId,
+        clerkId,
         stripeSubscriptionId,
       });
 
       console.log("Subscription reactivated:", {
-        userId,
+        clerkId,
         stripeSubscriptionId,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       });
@@ -560,28 +603,34 @@ export const reactivateSubscription = action({
 // Change subscription plan in Stripe
 export const changeSubscriptionPlan: any = action({
   args: {
-    userId: v.id("users"),
+    clerkId: v.string(),
     newPlanId: v.union(
       v.literal("starter"),
       v.literal("pro"),
       v.literal("max")
     ),
   },
-  handler: async (ctx, { userId, newPlanId }) => {
-    const user = await ctx.runQuery(api.users.getUser, { userId });
-    if (!user) throw new Error("User not found");
+  handler: async (ctx, { clerkId, newPlanId }) => {
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, { clerkId });
+    if (!subscription) throw new Error("No active subscription found");
 
     try {
       // Get the new plan configuration
       const newPlan = await getSubscriptionPlan(ctx, newPlanId);
+      
+      // Get or create Stripe price dynamically
+      const priceId = await ctx.runAction(
+        api.subscriptionPlans.getOrCreateStripePrice,
+        { planId: newPlanId }
+      );
 
       // Create a new checkout session for the plan change
       const session = await stripe.checkout.sessions.create({
-        customer: user.stripeCustomerId!,
+        customer: subscription.stripeCustomerId,
         payment_method_types: ["card"],
         line_items: [
           {
-            price: newPlan.priceId,
+            price: priceId,
             quantity: 1,
           },
         ],
@@ -589,14 +638,14 @@ export const changeSubscriptionPlan: any = action({
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=success&plan=${newPlanId}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?plan_change=canceled`,
         metadata: {
-          userId,
+          clerkId,
           newPlanId,
           type: "plan_change",
         },
         // Set subscription_data to handle plan changes
         subscription_data: {
           metadata: {
-            userId,
+            clerkId,
             newPlanId,
             type: "plan_change",
           },
@@ -604,7 +653,7 @@ export const changeSubscriptionPlan: any = action({
       });
 
       console.log("Plan change checkout session created:", {
-        userId,
+        clerkId,
         newPlanId,
         sessionId: session.id,
       });
@@ -617,15 +666,3 @@ export const changeSubscriptionPlan: any = action({
   },
 });
 
-// Get user by Stripe customer ID
-export const getUserByStripeCustomerId = query({
-  args: { stripeCustomerId: v.string() },
-  handler: async (ctx, { stripeCustomerId }) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_stripe_customer_id", (q) =>
-        q.eq("stripeCustomerId", stripeCustomerId)
-      )
-      .first();
-  },
-});
