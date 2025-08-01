@@ -88,7 +88,7 @@ export function SubscriptionPlans() {
   const handleCancelSubscription = async () => {
     if (!userData || !userData.stripeSubscriptionId) return;
 
-    if (!confirm("Are you sure you want to cancel your subscription? You'll keep all your existing credits, but won't receive new monthly credits after your current billing period ends.")) {
+    if (!confirm("Are you sure you want to cancel your subscription? You&apos;ll keep all your existing credits, but won&apos;t receive new monthly credits after your current billing period ends.")) {
       return;
     }
 
@@ -99,7 +99,7 @@ export function SubscriptionPlans() {
         stripeSubscriptionId: userData.stripeSubscriptionId,
       });
 
-      alert("Your subscription has been canceled. You'll keep all your existing credits until the end of your current billing period.");
+      alert("Your subscription has been canceled. You&apos;ll keep all your existing credits until the end of your current billing period.");
       window.location.reload(); // Refresh to show updated status
     } catch (error) {
       console.error("Error canceling subscription:", error);
@@ -228,7 +228,7 @@ export function SubscriptionPlans() {
                     <h4 className="font-medium text-yellow-800">Subscription Canceling</h4>
                     <p className="text-sm text-yellow-700 mt-1">
                       Your subscription will end on {formatDate(subscriptionStats.nextBillingDate)}.
-                      You'll keep all your existing credits, but won't receive new monthly credits after this date.
+                      You&apos;ll keep all your existing credits, but won&apos;t receive new monthly credits after this date.
                     </p>
                     <Button
                       variant="outline"
@@ -368,12 +368,12 @@ export function SubscriptionPlans() {
             <h4 className="font-medium text-blue-800">Plan Changes & Credit Policy</h4>
             <p className="text-sm text-blue-700 mt-1">
               <strong>Plan Changes:</strong> When you change plans, your old subscription is automatically deactivated and replaced with the new one.
-              You'll receive the new plan's monthly credits immediately.
+              You&apos;ll receive the new plan&apos;s monthly credits immediately.
             </p>
             <p className="text-sm text-blue-700 mt-2">
-              <strong>Credit Retention:</strong> When you cancel your subscription, you keep all credits you've already earned.
-              You just won't receive new monthly credits after your current billing period ends.
-              This ensures you never lose what you've already paid for.
+              <strong>Credit Retention:</strong> When you cancel your subscription, you keep all credits you&apos;ve already earned.
+              You just won&apos;t receive new monthly credits after your current billing period ends.
+              This ensures you never lose what you&apos;ve already paid for.
             </p>
           </div>
         </div>

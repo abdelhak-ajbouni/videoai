@@ -229,39 +229,6 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_current_period_end", ["currentPeriodEnd"]),
 
-  generationJobs: defineTable({
-    // User and video relationship
-    clerkId: v.string(),
-    videoId: v.id("videos"),
-
-    // Job details
-    replicateJobId: v.string(),
-    status: v.union(
-      v.literal("starting"),
-      v.literal("processing"),
-      v.literal("succeeded"),
-      v.literal("failed"),
-      v.literal("canceled")
-    ),
-
-    // Progress tracking
-    progress: v.optional(v.number()), // 0-100
-    logs: v.optional(v.array(v.string())),
-
-    // Results
-    output: v.optional(v.any()), // Replicate output data
-    error: v.optional(v.string()),
-
-    // Timing
-    startedAt: v.optional(v.number()),
-    completedAt: v.optional(v.number()),
-
-    // Timestamps
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_video", ["videoId"])
-    .index("by_replicate_job_id", ["replicateJobId"]),
 
   configurations: defineTable({
     // Configuration identification

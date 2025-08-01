@@ -349,15 +349,6 @@ export const deleteVideo = mutation({
 
     await ctx.db.delete(args.videoId);
 
-    // Also delete related generation job if exists
-    const generationJob = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_video", (q) => q.eq("videoId", args.videoId))
-      .first();
-
-    if (generationJob) {
-      await ctx.db.delete(generationJob._id);
-    }
   },
 });
 
@@ -500,12 +491,6 @@ export const generateVideo = action({
         replicateJobId: prediction.id,
       });
 
-      // Create generation job record
-      await ctx.runMutation(api.videos.createGenerationJob, {
-        videoId: args.videoId,
-        replicateJobId: prediction.id,
-        status: "starting",
-      });
 
       console.log(
         `Video generation started successfully for video ID: ${args.videoId}`
@@ -531,101 +516,7 @@ export const generateVideo = action({
   },
 });
 
-// Mutation to create generation job
-export const createGenerationJob = mutation({
-  args: {
-    videoId: v.id("videos"),
-    replicateJobId: v.string(),
-    status: v.union(
-      v.literal("starting"),
-      v.literal("processing"),
-      v.literal("succeeded"),
-      v.literal("failed"),
-      v.literal("canceled")
-    ),
-  },
-  handler: async (ctx, args) => {
-    const video = await ctx.db.get(args.videoId);
-    if (!video) {
-      throw new Error("Video not found");
-    }
 
-    const now = Date.now();
-
-    await ctx.db.insert("generationJobs", {
-      clerkId: video.clerkId,
-      videoId: args.videoId,
-      replicateJobId: args.replicateJobId,
-      status: args.status,
-      createdAt: now,
-      updatedAt: now,
-    });
-  },
-});
-
-// Mutation to update generation job
-export const updateGenerationJob = mutation({
-  args: {
-    replicateJobId: v.string(),
-    status: v.union(
-      v.literal("starting"),
-      v.literal("processing"),
-      v.literal("succeeded"),
-      v.literal("failed"),
-      v.literal("canceled")
-    ),
-    progress: v.optional(v.number()),
-    logs: v.optional(v.array(v.string())),
-    output: v.optional(v.any()),
-    error: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const job = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_replicate_job_id", (q) =>
-        q.eq("replicateJobId", args.replicateJobId)
-      )
-      .first();
-
-    if (!job) {
-      throw new Error("Generation job not found");
-    }
-
-    const updateData: any = {
-      status: args.status,
-      updatedAt: Date.now(),
-    };
-
-    if (args.progress !== undefined) {
-      updateData.progress = args.progress;
-    }
-
-    if (args.logs) {
-      updateData.logs = args.logs;
-    }
-
-    if (args.output) {
-      updateData.output = args.output;
-    }
-
-    if (args.error) {
-      updateData.error = args.error;
-    }
-
-    if (args.status === "processing" && !job.startedAt) {
-      updateData.startedAt = Date.now();
-    }
-
-    if (
-      (args.status === "succeeded" || args.status === "failed") &&
-      !job.completedAt
-    ) {
-      updateData.completedAt = Date.now();
-    }
-
-    await ctx.db.patch(job._id, updateData);
-  },
-});
 
 // Mutation to refund credits for failed generation
 export const refundCredits = mutation({
@@ -708,18 +599,6 @@ export const getVideoFileUrl = query({
   },
 });
 
-// Query to get generation job by Replicate ID
-export const getGenerationJobByReplicateId = query({
-  args: { replicateJobId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("generationJobs")
-      .withIndex("by_replicate_job_id", (q) =>
-        q.eq("replicateJobId", args.replicateJobId)
-      )
-      .first();
-  },
-});
 
 // Action to poll Replicate status
 export const pollReplicateStatus = action({
@@ -1446,16 +1325,6 @@ export const mockGenerationStart = action({
     console.log(`🚀 Mock: Generation started for video ${args.videoId}`);
 
     try {
-      // Update generation job status
-      await ctx.runMutation(api.videos.updateGenerationJob, {
-        replicateJobId: args.replicateJobId,
-        status: "processing",
-        progress: 0,
-        logs: [
-          "🧪 Mock: Starting video generation...",
-          "🎬 Processing with Veo-3 model...",
-        ],
-      });
 
       // Schedule progress updates
       const progressInterval = Math.floor(args.totalTime / 5); // 5 progress updates
@@ -1507,14 +1376,6 @@ export const mockGenerationProgress = action({
     };
 
     try {
-      await ctx.runMutation(api.videos.updateGenerationJob, {
-        replicateJobId: args.replicateJobId,
-        status: "processing",
-        progress: args.progress,
-        logs: [
-          progressMessages[args.progress as keyof typeof progressMessages],
-        ],
-      });
     } catch (error) {
       console.error("Mock progress update error:", error);
     }
@@ -1547,12 +1408,6 @@ export const mockGenerationComplete = action({
           `❌ Mock: Simulating generation failure for video ${args.videoId}`
         );
 
-        await ctx.runMutation(api.videos.updateGenerationJob, {
-          replicateJobId: args.replicateJobId,
-          status: "failed",
-          error: "Mock generation failed (simulated error for testing)",
-          logs: ["❌ Generation failed due to simulated error"],
-        });
 
         await ctx.runMutation(api.videos.updateVideoStatus, {
           videoId: args.videoId,
@@ -1571,14 +1426,6 @@ export const mockGenerationComplete = action({
       // Generate realistic mock video URLs based on quality
       const mockVideos = generateMockVideoUrls(video.quality, video.duration);
 
-      // Update generation job as completed
-      await ctx.runMutation(api.videos.updateGenerationJob, {
-        replicateJobId: args.replicateJobId,
-        status: "succeeded",
-        progress: 100,
-        output: mockVideos.videoUrl,
-        logs: ["✅ Video generation completed successfully!"],
-      });
 
       // Mark video as completed
       await ctx.runMutation(api.videos.updateVideoStatus, {

@@ -44,7 +44,7 @@ export default function TermsConditionsPage() {
                   <h2 className="text-xl font-semibold text-white">4. Acceptable Use</h2>
                   <p className="text-gray-300">You agree not to use our services to:</p>
                   <ul className="list-disc list-inside text-gray-300 space-y-2 ml-4">
-                    <li>Create content that is illegal, harmful, or violates others' rights</li>
+                    <li>Create content that is illegal, harmful, or violates others&apos; rights</li>
                     <li>Generate content that is defamatory, obscene, or offensive</li>
                     <li>Attempt to reverse engineer or compromise our systems</li>
                     <li>Use automated tools to access our services without permission</li>

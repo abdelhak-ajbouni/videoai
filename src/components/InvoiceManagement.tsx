@@ -342,7 +342,7 @@ export function InvoiceManagement() {
             </div>
             <p className="text-sm text-muted-foreground">
               For billing questions, payment issues, or account disputes, please contact our support team.
-              All billing operations are securely handled through Stripe's customer portal.
+              All billing operations are securely handled through Stripe&apos;s customer portal.
             </p>
           </div>
         </CardContent>

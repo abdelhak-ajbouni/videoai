@@ -12,7 +12,6 @@ The application uses the following main tables:
 - **creditPackages**: Predefined credit packages for purchase
 - **subscriptionPlans**: Monthly subscription plans
 - **subscriptions**: User subscription records
-- **generationJobs**: Video generation job tracking
 - **configurations**: System configuration and feature flags
 - **models**: AI model definitions and capabilities
 

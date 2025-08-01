@@ -201,7 +201,7 @@ export function BillingAnalytics() {
           <CardHeader>
             <CardTitle>Credit Usage Breakdown</CardTitle>
             <CardDescription>
-              How you've used your credits over time
+              How you&apos;ve used your credits over time
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -289,7 +289,7 @@ export function BillingAnalytics() {
                   <div>
                     <div className="font-medium text-green-800">Subscription Savings</div>
                     <div className="text-sm text-green-600">
-                      You're saving with your subscription
+                      You&apos;re saving with your subscription
                     </div>
                   </div>
                   <div className="text-right">
