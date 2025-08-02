@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import {
+  validateCreditTransaction,
+  validateUserCredits,
+  throwValidationError,
+  logValidationWarnings,
+  sanitizeString,
+} from "./lib/validation";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -75,13 +82,57 @@ export const updateCredits = mutation({
     operation: v.union(v.literal("add"), v.literal("subtract")),
   },
   handler: async (ctx, { clerkId, creditAmount, operation }) => {
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    const sanitizedArgs = {
+      clerkId: sanitizeString(clerkId, 100),
+      amount: creditAmount,
+      operation,
+    };
+
+    // Validate credit transaction parameters
+    const validation = validateCreditTransaction(sanitizedArgs);
+    if (!validation.isValid) {
+      throwValidationError(
+        validation.errors,
+        "Credit transaction validation failed"
+      );
+    }
+
+    // Log warnings if any
+    logValidationWarnings(validation.warnings || [], "Credit transaction");
+
+    // ============================================================================
+    // USER PROFILE VALIDATION
+    // ============================================================================
+
     const profile = await ctx.db
       .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", sanitizedArgs.clerkId))
       .first();
 
     if (!profile) {
       throw new Error("User profile not found");
+    }
+
+    // ============================================================================
+    // CREDIT VALIDATION
+    // ============================================================================
+
+    // Validate user has sufficient credits for subtraction
+    if (operation === "subtract") {
+      const creditValidation = validateUserCredits(
+        profile.credits,
+        creditAmount
+      );
+      if (!creditValidation.isValid) {
+        throwValidationError(
+          creditValidation.errors,
+          "Credit validation failed"
+        );
+      }
     }
 
     const newCredits =
@@ -94,7 +145,7 @@ export const updateCredits = mutation({
         ? profile.totalCreditsUsed + creditAmount
         : profile.totalCreditsUsed;
 
-    // Ensure credits don't go negative
+    // Additional safety check
     if (newCredits < 0) {
       throw new Error("Insufficient credits");
     }

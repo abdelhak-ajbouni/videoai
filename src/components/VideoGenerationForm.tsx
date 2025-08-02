@@ -66,7 +66,7 @@ export function VideoGenerationForm() {
     }
   }, [activeModels, modelId]);
 
-  // Get current model information
+  // Get current model information (now includes capabilities)
   const currentModel = activeModels?.find(m => m.modelId === modelId);
 
   // Get valid durations for the selected model
@@ -98,23 +98,11 @@ export function VideoGenerationForm() {
   // Reset model-specific options when model changes
   useEffect(() => {
     if (currentModel) {
-      // Set default resolution
-      if (currentModel.supportedResolutions && currentModel.defaultResolution) {
-        setResolution(currentModel.defaultResolution);
-      } else {
-        setResolution("");
-      }
-
-      // Set default aspect ratio
-      if (currentModel.supportedAspectRatios && currentModel.defaultAspectRatio) {
-        setAspectRatio(currentModel.defaultAspectRatio);
-      } else {
-        setAspectRatio("");
-      }
-
-      // Reset other options
-      setLoop(false);
-      setCameraConcept("none");
+      // Set defaults based on database capabilities (now part of model)
+      setResolution(currentModel.defaultResolution || "");
+      setAspectRatio(currentModel.defaultAspectRatio || "");
+      setLoop(currentModel.defaultLoop || false);
+      setCameraConcept(currentModel.defaultCameraConcept || "none");
     }
   }, [currentModel]);
 
@@ -144,10 +132,12 @@ export function VideoGenerationForm() {
         model: modelId,
         quality: "standard",
         duration: duration.toString(),
-        resolution: resolution || undefined,
-        aspectRatio: aspectRatio || undefined,
-        loop: loop || undefined,
-        cameraConcept: cameraConcept === "none" ? undefined : cameraConcept || undefined,
+        generationSettings: {
+          resolution: resolution || undefined,
+          aspectRatio: aspectRatio || undefined,
+          loop: loop || undefined,
+          cameraConcept: cameraConcept === "none" ? undefined : cameraConcept || undefined,
+        },
       });
 
       // Reset form
@@ -156,11 +146,8 @@ export function VideoGenerationForm() {
       const defaultModel = activeModels?.find(model => model.isDefault);
       setModelId(defaultModel ? defaultModel.modelId : modelId);
       setDuration(5);
-      // Reset model-specific options
-      setResolution("");
-      setAspectRatio("");
-      setLoop(false);
-      setCameraConcept("none");
+      // Reset model-specific options to defaults (will be handled by useEffect when model changes)
+      // No need to manually reset since useEffect will handle it when the model changes
 
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to start video generation");
@@ -171,8 +158,11 @@ export function VideoGenerationForm() {
 
   const getModelIcon = (model: Doc<"models">) => {
     if (model.isPremium) return <Crown className="h-5 w-5 text-purple-500 mt-1 flex-shrink-0" />;
-    if (model.isFast) return <Zap className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />;
     if (model.isDefault) return <Star className="h-5 w-5 text-yellow-500 mt-1 flex-shrink-0" />;
+    // Use model name to determine speed icon (since we removed isFast field)
+    if (model.name.toLowerCase().includes("flash") || model.name.toLowerCase().includes("fast")) {
+      return <Zap className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />;
+    }
   };
 
   return (
@@ -258,8 +248,8 @@ export function VideoGenerationForm() {
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Resolution (for Google Veo-3) */}
-                {currentModel.supportedResolutions && currentModel.supportedResolutions.length > 1 && (
+                {/* Resolution (when supported by model) */}
+                {currentModel?.supportedResolutions && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Resolution</Label>
                     <Select value={resolution} onValueChange={setResolution}>
@@ -280,8 +270,8 @@ export function VideoGenerationForm() {
                   </div>
                 )}
 
-                {/* Aspect Ratio (for Luma Ray models) */}
-                {currentModel.supportedAspectRatios && (
+                {/* Aspect Ratio (when supported by model) */}
+                {currentModel?.supportedAspectRatios && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
                     <Select value={aspectRatio} onValueChange={setAspectRatio}>
@@ -302,8 +292,8 @@ export function VideoGenerationForm() {
                   </div>
                 )}
 
-                {/* Camera Concept (for Luma Ray models) */}
-                {currentModel.supportsCameraConcepts && currentModel.cameraConcepts && (
+                {/* Camera Concept (when supported by model) */}
+                {currentModel?.supportedCameraConcepts && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
                     <Select value={cameraConcept} onValueChange={setCameraConcept}>
@@ -317,7 +307,7 @@ export function VideoGenerationForm() {
                             <span>None (Auto)</span>
                           </div>
                         </SelectItem>
-                        {currentModel.cameraConcepts.map((concept) => (
+                        {currentModel.supportedCameraConcepts.map((concept) => (
                           <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
                             <div className="flex items-center space-x-2">
                               <Video className="h-4 w-4 text-gray-400" />
@@ -330,8 +320,8 @@ export function VideoGenerationForm() {
                   </div>
                 )}
 
-                {/* Loop Option (for Luma Ray models) */}
-                {currentModel.supportsLoop && (
+                {/* Loop Option (when supported by model) */}
+                {currentModel?.supportsLoop && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Loop Video</Label>
                     <div

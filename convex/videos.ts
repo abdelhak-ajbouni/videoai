@@ -3,6 +3,19 @@ import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
+import {
+  mapParametersForModel,
+  validateParametersForModel,
+} from "./modelParameterHelpers";
+import {
+  validateVideoGeneration,
+  validateUserCredits,
+  validateModelCapabilities,
+  throwValidationError,
+  logValidationWarnings,
+  sanitizeString,
+  validatePagination,
+} from "./lib/validation";
 
 // Query to get user's videos with file URLs
 export const getUserVideos = query({
@@ -125,7 +138,6 @@ export const getLatestVideosFromOthers = query({
 // Mutation to create a new video generation request
 export const createVideo = mutation({
   args: {
-    title: v.optional(v.string()),
     prompt: v.string(),
     model: v.string(), // Accept any model ID string
     quality: v.union(
@@ -134,17 +146,43 @@ export const createVideo = mutation({
       v.literal("ultra")
     ),
     duration: v.string(), // Keep as string for compatibility
-    // Model-specific options
-    resolution: v.optional(v.string()),
-    aspectRatio: v.optional(v.string()),
-    loop: v.optional(v.boolean()),
-    cameraConcept: v.optional(v.string()),
+    // Generic parameters object - flexible for any model
+    generationSettings: v.optional(v.any()), // Contains all model-specific options
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    // Sanitize and validate input parameters
+    const sanitizedArgs = {
+      prompt: sanitizeString(args.prompt, 1000),
+      model: sanitizeString(args.model, 100),
+      quality: args.quality,
+      duration: sanitizeString(args.duration, 50),
+      generationSettings: args.generationSettings,
+    };
+
+    // Validate video generation parameters
+    const validation = validateVideoGeneration(sanitizedArgs);
+    if (!validation.isValid) {
+      throwValidationError(
+        validation.errors,
+        "Video generation validation failed"
+      );
+    }
+
+    // Log warnings if any
+    logValidationWarnings(validation.warnings || [], "Video generation");
+
+    // ============================================================================
+    // USER AND SUBSCRIPTION VALIDATION
+    // ============================================================================
 
     // Get user profile to check credits and subscription
     const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
@@ -162,31 +200,58 @@ export const createVideo = mutation({
 
     const subscriptionTier = subscription?.tier || "free";
 
+    // ============================================================================
+    // MODEL VALIDATION
+    // ============================================================================
+
     // Validate model exists and is active
     const model = await ctx.db
       .query("models")
-      .withIndex("by_model_id", (q) => q.eq("modelId", args.model))
+      .withIndex("by_model_id", (q) => q.eq("modelId", sanitizedArgs.model))
       .first();
 
-    if (!model || !model.isActive) {
-      throw new Error("Selected model is not available");
+    if (!model) {
+      throw new Error("Selected model not found");
     }
 
-    // Validate model capabilities
-    const durationNum = parseInt(args.duration);
-    if (model.fixedDuration && durationNum !== model.fixedDuration) {
-      throw new Error(
-        `Model only supports ${model.fixedDuration} second duration`
+    if (!model.isActive) {
+      throw new Error("Selected model is not currently available");
+    }
+
+    // Validate model capabilities against generation parameters
+    const modelValidation = validateModelCapabilities(model, {
+      duration: sanitizedArgs.duration,
+      ...(sanitizedArgs.generationSettings || {}),
+    });
+
+    if (!modelValidation.isValid) {
+      throwValidationError(
+        modelValidation.errors,
+        "Model capability validation failed"
       );
     }
 
-    if (!model.supportedDurations.includes(durationNum)) {
-      throw new Error(`Duration ${durationNum}s not supported by this model`);
+    // Prepare frontend parameters for validation
+    const frontendParams = {
+      prompt: sanitizedArgs.prompt,
+      duration: sanitizedArgs.duration,
+      quality: sanitizedArgs.quality,
+      ...(sanitizedArgs.generationSettings || {}),
+    };
+
+    // Validate model capabilities using helper function
+    const parameterValidation = validateParametersForModel(
+      model,
+      frontendParams
+    );
+    if (!parameterValidation.isValid) {
+      throw new Error(
+        `Parameter validation failed: ${parameterValidation.errors.join(", ")}`
+      );
     }
 
-    if (!model.supportedQualities.includes(args.quality)) {
-      throw new Error(`Quality '${args.quality}' not supported by this model`);
-    }
+    // Quality validation removed - all models support all quality levels
+    // Pricing is handled via quality multipliers in the pricing system
 
     // Check quality access based on subscription
     const hasQualityAccess = checkQualityAccess(subscriptionTier, args.quality);
@@ -201,7 +266,7 @@ export const createVideo = mutation({
       ctx,
       args.model,
       args.quality,
-      durationNum
+      parseInt(args.duration)
     );
 
     // Check if user has enough credits
@@ -214,18 +279,14 @@ export const createVideo = mutation({
     // Create video record
     const videoId = await ctx.db.insert("videos", {
       clerkId: identity.subject,
-      title: args.title || undefined,
       prompt: args.prompt,
       model: args.model,
       quality: args.quality,
       duration: args.duration,
       status: "pending",
       creditsCost,
-      // Model-specific options
-      resolution: args.resolution,
-      aspectRatio: args.aspectRatio,
-      loop: args.loop,
-      cameraConcept: args.cameraConcept,
+      // Store frontend settings for reference
+      generationSettings: args.generationSettings,
       // Initialize new metadata fields
       viewCount: 0,
       downloadCount: 0,
@@ -234,6 +295,23 @@ export const createVideo = mutation({
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // Map and store model-specific parameters
+    const parameterMapping = await mapParametersForModel(
+      ctx,
+      args.model,
+      frontendParams
+    );
+    await ctx.db.insert("modelParameters", {
+      videoId,
+      modelId: args.model,
+      parameters: parameterMapping.apiParameters,
+      parameterMapping: {
+        frontendParameters: parameterMapping.frontendParameters,
+        mappingLog: parameterMapping.mappingLog,
+      },
+      createdAt: now,
     });
 
     // Deduct credits immediately using userProfiles
@@ -247,7 +325,7 @@ export const createVideo = mutation({
       clerkId: identity.subject,
       type: "video_generation",
       amount: -creditsCost,
-      description: `Video generation: ${args.title || "Untitled"}`,
+      description: `Video generation: ${args.prompt}`,
       videoId,
       balanceBefore: userProfile.credits,
       balanceAfter: userProfile.credits - creditsCost,
@@ -275,9 +353,7 @@ export const updateVideoStatus = mutation({
     replicateJobId: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
-    thumbnailUrl: v.optional(v.string()),
     convexFileId: v.optional(v.id("_storage")),
-    thumbnailFileId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const video = await ctx.db.get(args.videoId);
@@ -302,16 +378,8 @@ export const updateVideoStatus = mutation({
       updateData.videoUrl = args.videoUrl;
     }
 
-    if (args.thumbnailUrl) {
-      updateData.thumbnailUrl = args.thumbnailUrl;
-    }
-
     if (args.convexFileId) {
       updateData.convexFileId = args.convexFileId;
-    }
-
-    if (args.thumbnailFileId) {
-      updateData.thumbnailFileId = args.thumbnailFileId;
     }
 
     if (args.status === "processing" && !video.processingStartedAt) {
@@ -361,6 +429,18 @@ export const getVideoForGeneration = query({
   },
 });
 
+// Query to get model parameters for a video (internal use only)
+export const getModelParametersForVideo = query({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    // This is an internal query that bypasses auth for Actions
+    return await ctx.db
+      .query("modelParameters")
+      .withIndex("by_video_id", (q) => q.eq("videoId", args.videoId))
+      .first();
+  },
+});
+
 // Action to generate video using Replicate API
 export const generateVideo = action({
   args: { videoId: v.id("videos") },
@@ -373,14 +453,8 @@ export const generateVideo = action({
     }
 
     try {
-      console.log(`Starting video generation for video ID: ${args.videoId}`);
-
       // Create Replicate Client
       const replicate = createReplicateClient();
-
-      console.log(
-        "Replicate client initialized, updating status to processing..."
-      );
 
       // Update status to processing
       await ctx.runMutation(api.videos.updateVideoStatus, {
@@ -388,25 +462,27 @@ export const generateVideo = action({
         status: "processing",
       });
 
-      // Prepare input based on the selected model
-      const input: {
-        prompt: string;
-        duration_seconds?: number;
-        aspect_ratio?: string;
-        seed?: number;
-      } = {
-        prompt: video.prompt,
-        duration_seconds: parseInt(video.duration),
-        aspect_ratio: video.aspectRatio || "16:9",
-      };
-
-      // Add random seed for variation
-      input.seed = Math.floor(Math.random() * 1000000);
-
-      console.log(
-        `Calling Replicate API with model: ${video.model}, input:`,
-        input
+      // Get stored model parameters
+      const modelParams = await ctx.runQuery(
+        api.videos.getModelParametersForVideo,
+        {
+          videoId: args.videoId,
+        }
       );
+
+      let input: any;
+      if (modelParams && modelParams.parameters) {
+        // Use stored parameters from database
+        input = modelParams.parameters;
+      } else {
+        // Fallback to basic parameters (backward compatibility)
+        input = {
+          prompt: video.prompt,
+          duration_seconds: parseInt(video.duration),
+          aspect_ratio: "16:9",
+          seed: Math.floor(Math.random() * 1000000),
+        };
+      }
 
       // Check for development mode
       const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true";
@@ -414,8 +490,6 @@ export const generateVideo = action({
       let prediction: any;
 
       if (isDevelopmentMode) {
-        console.log("🧪 Development mode: Simulating video generation");
-
         // Create realistic mock prediction response
         prediction = {
           id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -441,9 +515,6 @@ export const generateVideo = action({
         const simulationTime = calculateMockGenerationTime(
           video.quality,
           video.duration
-        );
-        console.log(
-          `🎬 Simulating ${simulationTime / 1000}s generation for ${video.model}, ${video.quality} quality, ${video.duration}s duration`
         );
 
         // Schedule the mock generation process
@@ -475,15 +546,12 @@ export const generateVideo = action({
 
         // If no webhook, schedule polling to check status
         if (!createOptions.webhook) {
-          console.log("No webhook configured, will poll for status updates");
           await ctx.scheduler.runAfter(5000, api.videos.pollReplicateStatus, {
             videoId: args.videoId,
             replicateJobId: prediction.id,
           });
         }
       }
-
-      console.log(`Replicate prediction created with ID: ${prediction.id}`);
 
       // Update video with Replicate job ID
       await ctx.runMutation(api.videos.updateVideoStatus, {
@@ -492,9 +560,6 @@ export const generateVideo = action({
         replicateJobId: prediction.id,
       });
 
-      console.log(
-        `Video generation started successfully for video ID: ${args.videoId}`
-      );
       return prediction.id;
     } catch (error) {
       console.error("Video generation failed:", error);
@@ -546,7 +611,7 @@ export const refundCredits = mutation({
       clerkId: video.clerkId,
       type: "refund",
       amount: video.creditsCost,
-      description: `Refund for failed video generation: ${video.title}`,
+      description: `Refund for failed video generation: ${video.prompt}`,
       videoId: args.videoId,
       balanceBefore: userProfile.credits,
       balanceAfter: userProfile.credits + video.creditsCost,
@@ -609,11 +674,6 @@ export const pollReplicateStatus = action({
       const replicate = createReplicateClient();
       const prediction = await replicate.predictions.get(args.replicateJobId);
 
-      console.log(
-        `Polling Replicate status for ${args.replicateJobId}:`,
-        prediction.status
-      );
-
       switch (prediction.status) {
         case "starting":
         case "processing":
@@ -673,7 +733,6 @@ export const pollReplicateStatus = action({
           break;
 
         default:
-          console.log("Unknown Replicate status:", prediction.status);
           // Continue polling for unknown statuses
           await ctx.scheduler.runAfter(10000, api.videos.pollReplicateStatus, {
             videoId: args.videoId,
@@ -726,8 +785,10 @@ export const downloadAndStoreVideo = action({
       const format = "mp4"; // Most common format from Replicate
       const codec = "h264"; // Most common codec
 
-      // Get video data directly from database (bypass authentication)
-      const video = await ctx.db.get(args.videoId);
+      // Get video data via query (actions can't access db directly)
+      const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
+        videoId: args.videoId,
+      });
       const dimensions =
         video?.quality === "high"
           ? { width: 1920, height: 1080 }
@@ -760,12 +821,6 @@ export const downloadAndStoreVideo = action({
         },
       });
 
-      // Generate and store thumbnail
-      await ctx.scheduler.runAfter(0, api.videos.generateThumbnail, {
-        videoId: args.videoId,
-        videoUrl: args.videoUrl,
-      });
-
       return fileId;
     } catch (error) {
       console.error("Error downloading and storing video:", error);
@@ -783,67 +838,6 @@ export const downloadAndStoreVideo = action({
       });
 
       throw error;
-    }
-  },
-});
-
-// Action to generate and store video thumbnail
-export const generateThumbnail = action({
-  args: {
-    videoId: v.id("videos"),
-    videoUrl: v.string(),
-  },
-  handler: async (ctx, args) => {
-    try {
-      // For development, we'll create a simple placeholder thumbnail
-      // In production, you could use:
-      // 1. FFmpeg to extract a frame at 1-2 seconds
-      // 2. A service like Cloudinary for thumbnail generation
-      // 3. Canvas API to generate thumbnails from video frames
-
-
-      // Create a placeholder thumbnail blob (1x1 pixel transparent PNG)
-      // This is just for demonstration - in production you'd extract a real frame
-      const placeholderThumbnailData = new Uint8Array([
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x01, 0x40, 0x00, 0x00, 0x00, 0xf0,
-        0x08, 0x06, 0x00, 0x00, 0x00, 0x5d, 0xd5, 0x45, 0x38, 0x00, 0x00, 0x00,
-        0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
-        0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
-        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-      ]);
-
-      const thumbnailBlob = new Blob([placeholderThumbnailData], {
-        type: "image/png",
-      });
-
-      // Store thumbnail in Convex storage
-      const thumbnailFileId = await ctx.storage.store(thumbnailBlob);
-      const thumbnailUrl = await ctx.storage.getUrl(thumbnailFileId);
-
-      // Update video with thumbnail information
-      await ctx.runMutation(api.videos.updateVideoStatus, {
-        videoId: args.videoId,
-        status: "completed", // Keep status as completed
-        thumbnailUrl: thumbnailUrl || undefined,
-        thumbnailFileId,
-      });
-
-
-      return thumbnailUrl;
-    } catch (error) {
-      console.error("Error generating thumbnail:", error);
-      // Don't fail the whole video generation if thumbnail fails
-      // Use video URL with timestamp as fallback
-      const fallbackThumbnail = args.videoUrl + "#t=1";
-
-      await ctx.runMutation(api.videos.updateVideoStatus, {
-        videoId: args.videoId,
-        status: "completed",
-        thumbnailUrl: fallbackThumbnail,
-      });
-
-      return fallbackThumbnail;
     }
   },
 });
@@ -909,7 +903,61 @@ export const searchVideos = query({
       throw new Error("Not authenticated");
     }
 
-    let query = ctx.db
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    // Validate pagination parameters
+    const paginationValidation = validatePagination(
+      args.limit,
+      args.offset,
+      100
+    );
+    if (!paginationValidation.isValid) {
+      throwValidationError(
+        paginationValidation.errors,
+        "Pagination validation failed"
+      );
+    }
+
+    // Sanitize search query
+    const sanitizedSearchQuery = args.searchQuery
+      ? sanitizeString(args.searchQuery, 200)
+      : undefined;
+
+    // Validate tags array
+    if (args.tags && args.tags.length > 10) {
+      throw new Error("Maximum 10 tags allowed");
+    }
+
+    // Validate date range
+    if (args.dateFrom && args.dateTo && args.dateFrom > args.dateTo) {
+      throw new Error("Invalid date range: start date must be before end date");
+    }
+
+    // Validate credit range
+    if (
+      args.minCredits &&
+      args.maxCredits &&
+      args.minCredits > args.maxCredits
+    ) {
+      throw new Error(
+        "Invalid credit range: minimum must be less than maximum"
+      );
+    }
+
+    // Validate file size range
+    if (
+      args.minFileSize &&
+      args.maxFileSize &&
+      args.minFileSize > args.maxFileSize
+    ) {
+      throw new Error(
+        "Invalid file size range: minimum must be less than maximum"
+      );
+    }
+
+    const query = ctx.db
       .query("videos")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject));
 
@@ -921,7 +969,6 @@ export const searchVideos = query({
       if (args.searchQuery) {
         const searchLower = args.searchQuery.toLowerCase();
         const searchableText = [
-          video.title,
           video.prompt,
           video.description || "",
           ...(video.tags || []),
@@ -998,8 +1045,6 @@ export const searchVideos = query({
           return b.createdAt - a.createdAt;
         case "oldest":
           return a.createdAt - b.createdAt;
-        case "title":
-          return (a.title || "").localeCompare(b.title || "");
         case "credits":
           return b.creditsCost - a.creditsCost;
         case "fileSize":
@@ -1218,7 +1263,6 @@ export const toggleVideoFavorite = mutation({
 export const updateVideoInfo = mutation({
   args: {
     videoId: v.id("videos"),
-    title: v.optional(v.string()),
     description: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
@@ -1241,7 +1285,6 @@ export const updateVideoInfo = mutation({
       updatedAt: Date.now(),
     };
 
-    if (args.title !== undefined) updateData.title = args.title;
     if (args.description !== undefined)
       updateData.description = args.description;
     if (args.tags !== undefined) updateData.tags = args.tags;
@@ -1322,8 +1365,6 @@ export const mockGenerationStart = action({
     totalTime: v.number(),
   },
   handler: async (ctx, args) => {
-    console.log(`🚀 Mock: Generation started for video ${args.videoId}`);
-
     try {
       // Schedule progress updates
       const progressInterval = Math.floor(args.totalTime / 5); // 5 progress updates
@@ -1350,7 +1391,7 @@ export const mockGenerationStart = action({
         }
       );
     } catch (error) {
-      console.error("Mock generation start error:", error);
+      // Silent error handling for mock generation
     }
   },
 });
@@ -1363,10 +1404,6 @@ export const mockGenerationProgress = action({
     progress: v.number(),
   },
   handler: async (ctx, args) => {
-    console.log(
-      `📊 Mock: Progress ${args.progress}% for video ${args.videoId}`
-    );
-
     const progressMessages = {
       20: "🎨 Analyzing prompt and style...",
       40: "🎬 Generating video frames...",
@@ -1376,7 +1413,7 @@ export const mockGenerationProgress = action({
 
     try {
     } catch (error) {
-      console.error("Mock progress update error:", error);
+      // Silent error handling for mock generation
     }
   },
 });
@@ -1388,8 +1425,6 @@ export const mockGenerationComplete = action({
     replicateJobId: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log(`🎉 Mock: Completing video ${args.videoId}`);
-
     try {
       const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
         videoId: args.videoId,
@@ -1403,10 +1438,6 @@ export const mockGenerationComplete = action({
       const shouldFail = Math.random() < 0.05;
 
       if (shouldFail) {
-        console.log(
-          `❌ Mock: Simulating generation failure for video ${args.videoId}`
-        );
-
         await ctx.runMutation(api.videos.updateVideoStatus, {
           videoId: args.videoId,
           status: "failed",
@@ -1429,7 +1460,6 @@ export const mockGenerationComplete = action({
         videoId: args.videoId,
         status: "completed",
         videoUrl: mockVideos.videoUrl,
-        thumbnailUrl: mockVideos.thumbnailUrl,
       });
 
       // Update video metadata with realistic values
@@ -1454,11 +1484,7 @@ export const mockGenerationComplete = action({
             calculateMockGenerationTime(video.quality, video.duration) + 1000,
         },
       });
-
-      console.log(`✅ Mock: Video ${args.videoId} completed successfully`);
     } catch (error) {
-      console.error("Mock completion error:", error);
-
       // Mark as failed if something goes wrong
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -1520,10 +1546,8 @@ function generateMockVideoUrls(quality: string, duration: string) {
     videoUrl:
       sampleVideos[quality as keyof typeof sampleVideos] ||
       sampleVideos.standard,
-    thumbnailUrl: `https://via.placeholder.com/${specs.width}x${specs.height}/000000/FFFFFF/?text=${quality.toUpperCase()}+${duration}s`,
     fileSize,
     dimensions: { width: specs.width, height: specs.height },
     bitrate: specs.bitrate,
   };
 }
-

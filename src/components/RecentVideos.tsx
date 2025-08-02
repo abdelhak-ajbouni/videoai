@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { Video, Clock, Play, Eye } from "lucide-react";
 import { useState } from "react";
-import Image from "next/image";
 import { VideoModal } from "@/components/VideoModal";
 
 interface RecentVideosProps {
@@ -69,14 +68,7 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
                   onClick={() => handleVideoClick(video)}
                 >
                   <div className="relative aspect-video rounded-lg overflow-hidden border border-border hover:border-ai-primary-300 transition-all duration-200 bg-surface-elevated">
-                    {video.thumbnailUrl ? (
-                      <Image
-                        src={video.thumbnailUrl}
-                        alt={video.title || "Video thumbnail"}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : video.videoUrl ? (
+                    {video.videoUrl ? (
                       <video
                         className="w-full h-full object-cover"
                         muted
@@ -99,8 +91,8 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
 
                     {/* Video info overlay */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                      <h4 className="text-white text-sm font-medium line-clamp-1">
-                        {video.title || "Untitled"}
+                      <h4 className="text-white text-sm font-medium line-clamp-2">
+                        {video.prompt}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-white/80 text-xs">

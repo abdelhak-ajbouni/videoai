@@ -43,7 +43,6 @@ export function VideoLibrary() {
 
     const filtered = videos.filter((video) => {
       const matchesSearch =
-        (video.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || video.status === statusFilter;
@@ -60,8 +59,6 @@ export function VideoLibrary() {
           return a.createdAt - b.createdAt;
         case "most-credits":
           return b.creditsCost - a.creditsCost;
-        case "title":
-          return (a.title || "").localeCompare(b.title || "");
         default:
           return b.createdAt - a.createdAt;
       }
@@ -86,7 +83,7 @@ export function VideoLibrary() {
       // Create a temporary link to download the video
       const link = document.createElement('a');
       link.href = video.videoUrl;
-      link.download = `${video.title || 'video'}.mp4`;
+      link.download = `video-${video._id}.mp4`;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
@@ -94,7 +91,7 @@ export function VideoLibrary() {
 
       toast.success("Download started");
     } catch (error) {
-      console.error("Download error:", error);
+
       toast.error("Failed to download video");
     }
   };
@@ -105,7 +102,7 @@ export function VideoLibrary() {
       await toggleFavorite({ videoId });
       toast.success("Video favorite status updated");
     } catch (error) {
-      console.error("Toggle favorite error:", error);
+
       toast.error("Failed to update favorite status");
     }
   };
@@ -117,7 +114,7 @@ export function VideoLibrary() {
         action: "view"
       });
     } catch (error) {
-      console.error("Track view error:", error);
+
       // Don't show error to user for analytics
     }
   };
@@ -131,7 +128,7 @@ export function VideoLibrary() {
       await deleteVideo({ videoId });
       toast.success("Video deleted successfully");
     } catch (error) {
-      console.error("Delete error:", error);
+
       toast.error("Failed to delete video");
     }
   };
@@ -289,8 +286,8 @@ export function VideoLibrary() {
             <Card key={video._id} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {video.title}
+                  <CardTitle className="text-lg line-clamp-3">
+                    {video.prompt}
                   </CardTitle>
                   {getStatusBadge(video.status)}
                 </div>
@@ -303,8 +300,12 @@ export function VideoLibrary() {
                     <video
                       className="w-full h-full object-cover rounded-lg"
                       controls
-                      poster={video.thumbnailUrl}
+                      preload="metadata"
                       onPlay={() => handleVideoView(video._id)}
+                      onLoadedMetadata={(e) => {
+                        const videoEl = e.target as HTMLVideoElement;
+                        videoEl.currentTime = 0.5; // Seek to 0.5 seconds for better thumbnail
+                      }}
                     >
                       <source src={video.videoUrl} type="video/mp4" />
                       Your browser does not support the video tag.
@@ -401,7 +402,7 @@ export function VideoLibrary() {
                     size="sm"
                     variant="outline"
                     className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(video._id, video.title || 'Untitled')}
+                    onClick={() => handleDelete(video._id, video.prompt)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

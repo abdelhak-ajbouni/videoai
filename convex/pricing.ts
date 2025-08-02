@@ -142,10 +142,6 @@ export const getModelInfo = query({
         supportedDurations: model.supportedDurations,
         isPremium: model.isPremium,
         isDefault: model.isDefault,
-        provider: model.provider,
-        category: model.category,
-        tags: model.tags,
-        version: model.version,
       };
     }
 
@@ -179,11 +175,8 @@ export const getAvailableModels = query({
         return false;
       }
 
-      // Check if model supports the requested quality
-      if (!model.supportedQualities.includes(quality)) {
-        return false;
-      }
-
+      // Quality validation removed since we simplified the model schema
+      // All models now support all quality levels (pricing handled via quality multipliers)
       return true;
     });
   },
@@ -216,11 +209,8 @@ export const getModelPricingComparison = query({
         return false;
       }
 
-      // Check if model supports the requested quality
-      if (!model.supportedQualities.includes(quality)) {
-        return false;
-      }
-
+      // Quality validation removed since we simplified the model schema
+      // All models now support all quality levels (pricing handled via quality multipliers)
       return true;
     });
 
@@ -240,9 +230,6 @@ export const getModelPricingComparison = query({
           totalCost: cost,
           isPremium: model.isPremium,
           isDefault: model.isDefault,
-          provider: model.provider,
-          category: model.category,
-          tags: model.tags,
         };
       })
     );

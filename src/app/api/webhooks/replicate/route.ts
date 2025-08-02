@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     const { id: replicateJobId, status, output, error } = body;
 
     if (!replicateJobId) {
-      console.error("No Replicate job ID found in webhook");
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
     }
 
@@ -22,7 +21,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!video) {
-      console.error(`No video found with Replicate job ID: ${replicateJobId}`);
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
 
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
             videoUrl: videoUrl,
           });
 
-          // Trigger file download and thumbnail generation
+          // Trigger file download and storage
           await convex.action(api.videos.downloadAndStoreVideo, {
             videoId: video._id,
             videoUrl: videoUrl,
@@ -84,7 +82,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error handling Replicate webhook:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -64,7 +64,7 @@ export default function PricingPage() {
       }
     } catch (error) {
       toast.error("Failed to start subscription");
-      console.error("Subscription error:", error);
+
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +90,7 @@ export default function PricingPage() {
       }
     } catch (error) {
       toast.error("Failed to purchase credits");
-      console.error("Credit purchase error:", error);
+
     } finally {
       setIsLoading(false);
     }

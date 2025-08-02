@@ -13,8 +13,6 @@ http.route({
       const body = await request.text();
       const payload = JSON.parse(body);
 
-      console.log("Clerk webhook received:", payload.type);
-
       // Handle user creation
       if (payload.type === "user.created") {
         const { id, email_addresses, first_name, last_name, image_url } =
@@ -33,8 +31,6 @@ http.route({
         await ctx.runMutation(api.userProfiles.createUserProfile, {
           clerkId: id,
         });
-
-        console.log("User created successfully:", id);
       }
 
       // Handle user updates
@@ -51,8 +47,6 @@ http.route({
           await ctx.runMutation(api.userProfiles.createUserProfile, {
             clerkId: id,
           });
-
-          console.log("User updated successfully:", id);
         }
       }
 
@@ -74,8 +68,6 @@ http.route({
       const body = await request.text();
       const payload = JSON.parse(body);
 
-      console.log("Replicate webhook received:", payload);
-
       // Verify the webhook is for a prediction we care about
       if (!payload.id) {
         console.error("No prediction ID in webhook payload");
@@ -88,7 +80,6 @@ http.route({
       });
 
       if (!video) {
-        console.log("No video found for Replicate ID:", payload.id);
         return new Response("Video not found", { status: 404 });
       }
 
@@ -115,7 +106,6 @@ http.route({
           break;
 
         default:
-          console.log("Unknown status:", payload.status);
       }
 
       return new Response("OK", { status: 200 });

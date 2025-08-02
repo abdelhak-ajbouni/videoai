@@ -1,6 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
+import {
+  validateSubscription,
+  throwValidationError,
+  logValidationWarnings,
+  sanitizeString,
+} from "./lib/validation";
 
 // Get user's current subscription
 export const getSubscription = query({
@@ -20,7 +26,9 @@ export const getSubscriptionByStripeCustomerId = query({
   handler: async (ctx, { stripeCustomerId }) => {
     return await ctx.db
       .query("subscriptions")
-      .withIndex("by_stripe_customer_id", (q) => q.eq("stripeCustomerId", stripeCustomerId))
+      .withIndex("by_stripe_customer_id", (q) =>
+        q.eq("stripeCustomerId", stripeCustomerId)
+      )
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
   },
@@ -65,6 +73,49 @@ export const createSubscription = mutation({
       cancelAtPeriodEnd,
     }
   ) => {
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    const sanitizedArgs = {
+      clerkId: sanitizeString(clerkId, 100),
+      planId,
+      stripeCustomerId: sanitizeString(stripeCustomerId, 100),
+      stripeSubscriptionId: sanitizeString(stripeSubscriptionId, 100),
+    };
+
+    // Validate subscription parameters
+    const validation = validateSubscription(sanitizedArgs);
+    if (!validation.isValid) {
+      throwValidationError(validation.errors, "Subscription validation failed");
+    }
+
+    // Log warnings if any
+    logValidationWarnings(validation.warnings || [], "Subscription creation");
+
+    // Validate date ranges
+    if (currentPeriodStart >= currentPeriodEnd) {
+      throw new Error("Invalid period: start must be before end");
+    }
+
+    // Validate subscription status
+    const validStatuses = [
+      "active",
+      "canceled",
+      "past_due",
+      "trialing",
+      "incomplete",
+      "incomplete_expired",
+      "unpaid",
+    ];
+    if (!validStatuses.includes(subscriptionStatus)) {
+      throw new Error(`Invalid subscription status: ${subscriptionStatus}`);
+    }
+
+    // ============================================================================
+    // PLAN VALIDATION
+    // ============================================================================
+
     // Get plan from database - inline to avoid circular dependency
     const plan = await ctx.db
       .query("subscriptionPlans")
@@ -359,7 +410,6 @@ export const allocateMonthlyCredits = mutation({
       subscription.creditsGrantedAt &&
       subscription.creditsGrantedAt > subscription.currentPeriodStart
     ) {
-      console.log("Credits already granted for this period");
       return;
     }
 

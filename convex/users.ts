@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 
-
 // Deprecated - Stripe customer IDs now stored in subscriptions table
 export const updateUserStripeCustomerId = mutation({
   args: {
@@ -12,7 +11,7 @@ export const updateUserStripeCustomerId = mutation({
   handler: async (ctx, args) => {
     // No-op: Stripe customer IDs are now managed in subscriptions table
     // This function is kept for backward compatibility
-    console.log(`updateUserStripeCustomerId called for ${args.clerkId}, but no action needed`);
+
     return null;
   },
 });

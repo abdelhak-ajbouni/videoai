@@ -135,7 +135,7 @@ function GeneratePageContent() {
     if (video.videoUrl) {
       const link = document.createElement('a');
       link.href = video.videoUrl;
-      link.download = `${video.title || 'video'}.mp4`;
+      link.download = `video-${video._id}.mp4`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -238,9 +238,12 @@ function GeneratePageContent() {
                         <div className="relative w-full h-full">
                           <video
                             className="w-full h-full object-cover"
-                            poster={currentVideo.thumbnailUrl}
                             controls
                             preload="metadata"
+                            onLoadedMetadata={(e) => {
+                              const videoEl = e.target as HTMLVideoElement;
+                              videoEl.currentTime = 0.01; // Seek to 0.5 seconds for better thumbnail
+                            }}
                           >
                             <source src={currentVideo.videoUrl} type="video/mp4" />
                           </video>
@@ -267,8 +270,8 @@ function GeneratePageContent() {
                       <div className="p-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="text-white font-medium mb-1">
-                              {currentVideo.title}
+                            <h3 className="text-white font-medium mb-1 line-clamp-2">
+                              {currentVideo.prompt}
                             </h3>
                             <div className="flex items-center space-x-4 text-sm text-gray-400">
                               <div className="flex items-center space-x-1">
