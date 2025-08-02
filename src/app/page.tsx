@@ -24,30 +24,24 @@ export default function Home() {
     "/videos/tmpxsomu815.mp4"
   ];
 
-  // Handle user creation after signup and redirect existing users
+  // Handle user creation after signup - but don't auto-redirect
   useEffect(() => {
-    if (isSignedIn && user && isLoaded) {
-      if (currentUser === null) {
-        // User is signed in but doesn't exist in our database
-        // This handles cases where the webhook might have failed
-        const createUserRecord = async () => {
-          try {
-            await createUser({
-              clerkId: user.id,
-            });
-            router.push("/generate");
-          } catch (error) {
-            console.error("Error creating user:", error);
-          }
-        };
+    if (isSignedIn && user && isLoaded && currentUser === null) {
+      // User is signed in but doesn't exist in our database
+      // This handles cases where the webhook might have failed
+      const createUserRecord = async () => {
+        try {
+          await createUser({
+            clerkId: user.id,
+          });
+        } catch (error) {
+          console.error("Error creating user:", error);
+        }
+      };
 
-        createUserRecord();
-      } else if (currentUser) {
-        // Existing user - redirect to generate page automatically
-        router.push("/generate");
-      }
+      createUserRecord();
     }
-  }, [isSignedIn, user, currentUser, isLoaded, createUser, router]);
+  }, [isSignedIn, user, currentUser, isLoaded, createUser]);
 
   // Video rotation effect
   useEffect(() => {

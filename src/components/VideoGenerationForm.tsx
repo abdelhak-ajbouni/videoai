@@ -163,7 +163,6 @@ export function VideoGenerationForm() {
       setCameraConcept("none");
 
     } catch (error) {
-      console.error("Error creating video:", error);
       toast.error(error instanceof Error ? error.message : "Failed to start video generation");
     } finally {
       setIsGenerating(false);

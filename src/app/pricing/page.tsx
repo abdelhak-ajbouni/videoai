@@ -52,7 +52,6 @@ export default function PricingPage() {
 
     setIsLoading(true);
     try {
-      toast.success("Redirecting to checkout...");
       const checkoutUrl = await createSubscriptionCheckout({
         clerkId: currentUser.clerkId,
         planId: planId as "starter" | "pro" | "max",
@@ -79,7 +78,6 @@ export default function PricingPage() {
 
     setIsLoading(true);
     try {
-      toast.success("Redirecting to checkout...");
       const checkoutUrl = await createCreditCheckout({
         clerkId: currentUser.clerkId,
         packageId: packageId as "small" | "medium" | "large" | "xlarge",

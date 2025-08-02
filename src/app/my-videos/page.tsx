@@ -94,7 +94,6 @@ export default function MyVideosPage() {
       toast.success("Video deleted successfully");
     } catch (error) {
       toast.error("Failed to delete video");
-      console.error("Error deleting video:", error);
     }
   };
 

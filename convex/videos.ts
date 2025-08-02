@@ -801,7 +801,6 @@ export const generateThumbnail = action({
       // 2. A service like Cloudinary for thumbnail generation
       // 3. Canvas API to generate thumbnails from video frames
 
-      console.log("Generating thumbnail for video:", args.videoId);
 
       // Create a placeholder thumbnail blob (1x1 pixel transparent PNG)
       // This is just for demonstration - in production you'd extract a real frame
@@ -830,11 +829,6 @@ export const generateThumbnail = action({
         thumbnailFileId,
       });
 
-      console.log("Thumbnail generated and stored:", {
-        videoId: args.videoId,
-        thumbnailFileId,
-        thumbnailUrl,
-      });
 
       return thumbnailUrl;
     } catch (error) {
