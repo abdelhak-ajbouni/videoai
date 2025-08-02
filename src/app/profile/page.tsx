@@ -96,7 +96,7 @@ export default function ProfilePage() {
 
       toast.success("Profile updated successfully");
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       toast.error("Failed to update profile");
     } finally {
       setIsLoading(false);
@@ -138,7 +138,7 @@ export default function ProfilePage() {
         newPassword: "",
         confirmPassword: "",
       });
-    } catch (error) {
+    } catch {
       toast.error("Failed to update password. Please check your current password.");
     } finally {
       setIsLoading(false);

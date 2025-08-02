@@ -62,7 +62,7 @@ export default function PricingPage() {
       } else {
         toast.error("Failed to create checkout session");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to start subscription");
 
     } finally {
@@ -88,7 +88,7 @@ export default function PricingPage() {
       } else {
         toast.error("Failed to create checkout session");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to purchase credits");
 
     } finally {

@@ -90,7 +90,7 @@ export function VideoLibrary() {
       document.body.removeChild(link);
 
       toast.success("Download started");
-    } catch (error) {
+    } catch {
 
       toast.error("Failed to download video");
     }
@@ -101,7 +101,7 @@ export function VideoLibrary() {
     try {
       await toggleFavorite({ videoId });
       toast.success("Video favorite status updated");
-    } catch (error) {
+    } catch {
 
       toast.error("Failed to update favorite status");
     }
@@ -113,7 +113,7 @@ export function VideoLibrary() {
         videoId,
         action: "view"
       });
-    } catch (error) {
+    } catch {
 
       // Don't show error to user for analytics
     }
@@ -127,7 +127,7 @@ export function VideoLibrary() {
     try {
       await deleteVideo({ videoId });
       toast.success("Video deleted successfully");
-    } catch (error) {
+    } catch {
 
       toast.error("Failed to delete video");
     }

@@ -1,14 +1,11 @@
 "use client";
 
 import { useUser, SignUpButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { Sparkles, Zap, ArrowRight, Video, Globe } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 export default function Home() {
   const { isSignedIn, isLoaded } = useUser();
@@ -43,7 +40,7 @@ export default function Home() {
     const currentVideo = videoRefs.current[currentVideoIndex];
     if (currentVideo) {
       currentVideo.currentTime = 0;
-      currentVideo.play().catch(e => {
+      currentVideo.play().catch(() => {
         // Silent error handling for video play
       });
     }
