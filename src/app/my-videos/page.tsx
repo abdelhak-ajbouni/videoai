@@ -19,7 +19,6 @@ import { useState, useEffect } from "react";
 import { VideoModal } from "@/components/VideoModal";
 import Image from "next/image";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,10 +27,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function MyVideosPage() {
-  const { isLoaded } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
+  const ensureUserExists = useMutation(api.users.ensureUserExists);
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
-  const router = useRouter();
 
   // Fetch user's videos - only when user is loaded and authenticated
   const userVideos = useQuery(
@@ -41,30 +40,30 @@ export default function MyVideosPage() {
 
   const deleteVideo = useMutation(api.videos.deleteVideo);
 
-  // Redirect to landing page if user is not authenticated
+  // Ensure user profile exists on first load
   useEffect(() => {
-    if (isLoaded && currentUser === null) {
-      router.push("/");
+    if (isLoaded && isSignedIn && currentUser === null) {
+      ensureUserExists();
     }
-  }, [isLoaded, currentUser, router]);
+  }, [isLoaded, isSignedIn, currentUser, ensureUserExists]);
 
-  // Show loading state while authentication and user data are being loaded
+  // Show loading while authentication or user data is loading
   if (!isLoaded || currentUser === undefined) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <Loading text="Loading..." />
+          <Loading text="Loading your videos..." />
         </div>
       </AppLayout>
     );
   }
 
-  // This should not happen due to the useEffect redirect, but keep as fallback
-  if (!currentUser) {
+  // Show account setup while user profile is being created
+  if (currentUser === null) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <Loading text="Redirecting..." />
+          <Loading text="Setting up your account..." />
         </div>
       </AppLayout>
     );

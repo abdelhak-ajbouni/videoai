@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Doc } from "../../../convex/_generated/dataModel";
 import { VideoGenerationForm } from "@/components/VideoGenerationForm";
@@ -14,14 +14,13 @@ import { Progress } from "@/components/ui/progress";
 import { Video, Clock, Download, Loader2, AlertCircle, Info } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 import { VideoModal } from "@/components/VideoModal";
-import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 function GeneratePageContent() {
-  const { isLoaded } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
-  const router = useRouter();
+  const ensureUserExists = useMutation(api.users.ensureUserExists);
   const searchParams = useSearchParams();
 
   // Get videos in different states
@@ -78,7 +77,7 @@ function GeneratePageContent() {
     if (processingVideos && processingVideos.length > 0) {
       // Start from 0 when a new video starts processing
       setProgress(0);
-      
+
       const interval = setInterval(() => {
         setProgress(prev => {
           // More realistic progress based on time elapsed
@@ -90,29 +89,26 @@ function GeneratePageContent() {
       return () => clearInterval(interval);
     } else if (completedVideos && completedVideos.length > 0) {
       setProgress(100);
-      
+
       // Show completion toast for newly completed videos (only once per video)
       const latestCompleted = completedVideos[0];
-      if (latestCompleted && latestCompleted.status === 'completed' && 
-          latestCompleted._id !== lastCompletedVideoId) {
+      if (latestCompleted && latestCompleted.status === 'completed' &&
+        latestCompleted._id !== lastCompletedVideoId) {
         setLastCompletedVideoId(latestCompleted._id);
-        setTimeout(() => {
-          toast.success("Video generation completed! Your video is ready.");
-        }, 500);
       }
     } else {
       setProgress(0);
     }
   }, [processingVideos, completedVideos, lastCompletedVideoId]);
 
-  // Redirect to landing page if user is not authenticated
+  // Ensure user profile exists on first load
   useEffect(() => {
-    if (isLoaded && currentUser === null) {
-      router.push("/");
+    if (isLoaded && isSignedIn && currentUser === null) {
+      ensureUserExists();
     }
-  }, [isLoaded, currentUser, router]);
+  }, [isLoaded, isSignedIn, currentUser, ensureUserExists]);
 
-  // Show loading state while authentication and user data are being loaded
+  // Show loading while authentication or user data is loading
   if (!isLoaded || currentUser === undefined) {
     return (
       <AppLayout>
@@ -123,12 +119,12 @@ function GeneratePageContent() {
     );
   }
 
-  // This should not happen due to the useEffect redirect, but keep as fallback
-  if (!currentUser) {
+  // Show account setup while user profile is being created
+  if (currentUser === null) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <Loading text="Redirecting..." />
+          <Loading text="Setting up your account..." />
         </div>
       </AppLayout>
     );

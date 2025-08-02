@@ -17,6 +17,42 @@ export const updateUserStripeCustomerId = mutation({
   },
 });
 
+// Ensure user profile exists and get current user data
+export const ensureUserExists = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get or create user profile
+    let userProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!userProfile) {
+      // Create user profile if it doesn't exist
+      await ctx.runMutation(api.userProfiles.createUserProfile, {
+        clerkId: identity.subject,
+      });
+
+      // Fetch the newly created profile
+      userProfile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+        .first();
+
+      if (!userProfile) {
+        throw new Error("Failed to create user profile");
+      }
+    }
+
+    return userProfile._id;
+  },
+});
+
 // Get current user (now returns userProfile + Clerk data + subscription info)
 export const getCurrentUser = query({
   args: {},
