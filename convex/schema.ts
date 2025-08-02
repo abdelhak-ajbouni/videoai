@@ -4,13 +4,12 @@ import { v } from "convex/values";
 export default defineSchema({
   // Simplified user profiles - only app-specific data
   userProfiles: defineTable({
-    clerkId: v.string(),           // Link to Clerk user
-    credits: v.number(),           // Current credit balance
-    totalCreditsUsed: v.number(),  // Lifetime usage tracking
+    clerkId: v.string(), // Link to Clerk user
+    credits: v.number(), // Current credit balance
+    totalCreditsUsed: v.number(), // Lifetime usage tracking
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_clerk_id", ["clerkId"]),
+  }).index("by_clerk_id", ["clerkId"]),
 
   videos: defineTable({
     // User relationship
@@ -128,8 +127,7 @@ export default defineSchema({
 
     // Timestamps
     createdAt: v.number(),
-  })
-    .index("by_clerk_id", ["clerkId"]),
+  }).index("by_clerk_id", ["clerkId"]),
 
   creditPackages: defineTable({
     // Package identification
@@ -221,7 +219,6 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_current_period_end", ["currentPeriodEnd"]),
 
-
   configurations: defineTable({
     // Configuration identification
     key: v.string(), // Unique configuration key
@@ -269,39 +266,26 @@ export default defineSchema({
     modelId: v.string(), // "google/veo-3", "luma/ray-2-540p", etc.
     name: v.string(), // "Google Veo-3", "Luma Ray Flash 2-540p", etc.
     description: v.string(), // Human-readable description
-    
+
     // Replicate integration
     replicateModelId: v.string(), // Full Replicate model identifier with version
-    
+
     // Pricing and basic capabilities
     costPerSecond: v.number(), // Cost in USD per second
-    supportedDurations: v.array(v.number()), // [5, 8, 9] etc.
     fixedDuration: v.optional(v.number()), // For models with fixed duration only (like Veo-3)
-    
-    // UI Parameter definitions for this model
-    supportedResolutions: v.optional(v.array(v.string())), // ["720p", "1080p"] or undefined if not supported
-    supportedAspectRatios: v.optional(v.array(v.string())), // ["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"] or undefined
-    supportedCameraConcepts: v.optional(v.array(v.string())), // ["pan_right", "pan_left", ...] or undefined
-    supportsLoop: v.optional(v.boolean()), // Whether model supports looping
-    
-    // Default values for UI
-    defaultResolution: v.optional(v.string()),
-    defaultAspectRatio: v.optional(v.string()),
-    defaultCameraConcept: v.optional(v.string()),
-    defaultLoop: v.optional(v.boolean()),
-    
+
     // Parameter mapping configuration - how frontend params map to API params
     parameterMappings: v.optional(v.any()), // JSON object defining the mapping rules
-    
+
     // Model type/category for grouping (replaces hardcoded string matching)
     modelType: v.string(), // "google_veo", "luma_ray", "stability_ai", etc.
     apiProvider: v.string(), // "replicate", "openai", "anthropic", etc.
-    
+
     // Model status
     isActive: v.boolean(), // Whether model is available for use
     isDefault: v.boolean(), // Default model for new users
     isPremium: v.boolean(), // Premium model flag
-    
+
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -312,25 +296,46 @@ export default defineSchema({
     .index("by_model_type", ["modelType"])
     .index("by_api_provider", ["apiProvider"]),
 
-
-  // Model parameters - stores the actual parameters used for each video generation
+  // Model parameters - transitioning from old to new structure
   modelParameters: defineTable({
+    // Link to model OR video (during transition)
+    modelId: v.string(), // e.g., "luma/ray-2-540p", "google/veo-3"
+
+    // OLD STRUCTURE (will be migrated)
+    videoId: v.optional(v.id("videos")), // Link to video (old structure)
+    parameters: v.optional(v.any()), // Raw parameters (old structure)
+    parameterMapping: v.optional(v.any()), // Parameter mapping (old structure)
+
+    // NEW STRUCTURE
+    parameterDefinitions: v.optional(v.any()), // JSON object defining all possible parameters
+    constraints: v.optional(v.any()), // Min/max values, allowed values, etc.
+    mappingRules: v.optional(v.any()), // JSON object defining the mapping rules
+    parameterCategories: v.optional(v.array(v.string())), // ["basic", "advanced", "style"]
+    updatedAt: v.optional(v.number()),
+
+    // Timestamps
+    createdAt: v.number(),
+  })
+    .index("by_model_id", ["modelId"])
+    .index("by_video_id", ["videoId"]),
+
+  // Video parameters - stores the actual parameters used for each video generation
+  videoParameters: defineTable({
     // Link to video
     videoId: v.id("videos"),
-    
+
     // Model identification
     modelId: v.string(), // e.g., "luma/ray-2-540p", "google/veo-3"
-    
+
     // Raw parameters as JSON object - flexible for any model
     parameters: v.any(), // Will contain the actual parameters used for generation
-    
+
     // Parameter mapping for debugging/analytics
     parameterMapping: v.optional(v.any()), // Maps frontend params to API params
-    
+
     // Timestamps
     createdAt: v.number(),
   })
     .index("by_video_id", ["videoId"])
     .index("by_model_id", ["modelId"]),
-
 });

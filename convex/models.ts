@@ -43,8 +43,8 @@ export const getPremiumModels = query({
       .query("models")
       .withIndex("by_active", (q) => q.eq("isActive", true))
       .collect();
-    
-    return models.filter(model => model.isPremium);
+
+    return models.filter((model) => model.isPremium);
   },
 });
 
@@ -56,22 +56,11 @@ export const createModel = mutation({
     description: v.string(),
     replicateModelId: v.string(),
     costPerSecond: v.number(),
-    supportedDurations: v.array(v.number()),
     fixedDuration: v.optional(v.number()),
-    
-    // UI capabilities
-    supportedResolutions: v.optional(v.array(v.string())),
-    supportedAspectRatios: v.optional(v.array(v.string())),
-    supportedCameraConcepts: v.optional(v.array(v.string())),
-    supportsLoop: v.optional(v.boolean()),
-    defaultResolution: v.optional(v.string()),
-    defaultAspectRatio: v.optional(v.string()),
-    defaultCameraConcept: v.optional(v.string()),
-    defaultLoop: v.optional(v.boolean()),
     parameterMappings: v.optional(v.any()),
     modelType: v.string(),
     apiProvider: v.string(),
-    
+
     isActive: v.boolean(),
     isDefault: v.boolean(),
     isPremium: v.boolean(),
@@ -110,22 +99,11 @@ export const updateModel = mutation({
     description: v.optional(v.string()),
     replicateModelId: v.optional(v.string()),
     costPerSecond: v.optional(v.number()),
-    supportedDurations: v.optional(v.array(v.number())),
     fixedDuration: v.optional(v.number()),
-    
-    // UI capabilities
-    supportedResolutions: v.optional(v.array(v.string())),
-    supportedAspectRatios: v.optional(v.array(v.string())),
-    supportedCameraConcepts: v.optional(v.array(v.string())),
-    supportsLoop: v.optional(v.boolean()),
-    defaultResolution: v.optional(v.string()),
-    defaultAspectRatio: v.optional(v.string()),
-    defaultCameraConcept: v.optional(v.string()),
-    defaultLoop: v.optional(v.boolean()),
     parameterMappings: v.optional(v.any()),
     modelType: v.optional(v.string()),
     apiProvider: v.optional(v.string()),
-    
+
     isActive: v.optional(v.boolean()),
     isDefault: v.optional(v.boolean()),
     isPremium: v.optional(v.boolean()),
@@ -189,69 +167,11 @@ export const deleteModel = mutation({
   },
 });
 
-// Check if model supports specific duration
-export const validateModelCapabilities = query({
-  args: {
-    modelId: v.string(),
-    duration: v.number(),
-  },
-  handler: async (ctx, { modelId, duration }) => {
-    const model = await ctx.db
-      .query("models")
-      .withIndex("by_model_id", (q) => q.eq("modelId", modelId))
-      .first();
+// Note: Model validation logic has been moved to modelParameters table
+// Use modelParameterHelpers.ts functions for parameter validation
 
-    if (!model || !model.isActive) {
-      return { valid: false, reason: "Model not found or inactive" };
-    }
-
-    // Check duration support
-    if (model.fixedDuration && duration !== model.fixedDuration) {
-      return {
-        valid: false,
-        reason: `Model only supports ${model.fixedDuration} second duration`,
-      };
-    }
-
-    if (!model.supportedDurations.includes(duration)) {
-      return {
-        valid: false,
-        reason: `Duration ${duration}s not supported. Supported: ${model.supportedDurations.join(", ")}s`,
-      };
-    }
-
-    return { valid: true };
-  },
-});
-
-// Check if a model supports a specific parameter (now part of models table)
-export const doesModelSupportParameter = query({
-  args: { 
-    modelId: v.string(),
-    parameter: v.string(), // "resolution", "aspectRatio", "cameraConcept", "loop"
-  },
-  handler: async (ctx, { modelId, parameter }) => {
-    const model = await ctx.db
-      .query("models")
-      .withIndex("by_model_id", (q) => q.eq("modelId", modelId))
-      .first();
-
-    if (!model) return false;
-
-    switch (parameter) {
-      case "resolution":
-        return model.supportedResolutions !== undefined && model.supportedResolutions!.length > 0;
-      case "aspectRatio":
-        return model.supportedAspectRatios !== undefined && model.supportedAspectRatios!.length > 0;
-      case "cameraConcept":
-        return model.supportedCameraConcepts !== undefined && model.supportedCameraConcepts!.length > 0;
-      case "loop":
-        return model.supportsLoop === true;
-      default:
-        return false;
-    }
-  },
-});
+// Note: Parameter support checking has been moved to modelParameters table
+// Use modelParameterHelpers.ts functions for parameter support checks
 
 // Get models by model type (e.g., all "luma_ray" models)
 export const getModelsByType = query({
@@ -259,10 +179,12 @@ export const getModelsByType = query({
   handler: async (ctx, { modelType }) => {
     return await ctx.db
       .query("models")
-      .filter((q) => q.and(
-        q.eq(q.field("isActive"), true),
-        q.eq(q.field("modelType"), modelType)
-      ))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("isActive"), true),
+          q.eq(q.field("modelType"), modelType)
+        )
+      )
       .collect();
   },
 });

@@ -40,6 +40,12 @@ export function VideoGenerationForm() {
   const createVideo = useMutation(api.videos.createVideo);
   const activeModels = useQuery(api.models.getActiveModels);
 
+  // Get model parameters for the current model
+  const modelParameters = useQuery(
+    api.modelParameterHelpers.getModelParametersForForm,
+    modelId ? { modelId } : "skip"
+  );
+
   const creditCost = useQuery(api.pricing.getCreditCost, {
     modelId: modelId || "",
     quality: "standard",
@@ -50,7 +56,7 @@ export function VideoGenerationForm() {
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
 
   // Check if data is still loading
-  const isLoading = !activeModels;
+  const isLoading = !activeModels || (modelId && modelParameters === undefined);
 
   // Set default model when available, or use first available model as fallback
   useEffect(() => {
@@ -75,36 +81,45 @@ export function VideoGenerationForm() {
 
     if (model.fixedDuration) {
       return [{ value: model.fixedDuration, label: `${model.fixedDuration} seconds`, badge: "Fixed duration" }];
-    } else {
-      return model.supportedDurations.map((d: number) => ({
+    } else if (modelParameters?.supportedDurations && modelParameters.supportedDurations.length > 0) {
+      // Use data from modelParameters table
+      const durations = modelParameters.supportedDurations;
+      return durations.map((d: number) => ({
         value: d,
         label: `${d} seconds`,
-        badge: d === Math.min(...model.supportedDurations) ? "Base cost" : `${d}s option`
+        badge: d === Math.min(...durations) ? "Base cost" : `${d}s option`
       }));
+    } else {
+      // Fallback for when model parameters are still loading
+      return [{ value: 5, label: "5 seconds", badge: "Loading..." }];
     }
   };
 
   // Update duration when model changes
   useEffect(() => {
-    if (currentModel) {
+    if (currentModel && modelParameters) {
       if (currentModel.fixedDuration) {
         setDuration(currentModel.fixedDuration);
-      } else if (!currentModel.supportedDurations.includes(duration)) {
-        setDuration(Math.min(...currentModel.supportedDurations));
+      } else if (modelParameters.supportedDurations.length > 0) {
+        // Use model parameters data to validate duration
+        if (!modelParameters.supportedDurations.includes(duration)) {
+          const defaultDuration = modelParameters.defaultValues.duration || Math.min(...modelParameters.supportedDurations);
+          setDuration(defaultDuration);
+        }
       }
     }
-  }, [currentModel, duration]);
+  }, [currentModel, modelParameters, duration]);
 
   // Reset model-specific options when model changes
   useEffect(() => {
-    if (currentModel) {
-      // Set defaults based on database capabilities (now part of model)
-      setResolution(currentModel.defaultResolution || "");
-      setAspectRatio(currentModel.defaultAspectRatio || "");
-      setLoop(currentModel.defaultLoop || false);
-      setCameraConcept(currentModel.defaultCameraConcept || "none");
+    if (currentModel && modelParameters) {
+      // Set defaults from modelParameters table
+      setResolution(modelParameters.defaultValues.resolution || "");
+      setAspectRatio(modelParameters.defaultValues.aspectRatio || "");
+      setLoop(modelParameters.defaultValues.loop || false);
+      setCameraConcept(modelParameters.defaultValues.cameraConcept || "none");
     }
-  }, [currentModel]);
+  }, [currentModel, modelParameters]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,7 +264,7 @@ export function VideoGenerationForm() {
                   </Select>
                 </div>
                 {/* Resolution (when supported by model) */}
-                {currentModel?.supportedResolutions && (
+                {modelParameters?.supportedResolutions && modelParameters.supportedResolutions.length > 0 && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Resolution</Label>
                     <Select value={resolution} onValueChange={setResolution}>
@@ -257,7 +272,7 @@ export function VideoGenerationForm() {
                         <SelectValue placeholder="Select resolution" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        {currentModel.supportedResolutions.map((res) => (
+                        {modelParameters.supportedResolutions.map((res) => (
                           <SelectItem key={res} value={res} className="focus:bg-gray-800 focus:text-white">
                             <div className="flex items-center space-x-2">
                               <Video className="h-4 w-4 text-gray-400" />
@@ -271,7 +286,7 @@ export function VideoGenerationForm() {
                 )}
 
                 {/* Aspect Ratio (when supported by model) */}
-                {currentModel?.supportedAspectRatios && (
+                {modelParameters?.supportedAspectRatios && modelParameters.supportedAspectRatios.length > 0 && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
                     <Select value={aspectRatio} onValueChange={setAspectRatio}>
@@ -279,7 +294,7 @@ export function VideoGenerationForm() {
                         <SelectValue placeholder="select aspect ratio" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        {currentModel.supportedAspectRatios.map((ratio) => (
+                        {modelParameters.supportedAspectRatios.map((ratio) => (
                           <SelectItem key={ratio} value={ratio} className="focus:bg-gray-800 focus:text-white">
                             <div className="flex items-center space-x-2">
                               <Target className="h-4 w-4 text-gray-400" />
@@ -293,7 +308,7 @@ export function VideoGenerationForm() {
                 )}
 
                 {/* Camera Concept (when supported by model) */}
-                {currentModel?.supportedCameraConcepts && (
+                {modelParameters?.supportedCameraConcepts && modelParameters.supportedCameraConcepts.length > 0 && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
                     <Select value={cameraConcept} onValueChange={setCameraConcept}>
@@ -307,7 +322,7 @@ export function VideoGenerationForm() {
                             <span>None (Auto)</span>
                           </div>
                         </SelectItem>
-                        {currentModel.supportedCameraConcepts.map((concept) => (
+                        {modelParameters.supportedCameraConcepts.map((concept) => (
                           <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
                             <div className="flex items-center space-x-2">
                               <Video className="h-4 w-4 text-gray-400" />
@@ -321,7 +336,7 @@ export function VideoGenerationForm() {
                 )}
 
                 {/* Loop Option (when supported by model) */}
-                {currentModel?.supportsLoop && (
+                {modelParameters?.supportsLoop && (
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Loop Video</Label>
                     <div

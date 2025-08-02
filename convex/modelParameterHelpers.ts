@@ -14,6 +14,78 @@ export interface ParameterMapping {
 }
 
 /**
+ * Get model parameters (possible parameters for a model)
+ */
+export const getModelParameters = query({
+  args: { modelId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("modelParameters")
+      .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
+      .first();
+  },
+});
+
+/**
+ * Get model parameters with enhanced frontend support
+ */
+export const getModelParametersForForm = query({
+  args: { modelId: v.string() },
+  handler: async (ctx, args) => {
+    const modelParams = await ctx.db
+      .query("modelParameters")
+      .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
+      .first();
+
+    if (!modelParams || !modelParams.parameterDefinitions) {
+      return null;
+    }
+
+    // Extract useful data for the frontend form
+    const params = modelParams.parameterDefinitions;
+
+    return {
+      supportedDurations: params.duration?.allowedValues || [],
+      supportedResolutions: params.resolution?.allowedValues || [],
+      supportedAspectRatios: params.aspectRatio?.allowedValues || [],
+      supportedCameraConcepts: params.cameraConcept?.allowedValues || [],
+      supportsLoop: !!params.loop,
+      defaultValues: {
+        duration: params.duration?.defaultValue,
+        resolution: params.resolution?.defaultValue,
+        aspectRatio: params.aspectRatio?.defaultValue,
+        cameraConcept: params.cameraConcept?.defaultValue,
+        loop: params.loop?.defaultValue,
+      },
+      constraints: modelParams.constraints || {},
+    };
+  },
+});
+
+/**
+ * Get all model parameters for all models
+ */
+export const getAllModelParameters = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("modelParameters").collect();
+  },
+});
+
+/**
+ * Get video parameters for a video (historical parameters used)
+ */
+export const getVideoParameters = query({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("videoParameters")
+      .withIndex("by_video_id", (q) => q.eq("videoId", args.videoId))
+      .first();
+  },
+});
+
+/**
  * Maps frontend form values to API parameters using database-driven capabilities
  */
 export async function mapParametersForModel(
@@ -23,7 +95,7 @@ export async function mapParametersForModel(
 ): Promise<ParameterMapping> {
   const mappingLog: string[] = [];
   let apiParameters: any = {
-    prompt: frontendParams.prompt
+    prompt: frontendParams.prompt,
   };
 
   mappingLog.push(`Starting parameter mapping for model: ${modelId}`);
@@ -39,48 +111,108 @@ export async function mapParametersForModel(
     // Fallback to basic duration mapping
     if (frontendParams.duration) {
       apiParameters.duration = parseInt(frontendParams.duration);
-      mappingLog.push(`Mapped duration: ${frontendParams.duration} -> ${apiParameters.duration}`);
+      mappingLog.push(
+        `Mapped duration: ${frontendParams.duration} -> ${apiParameters.duration}`
+      );
     }
     return {
       apiParameters,
       frontendParameters: frontendParams,
-      mappingLog
+      mappingLog,
     };
   }
 
   mappingLog.push(`Found model with type: ${model.modelType}`);
 
-  // Use the parameter mappings from the database
-  if (model.parameterMappings) {
-    const mappings = model.parameterMappings;
-    
+  // Get model parameters from the new modelParameters table
+  const modelParams = await ctx.db
+    .query("modelParameters")
+    .withIndex("by_model_id", (q: any) => q.eq("modelId", modelId))
+    .first();
+
+  if (modelParams && modelParams.mappingRules) {
+    // Use mapping rules from modelParameters table
+    const mappings = modelParams.mappingRules;
+
     for (const [frontendKey, apiKey] of Object.entries(mappings)) {
       const frontendValue = frontendParams[frontendKey];
-      
+
       if (frontendValue !== undefined && frontendValue !== null) {
         // Special handling for different parameter types
         switch (frontendKey) {
           case "duration":
             apiParameters[apiKey as string] = parseInt(frontendValue);
-            mappingLog.push(`Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${apiParameters[apiKey as string]}`);
+            mappingLog.push(
+              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${apiParameters[apiKey as string]}`
+            );
             break;
-            
+
           case "cameraConcept":
             if (frontendValue !== "none") {
               // Concepts are mapped as array for Luma Ray models
               apiParameters[apiKey as string] = [frontendValue];
-              mappingLog.push(`Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`);
+              mappingLog.push(
+                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
+              );
             }
             break;
-            
+
           case "loop":
             apiParameters[apiKey as string] = Boolean(frontendValue);
-            mappingLog.push(`Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${Boolean(frontendValue)}`);
+            mappingLog.push(
+              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${Boolean(frontendValue)}`
+            );
             break;
-            
+
           default:
             apiParameters[apiKey as string] = frontendValue;
-            mappingLog.push(`Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`);
+            mappingLog.push(
+              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
+            );
+        }
+      }
+    }
+  } else {
+    // Fallback to model.parameterMappings if modelParameters not found
+    if (model.parameterMappings) {
+      const mappings = model.parameterMappings;
+
+      for (const [frontendKey, apiKey] of Object.entries(mappings)) {
+        const frontendValue = frontendParams[frontendKey];
+
+        if (frontendValue !== undefined && frontendValue !== null) {
+          // Special handling for different parameter types
+          switch (frontendKey) {
+            case "duration":
+              apiParameters[apiKey as string] = parseInt(frontendValue);
+              mappingLog.push(
+                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${apiParameters[apiKey as string]}`
+              );
+              break;
+
+            case "cameraConcept":
+              if (frontendValue !== "none") {
+                // Concepts are mapped as array for Luma Ray models
+                apiParameters[apiKey as string] = [frontendValue];
+                mappingLog.push(
+                  `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
+                );
+              }
+              break;
+
+            case "loop":
+              apiParameters[apiKey as string] = Boolean(frontendValue);
+              mappingLog.push(
+                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${Boolean(frontendValue)}`
+              );
+              break;
+
+            default:
+              apiParameters[apiKey as string] = frontendValue;
+              mappingLog.push(
+                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
+              );
+          }
         }
       }
     }
@@ -99,14 +231,14 @@ export async function mapParametersForModel(
   return {
     apiParameters,
     frontendParameters: frontendParams,
-    mappingLog
+    mappingLog,
   };
 }
 
 /**
- * Store model parameters for a video
+ * Store video parameters for a video
  */
-export const storeModelParameters = mutation({
+export const storeVideoParameters = mutation({
   args: {
     videoId: v.id("videos"),
     modelId: v.string(),
@@ -115,8 +247,8 @@ export const storeModelParameters = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    
-    return await ctx.db.insert("modelParameters", {
+
+    return await ctx.db.insert("videoParameters", {
       videoId: args.videoId,
       modelId: args.modelId,
       parameters: args.parameters,
@@ -127,52 +259,28 @@ export const storeModelParameters = mutation({
 });
 
 /**
- * Get model parameters for a video
- */
-export const getModelParameters = query({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("modelParameters")
-      .withIndex("by_video_id", (q) => q.eq("videoId", args.videoId))
-      .first();
-  },
-});
-
-/**
  * Get parameter statistics for a model (for analytics)
  */
 export const getModelParameterStats = query({
   args: { modelId: v.string() },
   handler: async (ctx, args) => {
     const parameters = await ctx.db
-      .query("modelParameters")
+      .query("videoParameters")
       .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
       .collect();
 
-    // Analyze common parameter patterns
-    const stats = {
+    return {
       totalGenerations: parameters.length,
-      commonParameters: {} as Record<string, any>,
-      parameterFrequency: {} as Record<string, number>,
+      modelId: args.modelId,
+      // Add more analytics as needed
     };
-
-    parameters.forEach((param) => {
-      if (param.parameters) {
-        Object.keys(param.parameters).forEach((key) => {
-          if (key !== "prompt") { // Exclude prompt from stats
-            stats.parameterFrequency[key] = (stats.parameterFrequency[key] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    return stats;
   },
 });
 
 /**
  * Validate parameters against model capabilities
+ * Note: This function is deprecated in favor of the database-driven validation
+ * in convex/lib/validation.ts. Consider using validateModelCapabilities instead.
  */
 export function validateParametersForModel(
   model: Doc<"models">,
@@ -180,23 +288,17 @@ export function validateParametersForModel(
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Validate duration
+  // Validate duration (basic validation only for backward compatibility)
   if (model.fixedDuration) {
     if (parseInt(frontendParams.duration) !== model.fixedDuration) {
       errors.push(`Model only supports ${model.fixedDuration}s duration`);
     }
-  } else if (model.supportedDurations) {
-    const duration = parseInt(frontendParams.duration);
-    if (!model.supportedDurations.includes(duration)) {
-      errors.push(`Duration ${duration}s not supported. Supported: ${model.supportedDurations.join(", ")}s`);
-    }
   }
-
-  // Basic validation - detailed validation is now handled by parameter mapping
-  // since we removed model-specific capability fields to keep the schema clean
+  // Note: For variable duration models, validation should now use the
+  // validateModelCapabilities function with modelParameters data
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }

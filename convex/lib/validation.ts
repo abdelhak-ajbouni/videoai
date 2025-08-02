@@ -277,55 +277,89 @@ export function validateVideoStatusTransition(
 
 /**
  * Validates model capabilities against generation parameters
+ * Now works with the new modelParameters table structure
  */
 export function validateModelCapabilities(
   model: Doc<"models">,
+  modelParams: any, // Model parameters from modelParameters table
   generationParams: any
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // If no model parameters available, skip validation (but warn)
+  if (!modelParams) {
+    warnings.push(
+      "Model parameters not found - skipping capability validation"
+    );
+    return {
+      isValid: true,
+      errors,
+      warnings,
+    };
+  }
+
   // Check if model supports the requested duration
   if (generationParams.duration) {
     const durationNum = parseFloat(generationParams.duration);
-    if (!model.supportedDurations.includes(durationNum)) {
-      errors.push(
-        `Model does not support duration ${durationNum}s. Supported: ${model.supportedDurations.join(", ")}`
-      );
+
+    // Handle fixed duration models
+    if (model.fixedDuration) {
+      if (durationNum !== model.fixedDuration) {
+        errors.push(
+          `Model only supports ${model.fixedDuration}s duration (requested: ${durationNum}s)`
+        );
+      }
+    } else if (
+      modelParams.supportedDurations &&
+      modelParams.supportedDurations.length > 0
+    ) {
+      // Handle models with variable durations
+      if (!modelParams.supportedDurations.includes(durationNum)) {
+        errors.push(
+          `Model does not support duration ${durationNum}s. Supported: ${modelParams.supportedDurations.join(", ")}`
+        );
+      }
     }
   }
 
   // Check if model supports the requested aspect ratio
-  if (generationParams.aspectRatio && model.supportedAspectRatios) {
-    if (!model.supportedAspectRatios.includes(generationParams.aspectRatio)) {
+  if (generationParams.aspectRatio && modelParams.supportedAspectRatios) {
+    if (
+      !modelParams.supportedAspectRatios.includes(generationParams.aspectRatio)
+    ) {
       errors.push(
-        `Model does not support aspect ratio ${generationParams.aspectRatio}. Supported: ${model.supportedAspectRatios.join(", ")}`
+        `Model does not support aspect ratio ${generationParams.aspectRatio}. Supported: ${modelParams.supportedAspectRatios.join(", ")}`
       );
     }
   }
 
   // Check if model supports the requested resolution
-  if (generationParams.resolution && model.supportedResolutions) {
-    if (!model.supportedResolutions.includes(generationParams.resolution)) {
+  if (generationParams.resolution && modelParams.supportedResolutions) {
+    if (
+      !modelParams.supportedResolutions.includes(generationParams.resolution)
+    ) {
       errors.push(
-        `Model does not support resolution ${generationParams.resolution}. Supported: ${model.supportedResolutions.join(", ")}`
+        `Model does not support resolution ${generationParams.resolution}. Supported: ${modelParams.supportedResolutions.join(", ")}`
       );
     }
   }
 
   // Check if model supports camera concepts
-  if (generationParams.cameraConcept && model.supportedCameraConcepts) {
+  if (generationParams.cameraConcept && modelParams.supportedCameraConcepts) {
     if (
-      !model.supportedCameraConcepts.includes(generationParams.cameraConcept)
+      !modelParams.supportedCameraConcepts.includes(
+        generationParams.cameraConcept
+      )
     ) {
       errors.push(
-        `Model does not support camera concept ${generationParams.cameraConcept}. Supported: ${model.supportedCameraConcepts.join(", ")}`
+        `Model does not support camera concept ${generationParams.cameraConcept}. Supported: ${modelParams.supportedCameraConcepts.join(", ")}`
       );
     }
   }
 
   // Check if model supports loop
-  if (generationParams.loop && !model.supportsLoop) {
+  if (generationParams.loop && !modelParams.supportsLoop) {
     errors.push("Model does not support loop generation");
   }
 

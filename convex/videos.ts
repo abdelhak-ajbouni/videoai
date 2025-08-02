@@ -218,11 +218,34 @@ export const createVideo = mutation({
       throw new Error("Selected model is not currently available");
     }
 
+    // Fetch model parameters for validation
+    const modelParams = await ctx.db
+      .query("modelParameters")
+      .withIndex("by_model_id", (q) => q.eq("modelId", sanitizedArgs.model))
+      .first();
+
+    // Transform model parameters to the format expected by validation
+    let modelCapabilities = null;
+    if (modelParams && modelParams.parameterDefinitions) {
+      const params = modelParams.parameterDefinitions;
+      modelCapabilities = {
+        supportedDurations: params.duration?.allowedValues || [],
+        supportedResolutions: params.resolution?.allowedValues || [],
+        supportedAspectRatios: params.aspectRatio?.allowedValues || [],
+        supportedCameraConcepts: params.cameraConcept?.allowedValues || [],
+        supportsLoop: !!params.loop,
+      };
+    }
+
     // Validate model capabilities against generation parameters
-    const modelValidation = validateModelCapabilities(model, {
-      duration: sanitizedArgs.duration,
-      ...(sanitizedArgs.generationSettings || {}),
-    });
+    const modelValidation = validateModelCapabilities(
+      model,
+      modelCapabilities,
+      {
+        duration: sanitizedArgs.duration,
+        ...(sanitizedArgs.generationSettings || {}),
+      }
+    );
 
     if (!modelValidation.isValid) {
       throwValidationError(
@@ -303,7 +326,7 @@ export const createVideo = mutation({
       args.model,
       frontendParams
     );
-    await ctx.db.insert("modelParameters", {
+    await ctx.db.insert("videoParameters", {
       videoId,
       modelId: args.model,
       parameters: parameterMapping.apiParameters,
@@ -430,12 +453,12 @@ export const getVideoForGeneration = query({
 });
 
 // Query to get model parameters for a video (internal use only)
-export const getModelParametersForVideo = query({
+export const getVideoParameters = query({
   args: { videoId: v.id("videos") },
   handler: async (ctx, args) => {
     // This is an internal query that bypasses auth for Actions
     return await ctx.db
-      .query("modelParameters")
+      .query("videoParameters")
       .withIndex("by_video_id", (q) => q.eq("videoId", args.videoId))
       .first();
   },
@@ -463,12 +486,9 @@ export const generateVideo = action({
       });
 
       // Get stored model parameters
-      const modelParams = await ctx.runQuery(
-        api.videos.getModelParametersForVideo,
-        {
-          videoId: args.videoId,
-        }
-      );
+      const modelParams = await ctx.runQuery(api.videos.getVideoParameters, {
+        videoId: args.videoId,
+      });
 
       let input: any;
       if (modelParams && modelParams.parameters) {

@@ -31,7 +31,9 @@ async function calculateCreditCost(
     .first();
 
   if (!model || !model.isActive) {
-    throw new Error(`Model "${modelId}" not found or inactive. Please select a valid model.`);
+    throw new Error(
+      `Model "${modelId}" not found or inactive. Please select a valid model.`
+    );
   }
 
   // Use default values if configurations not found
@@ -79,7 +81,7 @@ export const getCreditCost = query({
     if (!args.modelId || args.modelId.trim() === "") {
       return 0;
     }
-    
+
     return await calculateCreditCost(
       ctx,
       args.modelId,
@@ -106,7 +108,22 @@ export const getPricingMatrix = query({
       matrix[model.modelId] = {};
       for (const quality of qualities) {
         matrix[model.modelId][quality] = {};
-        for (const duration of model.supportedDurations) {
+
+        // Get supported durations from modelParameters table
+        const modelParams = await ctx.db
+          .query("modelParameters")
+          .withIndex("by_model_id", (q) => q.eq("modelId", model.modelId))
+          .first();
+
+        let supportedDurations: number[] = [];
+        if (model.fixedDuration) {
+          supportedDurations = [model.fixedDuration];
+        } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+          supportedDurations =
+            modelParams.parameterDefinitions.duration.allowedValues;
+        }
+
+        for (const duration of supportedDurations) {
           matrix[model.modelId][quality][duration] = await calculateCreditCost(
             ctx,
             model.modelId,
@@ -134,12 +151,26 @@ export const getModelInfo = query({
     const modelInfo: Record<string, any> = {};
 
     for (const model of models) {
+      // Get supported durations from modelParameters table
+      const modelParams = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_model_id", (q) => q.eq("modelId", model.modelId))
+        .first();
+
+      let supportedDurations: number[] = [];
+      if (model.fixedDuration) {
+        supportedDurations = [model.fixedDuration];
+      } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+        supportedDurations =
+          modelParams.parameterDefinitions.duration.allowedValues;
+      }
+
       modelInfo[model.modelId] = {
         name: model.name,
         description: model.description,
         costPerSecond: model.costPerSecond,
         fixedDuration: model.fixedDuration,
-        supportedDurations: model.supportedDurations,
+        supportedDurations: supportedDurations,
         isPremium: model.isPremium,
         isDefault: model.isDefault,
       };
@@ -165,20 +196,38 @@ export const getAvailableModels = query({
       .withIndex("by_active", (q) => q.eq("isActive", true))
       .collect();
 
-    return models.filter((model) => {
+    const availableModels = [];
+
+    for (const model of models) {
       // Check if model supports the requested duration
       if (model.fixedDuration && duration !== model.fixedDuration) {
-        return false;
+        continue;
       }
 
-      if (!model.supportedDurations.includes(duration)) {
-        return false;
+      // Get supported durations from modelParameters table
+      const modelParams = await ctx.db
+        .query("modelParameters")
+        .withIndex("by_model_id", (q) => q.eq("modelId", model.modelId))
+        .first();
+
+      let supportedDurations: number[] = [];
+      if (model.fixedDuration) {
+        supportedDurations = [model.fixedDuration];
+      } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+        supportedDurations =
+          modelParams.parameterDefinitions.duration.allowedValues;
+      }
+
+      if (!supportedDurations.includes(duration)) {
+        continue;
       }
 
       // Quality validation removed since we simplified the model schema
       // All models now support all quality levels (pricing handled via quality multipliers)
-      return true;
-    });
+      availableModels.push(model);
+    }
+
+    return availableModels;
   },
 });
 
