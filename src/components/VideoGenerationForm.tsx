@@ -21,13 +21,10 @@ import {
   AlertCircle,
   Loader2,
   Video,
-  Crown,
-  Zap,
-  Wand2,
   Target,
-  Star,
   Repeat,
-  Info
+  Info,
+  Bot
 } from "lucide-react";
 import { toast } from "sonner";
 import { Doc } from "../../convex/_generated/dataModel";
@@ -220,15 +217,6 @@ export function VideoGenerationForm() {
     }
   };
 
-  const getModelIcon = (model: Doc<"models">) => {
-    if (model.isPremium) return <Crown className="h-5 w-5 text-purple-500 mt-1 flex-shrink-0" />;
-    if (model.isDefault) return <Star className="h-5 w-5 text-yellow-500 mt-1 flex-shrink-0" />;
-    // Use model name to determine speed icon (since we removed isFast field)
-    if (model.name.toLowerCase().includes("flash") || model.name.toLowerCase().includes("fast")) {
-      return <Zap className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />;
-    }
-  };
-
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -253,7 +241,7 @@ export function VideoGenerationForm() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Describe your video in detail... Be specific about scenes, actions, and visual style for best results."
-                  className="min-h-32 resize-none bg-gray-800/50 border-gray-700/50 text-white placeholder:text-gray-500 focus:border-gray-600 focus:ring-1 focus:ring-gray-600"
+                  className="min-h-32 resize-none bg-gray-800/50 border-gray-700/50 text-white placeholder:text-gray-500 focus:border-gray-600 focus:ring-0 focus:outline-none"
                   maxLength={500}
                 />
                 <div className="flex justify-between items-center text-xs">
@@ -268,8 +256,11 @@ export function VideoGenerationForm() {
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-white/90">AI Model</Label>
                 <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                    <SelectValue placeholder="Select an AI model" />
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-14">
+                    <div className="flex items-center space-x-4">
+                      <Bot className="h-6 w-6 text-blue-400" />
+                      <SelectValue placeholder="Select an AI model" />
+                    </div>
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
                     {activeModels?.map((model: Doc<"models">) => (
@@ -295,7 +286,7 @@ export function VideoGenerationForm() {
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Duration</Label>
                     <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -317,7 +308,7 @@ export function VideoGenerationForm() {
                         Resolution
                       </Label>
                       <Select value={resolution} onValueChange={(value: string) => value && setResolution(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
                           <SelectValue placeholder="Select resolution" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -355,7 +346,7 @@ export function VideoGenerationForm() {
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
                       <Select value={aspectRatio} onValueChange={(value: string) => value && setAspectRatio(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
                           <SelectValue placeholder="select aspect ratio" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -379,7 +370,7 @@ export function VideoGenerationForm() {
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Camera Position</Label>
                       <Select value={cameraPosition} onValueChange={(value: string) => value && setCameraPosition(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
                           <SelectValue placeholder="Select camera position" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -536,11 +527,30 @@ export function VideoGenerationForm() {
 
               {/* Error Messages */}
               {!hasEnoughCredits && (
-                <div className="flex items-start space-x-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                  <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-red-400">Insufficient credits</p>
-                    <p className="text-xs text-red-300/80 mt-1">You need {creditsCost} credits but only have {currentUser?.credits || 0}. Upgrade your plan to get more credits.</p>
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-400">Need more credits</p>
+                      <p className="text-xs text-red-300/80 mt-1">
+                        You need {creditsCost} credits but only have {currentUser?.credits || 0}.
+                        {currentUser?.subscriptionTier && currentUser.subscriptionTier !== "free" ? (
+                          " Purchase additional credits."
+                        ) : (
+                          " Upgrade your plan to get credits."
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Call-to-action button for subscribers */}
+                  <div className="mx-4 mt-1">
+                    <Button
+                      onClick={() => window.location.href = '/pricing'}
+                      size="sm"
+                      className="underline text-white text-xs px-3 py-1.5 h-auto"
+                    >
+                      Buy More Credits
+                    </Button>
                   </div>
                 </div>
               )}
@@ -550,4 +560,4 @@ export function VideoGenerationForm() {
       </div>
     </TooltipProvider>
   );
-} 
+}

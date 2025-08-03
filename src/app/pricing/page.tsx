@@ -283,33 +283,6 @@ export default function PricingPage() {
             </section>
           )}
 
-          {/* Show upgrade message for non-subscribers */}
-          {currentUser && (!currentUser.subscriptionTier || currentUser.subscriptionTier === "free") && (
-            <section>
-              <div className="flex items-center space-x-3 mb-6">
-                <CreditCard className="h-5 w-5 text-yellow-400" />
-                <h2 className="text-xl font-semibold text-white">
-                  One-Time Credit Packages
-                </h2>
-              </div>
-              
-              <Card className="bg-gray-900/30 border-gray-800/50">
-                <CardContent className="p-8 text-center">
-                  <Package className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Subscribe to Access Credit Packages
-                  </h3>
-                  <p className="text-gray-400 mb-6">
-                    One-time credit packages are available exclusively for subscribers. 
-                    Choose a subscription plan above to unlock additional credit purchasing options.
-                  </p>
-                  <div className="text-sm text-gray-500">
-                    Get started with any subscription plan to access bonus credit packages
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          )}
 
         </div>
       </div>

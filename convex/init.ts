@@ -187,7 +187,7 @@ const defaultConfigs = [
 const defaultModels = [
   {
     modelId: "minimax/hailuo-02",
-    name: "Budget Tier",
+    name: "Budget Model",
     description: "Fast and affordable videos with excellent physics",
     replicateModelId: "minimax/hailuo-02",
     costPerSecond: 0.08,
@@ -204,7 +204,7 @@ const defaultModels = [
   },
   {
     modelId: "bytedance/seedance-1-pro",
-    name: "Quality Tier",
+    name: "Advanced Model",
     description:
       "Professional videos with multiple aspect ratios and camera position",
     replicateModelId: "bytedance/seedance-1-pro",
@@ -225,7 +225,7 @@ const defaultModels = [
   },
   {
     modelId: "google/veo-3",
-    name: "Pro Tier",
+    name: "Flagship Model",
     description: "Premium videos with audio support",
     replicateModelId:
       "google/veo-3:838c69a013a666f41312ba018c1ae55a2807f27c109a9cb93b22a45f207ad918",
@@ -525,6 +525,17 @@ async function runMigrations(ctx: MutationCtx) {
     criticalErrors.push(errorMessage);
   }
 
+  // Migration 6: Ensure modelParameters table is properly populated
+  try {
+    console.log("Ensuring modelParameters table is populated...");
+    await ensureModelParametersPopulated(ctx);
+    console.log("ModelParameters population check completed successfully");
+  } catch (error) {
+    const errorMessage = `ModelParameters population failed: ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMessage);
+    criticalErrors.push(errorMessage);
+  }
+
   // Check for critical errors and throw if any exist
   if (criticalErrors.length > 0) {
     const errorSummary = `Migration failed with ${criticalErrors.length} critical errors:\n${criticalErrors.join("\n")}`;
@@ -552,6 +563,54 @@ async function runMigrations(ctx: MutationCtx) {
     titleFieldsRemoved,
     nonCriticalErrors: errors.length,
   };
+}
+
+// Migration helper: Ensure modelParameters table is populated
+async function ensureModelParametersPopulated(ctx: MutationCtx) {
+  console.log("Checking modelParameters table population...");
+  
+  const now = Date.now();
+  
+  // Get all models
+  const models = await ctx.db.query("models").collect();
+  console.log(`Found ${models.length} models`);
+  
+  // Check which models already have parameters
+  const existingParams = await ctx.db.query("modelParameters").collect();
+  const existingModelIds = new Set(existingParams.map(p => p.modelId));
+  
+  console.log(`Found ${existingParams.length} existing modelParameters for models: ${Array.from(existingModelIds).join(", ")}`);
+  
+  // Find models that need parameters
+  const modelsNeedingParams = models.filter(model => !existingModelIds.has(model.modelId));
+  
+  if (modelsNeedingParams.length === 0) {
+    console.log("All models already have parameters defined");
+    return;
+  }
+  
+  console.log(`Creating parameters for ${modelsNeedingParams.length} models: ${modelsNeedingParams.map(m => m.modelId).join(", ")}`);
+  
+  // Create parameters for models that don't have them
+  for (const model of modelsNeedingParams) {
+    const parameterDefinitions = getModelParameterDefinitions(model);
+    const mappingRules = getModelMappingRules(model);
+    const constraints = getModelConstraints(model);
+
+    await ctx.db.insert("modelParameters", {
+      modelId: model.modelId,
+      parameterDefinitions,
+      mappingRules,
+      constraints,
+      parameterCategories: ["basic", "advanced"],
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    console.log(`Created parameters for model: ${model.modelId}`);
+  }
+  
+  console.log(`ModelParameters population completed for ${modelsNeedingParams.length} models`);
 }
 
 // Migration 3: Restructure modelParameters and create videoParameters
@@ -847,6 +906,28 @@ export default internalMutation({
         updatedAt: now,
       });
     }
+
+    // Initialize model parameters for each model
+    const models = await ctx.db.query("models").collect();
+    console.log(`Creating modelParameters for ${models.length} models`);
+
+    for (const model of models) {
+      const parameterDefinitions = getModelParameterDefinitions(model);
+      const mappingRules = getModelMappingRules(model);
+      const constraints = getModelConstraints(model);
+
+      await ctx.db.insert("modelParameters", {
+        modelId: model.modelId,
+        parameterDefinitions,
+        mappingRules,
+        constraints,
+        parameterCategories: ["basic", "advanced"],
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    console.log("Database initialization completed successfully");
   },
 });
 
@@ -912,6 +993,7 @@ export const updateCreditPackages = mutation({
     };
   },
 });
+
 
 // Update subscription plans with new features
 export const updateSubscriptionPlans = mutation({
