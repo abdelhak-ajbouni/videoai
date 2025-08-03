@@ -52,15 +52,41 @@ export default function MyVideosPage() {
     );
   }
 
-  const handleDownload = (video: Doc<"videos">) => {
-    if (video.videoUrl) {
+  const handleDownload = async (video: Doc<"videos">) => {
+    if (!video.videoUrl) {
+      toast.error("Video URL not available");
+      return;
+    }
+
+    try {
+      // Fetch the video file
+      const response = await fetch(video.videoUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video: ${response.statusText}`);
+      }
+
+      // Convert to blob
+      const blob = await response.blob();
+
+      // Create object URL
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Create download link
       const link = document.createElement('a');
-      link.href = video.videoUrl;
+      link.href = objectUrl;
       link.download = `video-${video._id}.mp4`;
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
-      toast.success("Video download started");
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success("Video downloaded successfully!");
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Failed to download video. Please try again.");
     }
   };
 

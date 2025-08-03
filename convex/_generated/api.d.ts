@@ -22,6 +22,7 @@ import type * as lib_validation from "../lib/validation.js";
 import type * as modelParameterHelpers from "../modelParameterHelpers.js";
 import type * as models from "../models.js";
 import type * as pricing from "../pricing.js";
+import type * as simpleModelHelpers from "../simpleModelHelpers.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   modelParameterHelpers: typeof modelParameterHelpers;
   models: typeof models;
   pricing: typeof pricing;
+  simpleModelHelpers: typeof simpleModelHelpers;
   stripe: typeof stripe;
   subscriptionPlans: typeof subscriptionPlans;
   subscriptions: typeof subscriptions;

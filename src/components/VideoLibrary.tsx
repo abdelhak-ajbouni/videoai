@@ -80,19 +80,34 @@ export function VideoLibrary() {
         action: "download"
       });
 
-      // Create a temporary link to download the video
+      // Fetch the video file
+      const response = await fetch(video.videoUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video: ${response.statusText}`);
+      }
+
+      // Convert to blob
+      const blob = await response.blob();
+
+      // Create object URL
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Create download link
       const link = document.createElement('a');
-      link.href = video.videoUrl;
+      link.href = objectUrl;
       link.download = `video-${video._id}.mp4`;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
 
-      toast.success("Download started");
-    } catch {
-
-      toast.error("Failed to download video");
+      toast.success("Video downloaded successfully!");
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Failed to download video. Please try again.");
     }
   };
 

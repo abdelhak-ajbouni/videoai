@@ -331,13 +331,49 @@ const defaultConfigs = [
   },
 ];
 
-// Clean AI models data - only essential fields
+// Clean AI models data - Budget/Quality/Pro tier structure
 const defaultModels = [
   {
-    modelId: "google/veo-3",
-    name: "Google Veo-3",
+    modelId: "minimax/hailuo-02",
+    name: "Budget Tier",
     description:
-      "High-quality video generation with exceptional visual fidelity",
+      "Fast and affordable 1080p videos with excellent physics - perfect for social media and testing",
+    replicateModelId: "minimax/hailuo-02",
+    costPerSecond: 0.08,
+    parameterMappings: {
+      duration: "duration",
+      resolution: "resolution",
+    },
+    modelType: "hailuo",
+    apiProvider: "replicate",
+
+    isActive: true,
+    isDefault: true,
+    isPremium: false,
+  },
+  {
+    modelId: "kwaivgi/kling-v2.1-master",
+    name: "Quality Tier",
+    description:
+      "1080p HD with superior dynamics and prompt adherence - perfect for business content",
+    replicateModelId: "kwaivgi/kling-v2.1-master",
+    costPerSecond: 0.28,
+    parameterMappings: {
+      duration: "duration",
+      aspectRatio: "aspect_ratio",
+    },
+    modelType: "kling",
+    apiProvider: "replicate",
+
+    isActive: true,
+    isDefault: false,
+    isPremium: false,
+  },
+  {
+    modelId: "google/veo-3",
+    name: "Pro Tier",
+    description:
+      "Premium 1080p videos with professional audio - perfect for final productions",
     replicateModelId:
       "google/veo-3:838c69a013a666f41312ba018c1ae55a2807f27c109a9cb93b22a45f207ad918",
     costPerSecond: 0.75,
@@ -353,47 +389,6 @@ const defaultModels = [
     isDefault: false,
     isPremium: true,
   },
-  {
-    modelId: "luma/ray-2-720p",
-    name: "Luma Ray-2-720p",
-    description: "Fast, cost-effective video generation for content creators",
-    replicateModelId:
-      "luma/ray-2-720p:ea6eddb9ec29298592b0a8da0aa8783d0cdb2493e87c93f36bbcab28ab133664",
-    costPerSecond: 0.18,
-    parameterMappings: {
-      duration: "duration",
-      aspectRatio: "aspect_ratio",
-      cameraConcept: "concepts",
-      loop: "loop",
-    },
-    modelType: "luma_ray",
-    apiProvider: "replicate",
-
-    isActive: true,
-    isDefault: false,
-    isPremium: false,
-  },
-  {
-    modelId: "luma/ray-flash-2-540p",
-    name: "Luma Ray Flash 2-540p",
-    description:
-      "Ultra-fast, ultra-cheap video generation for rapid prototyping",
-    replicateModelId:
-      "luma/ray-2-540p:b2fff4dff3600325413f28ba60bab61e8b7556d8533168f785d6e7d861a727e1",
-    costPerSecond: 0.12,
-    parameterMappings: {
-      duration: "duration",
-      aspectRatio: "aspect_ratio",
-      cameraConcept: "concepts",
-      loop: "loop",
-    },
-    modelType: "luma_ray",
-    apiProvider: "replicate",
-
-    isActive: true,
-    isDefault: true,
-    isPremium: false,
-  },
 ];
 
 // Default credit packages data
@@ -402,9 +397,9 @@ const defaultPackages = [
     packageId: "small",
     name: "Small",
     description: "Perfect for getting started",
-    price: 2000,
+    price: 599,
     currency: "usd",
-    credits: 100,
+    credits: 250,
     isActive: true,
     isPopular: false,
   },
@@ -412,9 +407,9 @@ const defaultPackages = [
     packageId: "medium",
     name: "Medium",
     description: "Great value for regular users",
-    price: 4500,
+    price: 1499,
     currency: "usd",
-    credits: 250,
+    credits: 750,
     isActive: true,
     isPopular: true,
   },
@@ -422,9 +417,9 @@ const defaultPackages = [
     packageId: "large",
     name: "Large",
     description: "For power users and creators",
-    price: 8000,
+    price: 2999,
     currency: "usd",
-    credits: 500,
+    credits: 1500,
     isActive: true,
     isPopular: false,
   },
@@ -432,9 +427,9 @@ const defaultPackages = [
     packageId: "xlarge",
     name: "X-Large",
     description: "Maximum value for heavy usage",
-    price: 15000,
+    price: 5999,
     currency: "usd",
-    credits: 1000,
+    credits: 3000,
     isActive: true,
     isPopular: false,
   },
@@ -446,11 +441,11 @@ const defaultPlans = [
     planId: "starter",
     name: "Starter",
     description: "Perfect for getting started with video generation",
-    price: 999,
+    price: 499,
     currency: "usd",
-    monthlyCredits: 100,
+    monthlyCredits: 250,
     features: [
-      "100 credits per month",
+      "250 credits per month",
       "HD video quality",
       "Standard support",
       "Personal video library",
@@ -462,11 +457,11 @@ const defaultPlans = [
     planId: "pro",
     name: "Pro",
     description: "For creators who need more power and features",
-    price: 2999,
+    price: 1499,
     currency: "usd",
-    monthlyCredits: 500,
+    monthlyCredits: 750,
     features: [
-      "500 credits per month",
+      "750 credits per month",
       "HD + Ultra video quality",
       "Priority processing",
       "Advanced analytics",
@@ -479,7 +474,7 @@ const defaultPlans = [
     planId: "max",
     name: "Max",
     description: "Enterprise-grade features for teams and businesses",
-    price: 9999,
+    price: 3999,
     currency: "usd",
     monthlyCredits: 2000,
     features: [
@@ -658,23 +653,37 @@ async function migrateToNewParameterStructure(ctx: MutationCtx) {
     `Found ${existingModelParams.length} existing modelParameters records`
   );
 
-  if (existingModelParams.length > 0 && existingModelParams[0].videoId) {
-    // This means we have the old structure, need to migrate
+  // Check if this is the old structure that needs migration
+  const hasOldStructure = existingModelParams.length > 0 && 
+    existingModelParams.some(param => param.videoId && param.parameters);
+
+  if (hasOldStructure) {
+    // Only migrate if we have the old structure with videoId
     for (const param of existingModelParams) {
-      // Insert into videoParameters
-      await ctx.db.insert("videoParameters", {
-        videoId: param.videoId,
-        modelId: param.modelId,
-        parameters: param.parameters,
-        parameterMapping: param.parameterMapping,
-        createdAt: param.createdAt,
-      });
+      if (param.videoId && param.parameters) {
+        // Insert into videoParameters
+        await ctx.db.insert("videoParameters", {
+          videoId: param.videoId,
+          modelId: param.modelId,
+          parameters: param.parameters,
+          parameterMapping: param.parameterMapping,
+          createdAt: param.createdAt,
+        });
+      }
 
       // Delete from old table
       await ctx.db.delete(param._id);
     }
 
-    // Step 2: Create new modelParameters entries for each model
+    // Step 2: Clear all modelParameters and recreate for current models
+    const allModelParams = await ctx.db.query("modelParameters").collect();
+    console.log(`Deleting ${allModelParams.length} old modelParameters`);
+    
+    for (const param of allModelParams) {
+      await ctx.db.delete(param._id);
+    }
+
+    // Step 3: Create new modelParameters entries for each model
     const models = await ctx.db.query("models").collect();
     console.log(`Creating modelParameters for ${models.length} models`);
 
@@ -718,33 +727,23 @@ function getModelParameterDefinitions(model: any) {
   };
 
   // Add model-specific parameters based on model type
-  if (model.modelType === "luma_ray") {
+  if (model.modelType === "hailuo") {
+    baseParams.resolution = {
+      type: "string",
+      required: false,
+      description: "Resolution of the video",
+      allowedValues: ["768p", "1080p"],
+      defaultValue: "1080p",
+    };
+  }
+
+  if (model.modelType === "kling") {
     baseParams.aspectRatio = {
       type: "string",
       required: false,
       description: "Aspect ratio of the video",
-      allowedValues: ["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"],
-    };
-    baseParams.cameraConcept = {
-      type: "string",
-      required: false,
-      description: "Camera movement concept",
-      allowedValues: [
-        "pan_right",
-        "pan_left",
-        "zoom_in",
-        "zoom_out",
-        "aerial_drone",
-        "truck_left",
-        "truck_right",
-        "low_angle",
-        "high_angle",
-      ],
-    };
-    baseParams.loop = {
-      type: "boolean",
-      required: false,
-      description: "Whether the video should loop",
+      allowedValues: ["16:9", "9:16", "1:1"],
+      defaultValue: "16:9",
     };
   }
 
@@ -754,6 +753,7 @@ function getModelParameterDefinitions(model: any) {
       required: false,
       description: "Resolution of the video",
       allowedValues: ["720p", "1080p"],
+      defaultValue: "1080p",
     };
     baseParams.seed = {
       type: "number",
@@ -772,8 +772,10 @@ function getModelSupportedDurations(modelType: string): number[] {
   switch (modelType) {
     case "google_veo":
       return [8];
-    case "luma_ray":
-      return [5, 9];
+    case "hailuo":
+      return [6, 10];
+    case "kling":
+      return [5, 10];
     default:
       return [5];
   }
@@ -792,12 +794,17 @@ function getModelMappingRules(model: any) {
   }
 
   // Default mappings based on model type
-  if (model.modelType === "luma_ray") {
+  if (model.modelType === "hailuo") {
+    return {
+      ...baseMappings,
+      resolution: "resolution",
+    };
+  }
+
+  if (model.modelType === "kling") {
     return {
       ...baseMappings,
       aspectRatio: "aspect_ratio",
-      cameraConcept: "concepts",
-      loop: "loop",
     };
   }
 
@@ -825,22 +832,15 @@ function getModelConstraints(model: any) {
   };
 
   // Add model-specific constraints based on model type
-  if (model.modelType === "luma_ray") {
-    constraints.aspectRatio = {
-      allowedValues: ["1:1", "3:4", "4:3", "9:16", "16:9", "9:21", "21:9"],
+  if (model.modelType === "hailuo") {
+    constraints.resolution = {
+      allowedValues: ["768p", "1080p"],
     };
-    constraints.cameraConcept = {
-      allowedValues: [
-        "pan_right",
-        "pan_left",
-        "zoom_in",
-        "zoom_out",
-        "aerial_drone",
-        "truck_left",
-        "truck_right",
-        "low_angle",
-        "high_angle",
-      ],
+  }
+
+  if (model.modelType === "kling") {
+    constraints.aspectRatio = {
+      allowedValues: ["16:9", "9:16", "1:1"],
     };
   }
 

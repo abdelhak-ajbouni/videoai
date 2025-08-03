@@ -87,19 +87,19 @@ export function validateVideoGeneration(
 
       if (
         settings.aspectRatio &&
-        !["16:9", "9:16", "1:1", "4:3", "3:4"].includes(settings.aspectRatio)
+        !["16:9", "9:16", "1:1"].includes(settings.aspectRatio)
       ) {
         errors.push(
-          "Invalid aspect ratio. Must be one of: 16:9, 9:16, 1:1, 4:3, 3:4"
+          "Invalid aspect ratio. Must be one of: 16:9, 9:16, 1:1"
         );
       }
 
       if (
         settings.resolution &&
-        !["720p", "1080p", "1440p", "4K"].includes(settings.resolution)
+        !["768p", "720p", "1080p"].includes(settings.resolution)
       ) {
         errors.push(
-          "Invalid resolution. Must be one of: 720p, 1080p, 1440p, 4K"
+          "Invalid resolution. Must be one of: 768p, 720p, 1080p"
         );
       }
 
