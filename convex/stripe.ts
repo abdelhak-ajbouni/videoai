@@ -91,10 +91,10 @@ export const createCreditCheckoutSession = action({
     }
 
     // Check if user has an active subscription
-    const currentUser = await ctx.runQuery(api.users.getCurrentUserByClerkId, {
+    const currentSubscription = await ctx.runQuery(api.subscriptions.getCurrentSubscription, {
       clerkId: clerkId,
     });
-    if (!currentUser || !currentUser.subscriptionTier || currentUser.subscriptionTier === "free") {
+    if (!currentSubscription || currentSubscription.status !== "active") {
       throw new Error("Credit packages are only available for subscribers. Please subscribe to a plan first.");
     }
 

@@ -153,7 +153,7 @@ export const deleteVideoFile = mutation({
 
     try {
       // Delete file from R2
-      await r2.delete(args.key);
+      await (r2 as any).deleteByKey(args.key);
     } catch (error) {
       console.error("Error deleting file from R2:", error);
       throw new Error("Failed to delete file");

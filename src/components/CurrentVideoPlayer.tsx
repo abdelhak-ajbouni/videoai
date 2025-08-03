@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 interface CurrentVideoPlayerProps {
   currentVideo: Doc<"videos"> | null;
-  status: 'none' | 'pending' | 'processing' | 'completed';
+  status: 'none' | 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
 }
 
 export function CurrentVideoPlayer({ currentVideo, status }: CurrentVideoPlayerProps) {

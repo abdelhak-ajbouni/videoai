@@ -187,7 +187,7 @@ export const createVideo = mutation({
     generationSettings: v.optional(v.any()), // Contains all model-specific options
     isPublic: v.optional(v.boolean()), // Video visibility setting
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<string> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -508,7 +508,7 @@ export const deleteVideo = mutation({
     // Delete R2 file if it exists
     if (video.r2FileKey) {
       try {
-        await r2.deleteByKey(video.r2FileKey);
+        await (r2 as any).deleteByKey(video.r2FileKey);
       } catch (error) {
         console.error("Failed to delete R2 file:", error);
         // Continue with video deletion even if R2 deletion fails
@@ -888,13 +888,7 @@ export const downloadAndStoreVideo = action({
       // Store the video file in R2 storage
       const key = await r2.store(ctx, blob, {
         key: fileKey,
-        metadata: {
-          videoId: args.videoId,
-          clerkId: video?.clerkId || "",
-          originalUrl: args.videoUrl,
-          uploadedAt: timestamp.toString(),
-          fileSize: fileSize.toString(),
-        },
+        type: "video/mp4",
       });
 
       const downloadTime = Date.now() - startTime;
