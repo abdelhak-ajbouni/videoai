@@ -265,25 +265,6 @@ export const storeVideoParameters = mutation({
 });
 
 /**
- * Get parameter statistics for a model (for analytics)
- */
-export const getModelParameterStats = query({
-  args: { modelId: v.string() },
-  handler: async (ctx, args) => {
-    const parameters = await ctx.db
-      .query("videoParameters")
-      .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
-      .collect();
-
-    return {
-      totalGenerations: parameters.length,
-      modelId: args.modelId,
-      // Add more analytics as needed
-    };
-  },
-});
-
-/**
  * Validate parameters against model capabilities
  * Note: This function is deprecated in favor of the database-driven validation
  * in convex/lib/validation.ts. Consider using validateModelCapabilities instead.
@@ -296,7 +277,7 @@ export function validateParametersForModel(
 
   // Validate duration (basic validation only for backward compatibility)
   if (model.fixedDuration) {
-    if (parseInt(frontendParams.duration) !== model.fixedDuration) {
+    if (parseInt(frontendParams.duration.toString()) !== model.fixedDuration) {
       errors.push(`Model only supports ${model.fixedDuration}s duration`);
     }
   }

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         await convex.mutation(api.videos.updateVideoStatus, {
           videoId: video._id,
           status: "failed",
-          errorMessage: typeof error === "string" ? error : "Generation failed",
+          errorMessage: "Generation failed",
         });
 
         // Refund credits

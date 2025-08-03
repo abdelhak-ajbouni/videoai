@@ -24,11 +24,11 @@ const r2 = new R2(components.r2);
 // Helper function to generate dynamic R2 URL for a video
 async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
   let videoUrl = video.videoUrl; // Default fallback
-  
+
   // Generate fresh R2 URL if video is stored in R2
   if (video.r2FileKey) {
     try {
-      videoUrl = await r2.getUrl(ctx, video.r2FileKey, {
+      videoUrl = await r2.getUrl(video.r2FileKey, {
         expiresIn: 3600, // 1 hour expiration
       });
     } catch (error) {
@@ -37,7 +37,7 @@ async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
       videoUrl = video.videoCdnUrl || video.videoUrl;
     }
   }
-  
+
   return videoUrl;
 }
 
@@ -57,13 +57,15 @@ export const getUserVideos = query({
       .collect();
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(videos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      videos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -119,13 +121,15 @@ export const getVideosByStatus = query({
       .collect();
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(videos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      videos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -156,13 +160,15 @@ export const getLatestVideosFromOthers = query({
       .slice(0, args.limit || 12);
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(otherUsersVideos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      otherUsersVideos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -502,7 +508,7 @@ export const deleteVideo = mutation({
     // Delete R2 file if it exists
     if (video.r2FileKey) {
       try {
-        await r2.deleteByKey(ctx, video.r2FileKey);
+        await r2.deleteByKey(video.r2FileKey);
       } catch (error) {
         console.error("Failed to delete R2 file:", error);
         // Continue with video deletion even if R2 deletion fails
@@ -1170,13 +1176,15 @@ export const searchVideos = query({
     const paginatedVideos = filteredVideos.slice(offset, offset + limit);
 
     // Return videos with dynamically generated R2 URLs
-    const videosWithUrls = await Promise.all(paginatedVideos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    const videosWithUrls = await Promise.all(
+      paginatedVideos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
 
     return {
       videos: videosWithUrls,
@@ -1666,7 +1674,6 @@ function calculateMockGenerationTime(
 
   return Math.floor(baseTime * durationNum * randomFactor);
 }
-
 
 // Helper function to generate realistic mock video URLs and metadata
 function generateMockVideoUrls(quality: string, duration: string) {

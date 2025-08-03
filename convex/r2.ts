@@ -38,7 +38,7 @@ export const generateUploadUrl = mutation({
     const fileKey = `videos/${identity.subject}/${timestamp}-${random}-${sanitizedFilename}`;
 
     // Generate upload URL using R2 component
-    const { url, key } = await r2.generateUploadUrl(ctx, fileKey);
+    const { url, key } = await r2.generateUploadUrl(fileKey);
 
     return { url, key };
   },
@@ -66,7 +66,12 @@ export const storeVideoFile = action({
     const fileKey = `videos/${identity.subject}/${timestamp}-${random}-${sanitizedFilename}`;
 
     // Store file in R2
-    const key = await r2.store(ctx, fileKey, args.blob);
+    const key = await r2.store(ctx, args.blob, {
+      key: fileKey,
+      type: args.filename.endsWith(".mp4")
+        ? "video/mp4"
+        : "application/octet-stream",
+    });
 
     return key;
   },
@@ -95,7 +100,7 @@ export const getVideoFileUrl = query({
     }
 
     // Get file URL from R2 with optional expiration
-    const url = await r2.getUrl(ctx, args.key, {
+    const url = await r2.getUrl(args.key, {
       expiresIn: args.expiresIn,
     });
 
@@ -148,7 +153,7 @@ export const deleteVideoFile = mutation({
 
     try {
       // Delete file from R2
-      await r2.delete(ctx, args.key);
+      await r2.delete(args.key);
     } catch (error) {
       console.error("Error deleting file from R2:", error);
       throw new Error("Failed to delete file");
@@ -171,11 +176,7 @@ export const listUserVideoFiles = query({
     // List files with user's prefix
     const prefix = `videos/${identity.subject}/`;
 
-    const result = await r2.list(ctx, {
-      prefix,
-      limit: args.limit || 50,
-      cursor: args.cursor,
-    });
+    const result = await r2.listMetadata(ctx, args.limit || 50);
 
     return result;
   },
