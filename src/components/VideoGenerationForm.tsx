@@ -43,7 +43,6 @@ export function VideoGenerationForm() {
   const [resolution, setResolution] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [loop, setLoop] = useState<boolean>(false);
-  const [cameraConcept, setCameraConcept] = useState<string>("none");
   const [cameraPosition, setCameraPosition] = useState<string>("");
 
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -65,14 +64,14 @@ export function VideoGenerationForm() {
   const creditsCost = creditCost || 0;
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;
 
-  // Check if data is still loading
-  const isLoading = !activeModels || (modelId && modelParameters === undefined);
+  // Check if data is still loading - only show loading for essential data
+  const isLoading = !activeModels || (modelId && !modelParameters);
 
   // Set default model when available, or use first available model as fallback
   useEffect(() => {
     if (!modelId && activeModels && activeModels.length > 0) {
       // Try to find the default model first
-      const defaultModelFromList = activeModels.find(model => model.isDefault);
+      const defaultModelFromList = activeModels.find((model: Doc<"models">) => model.isDefault);
       if (defaultModelFromList) {
         setModelId(defaultModelFromList.modelId);
       } else {
@@ -83,7 +82,7 @@ export function VideoGenerationForm() {
   }, [activeModels, modelId]);
 
   // Get current model information (now includes capabilities)
-  const currentModel = activeModels?.find(m => m.modelId === modelId);
+  const currentModel = activeModels?.find((m: Doc<"models">) => m.modelId === modelId);
 
   // Get valid durations for the selected model
   const getValidDurations = (model: Doc<"models"> | undefined) => {
@@ -100,37 +99,46 @@ export function VideoGenerationForm() {
         badge: d === Math.min(...durations) ? "Base cost" : `${d}s option`
       }));
     } else {
-      // Fallback for when model parameters are still loading
-      return [{ value: 5, label: "5 seconds", badge: "Loading..." }];
+      // Fallback for when model parameters are still loading - use a reasonable default
+      return [{ value: 5, label: "5 seconds", badge: "Default" }];
     }
   };
 
-  // Update duration when model changes
+  // Set defaults when model or model parameters change
   useEffect(() => {
-    if (currentModel && modelParameters) {
-      if (currentModel.fixedDuration) {
-        setDuration(currentModel.fixedDuration);
-      } else if (modelParameters.supportedDurations.length > 0) {
-        // Use model parameters data to validate duration
-        if (!modelParameters.supportedDurations.includes(duration)) {
-          const defaultDuration = modelParameters.defaultValues.duration || Math.min(...modelParameters.supportedDurations);
-          setDuration(defaultDuration);
-        }
+    if (modelParameters && !isLoading) {
+      // Set duration default
+      if (modelParameters.defaultValues.duration) {
+        setDuration(modelParameters.defaultValues.duration);
       }
-    }
-  }, [currentModel, modelParameters, duration]);
 
-  // Reset model-specific options when model changes
-  useEffect(() => {
-    if (currentModel && modelParameters) {
-      // Set defaults from modelParameters table
-      setResolution(modelParameters.defaultValues.resolution || "");
-      setAspectRatio(modelParameters.defaultValues.aspectRatio || "");
-      setLoop(modelParameters.defaultValues.loop || false);
-      setCameraConcept(modelParameters.defaultValues.cameraConcept || "none");
-      setCameraPosition(modelParameters.defaultValues.cameraPosition || "");
+      // Set resolution default
+      if (modelParameters.defaultValues.resolution) {
+        setResolution(modelParameters.defaultValues.resolution);
+      }
+
+      // Set aspect ratio default
+      if (modelParameters.defaultValues.aspectRatio) {
+        setAspectRatio(modelParameters.defaultValues.aspectRatio);
+      }
+
+      // Set camera position default
+      if (modelParameters.defaultValues.cameraPosition) {
+        setCameraPosition(modelParameters.defaultValues.cameraPosition);
+      }
+
+
+
+      // Set loop default
+      if (modelParameters.defaultValues.loop !== undefined) {
+        setLoop(modelParameters.defaultValues.loop);
+      } else {
+        setLoop(false);
+      }
+
+
     }
-  }, [currentModel, modelParameters]);
+  }, [modelParameters, isLoading, modelId]);
 
   // Set default visibility based on subscription tier
   useEffect(() => {
@@ -185,7 +193,7 @@ export function VideoGenerationForm() {
           resolution: resolution || undefined,
           aspectRatio: aspectRatio || undefined,
           loop: loop || undefined,
-          cameraConcept: cameraConcept === "none" ? undefined : cameraConcept || undefined,
+
           cameraPosition: cameraPosition || undefined,
         },
         isPublic,
@@ -194,11 +202,16 @@ export function VideoGenerationForm() {
       // Reset form
       setPrompt("");
       // Reset to default model or keep current model
-      const defaultModel = activeModels?.find(model => model.isDefault);
+      const defaultModel = activeModels?.find((model: Doc<"models">) => model.isDefault);
       setModelId(defaultModel ? defaultModel.modelId : modelId);
+      // Reset to default duration (will be updated by useEffect when model changes)
       setDuration(5);
-      // Reset model-specific options to defaults (will be handled by useEffect when model changes)
-      // No need to manually reset since useEffect will handle it when the model changes
+      // Reset model-specific options to empty (will be set by useEffect when model changes)
+      setResolution("");
+      setAspectRatio("");
+      setLoop(false);
+
+      setCameraPosition("");
 
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to start video generation");
@@ -259,7 +272,7 @@ export function VideoGenerationForm() {
                     <SelectValue placeholder="Select an AI model" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                    {activeModels?.map((model) => (
+                    {activeModels?.map((model: Doc<"models">) => (
                       <SelectItem key={model.modelId} value={model.modelId} className="focus:bg-gray-800 focus:text-white">
                         <div className="text-left py-1">
                           <div className={`text-sm text-left ${modelId === model.modelId ? 'font-medium text-blue-400' : 'font-medium text-white'}`}>{model.name}</div>
@@ -270,7 +283,7 @@ export function VideoGenerationForm() {
                   </SelectContent>
                 </Select>
                 {isLoading && (
-                  <p className="text-sm text-gray-500">Loading available models...</p>
+                  <p className="text-sm text-gray-500">Loading model options...</p>
                 )}
               </div>
 
@@ -286,7 +299,7 @@ export function VideoGenerationForm() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        {getValidDurations(currentModel).map((item) => (
+                        {getValidDurations(currentModel).map((item: { value: number; label: string; badge: string }) => (
                           <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
                             <div className="flex items-center space-x-2">
                               <Clock className={`h-4 w-4 ${duration === item.value ? 'text-blue-400' : 'text-gray-400'}`} />
@@ -323,8 +336,8 @@ export function VideoGenerationForm() {
                                 <div className="flex items-center space-x-2">
                                   <Video className="h-4 w-4 text-gray-400" />
                                   <span>1080p</span>
-                                  <PremiumBadge 
-                                    size="sm" 
+                                  <PremiumBadge
+                                    size="sm"
                                     className="ml-1"
                                     tooltipTitle="Pro+ Required"
                                     tooltipDescription="1080p resolution requires Pro or Max plan subscription."
@@ -346,7 +359,7 @@ export function VideoGenerationForm() {
                           <SelectValue placeholder="select aspect ratio" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                          {modelParameters.supportedAspectRatios.map((ratio) => (
+                          {modelParameters.supportedAspectRatios.map((ratio: string) => (
                             <SelectItem key={ratio} value={ratio} className="focus:bg-gray-800 focus:text-white">
                               <div className="flex items-center space-x-2">
                                 <Target className={`h-4 w-4 ${aspectRatio === ratio ? 'text-blue-400' : 'text-gray-400'}`} />
@@ -359,33 +372,7 @@ export function VideoGenerationForm() {
                     </div>
                   )}
 
-                  {/* Camera Concept (when supported by model) */}
-                  {modelParameters?.supportedCameraConcepts && modelParameters.supportedCameraConcepts.length > 0 && (
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
-                      <Select value={cameraConcept} onValueChange={setCameraConcept}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                          <SelectValue placeholder="Optional camera movement" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                          <SelectItem value="none" className="focus:bg-gray-800 focus:text-white">
-                            <div className="flex items-center space-x-2">
-                              <Wand2 className={`h-4 w-4 ${cameraConcept === "none" ? 'text-blue-400' : 'text-gray-400'}`} />
-                              <span className={cameraConcept === "none" ? 'font-medium text-blue-400' : ''}>None (Auto)</span>
-                            </div>
-                          </SelectItem>
-                          {modelParameters.supportedCameraConcepts.map((concept) => (
-                            <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
-                              <div className="flex items-center space-x-2">
-                                <Video className={`h-4 w-4 ${cameraConcept === concept ? 'text-blue-400' : 'text-gray-400'}`} />
-                                <span className={`capitalize ${cameraConcept === concept ? 'font-medium text-blue-400' : ''}`}>{concept.replace('_', ' ')}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+
 
                   {/* Camera Position (when supported by model) */}
                   {modelParameters?.supportedCameraPositions && modelParameters.supportedCameraPositions.length > 0 && (
@@ -396,7 +383,7 @@ export function VideoGenerationForm() {
                           <SelectValue placeholder="Select camera position" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                          {modelParameters.supportedCameraPositions.map((position) => (
+                          {modelParameters.supportedCameraPositions.map((position: string) => (
                             <SelectItem key={position} value={position} className="focus:bg-gray-800 focus:text-white">
                               <div className="flex items-center space-x-2">
                                 <Video className={`h-4 w-4 ${cameraPosition === position ? 'text-blue-400' : 'text-gray-400'}`} />
@@ -508,7 +495,7 @@ export function VideoGenerationForm() {
                         </TooltipContent>
                       </Tooltip>
                       {currentUser?.subscriptionTier !== "max" && (
-                        <PremiumBadge 
+                        <PremiumBadge
                           size="sm"
                           tooltipTitle="Max Plan Required"
                           tooltipDescription="Upgrade to Max plan to create private videos that won't appear in the explore page."
@@ -524,17 +511,12 @@ export function VideoGenerationForm() {
               <Button
                 type="submit"
                 className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
-                disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || isLoading}
+                disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating}
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Generating Video...
-                  </>
-                ) : isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
                   </>
                 ) : (
                   <div className="flex items-center justify-center w-full relative">

@@ -3,6 +3,44 @@ import {
   mutation,
   type MutationCtx,
 } from "./_generated/server";
+import { v } from "convex/values";
+
+// Type definitions for better type safety
+interface ModelParameterDefinition {
+  type: string;
+  required: boolean;
+  description: string;
+  allowedValues?: string[] | number[];
+  defaultValue?: string | number;
+  minValue?: number;
+  maxValue?: number;
+  maxLength?: number;
+}
+
+interface ModelParameterDefinitions {
+  [key: string]: ModelParameterDefinition;
+}
+
+interface ModelConstraints {
+  [key: string]: {
+    allowedValues?: string[] | number[];
+    minValue?: number;
+    maxValue?: number;
+    maxLength?: number;
+    minLength?: number;
+  };
+}
+
+interface VideoData {
+  _id: string;
+  prompt: string;
+  duration: string;
+  model: string;
+  quality?: string;
+  generationSettings?: Record<string, unknown>;
+  createdAt: number;
+  [key: string]: unknown;
+}
 
 // Default configurations data
 const defaultConfigs = [
@@ -53,99 +91,6 @@ const defaultConfigs = [
       standard: 1.0,
       high: 1.2,
       ultra: 1.5,
-    },
-    dataType: "object" as const,
-    isActive: true,
-    isEditable: true,
-  },
-  // Model Configurations
-  {
-    key: "model_configs",
-    category: "models",
-    name: "AI Model Configurations",
-    description: "Configuration for all supported AI models",
-    value: {
-      "google/veo-3": {
-        name: "Google Veo-3",
-        description: "High-quality video generation with audio",
-        costPerSecond: 0.75,
-        fixedDuration: 8,
-        supportedDurations: [8],
-        supportedResolutions: ["720p", "1080p"],
-        defaultResolution: "720p",
-        supportsAudio: true,
-        isPremium: true,
-        isDefault: false,
-      },
-      "luma/ray-2-720p": {
-        name: "Luma Ray-2-720p",
-        description: "Fast, cost-effective video generation",
-        costPerSecond: 0.18,
-        supportedDurations: [5, 9],
-        supportedResolutions: ["720p"],
-        defaultResolution: "720p",
-        supportedAspectRatios: [
-          "1:1",
-          "3:4",
-          "4:3",
-          "9:16",
-          "16:9",
-          "9:21",
-          "21:9",
-        ],
-        defaultAspectRatio: "16:9",
-        supportsLoop: true,
-        supportsCameraConcepts: true,
-        cameraConcepts: [
-          "pan_right",
-          "pan_left",
-          "zoom_in",
-          "zoom_out",
-          "aerial_drone",
-          "truck_left",
-          "truck_right",
-          "low_angle",
-          "high_angle",
-        ],
-        supportsStartEndImages: true,
-        isPremium: false,
-        isDefault: false,
-      },
-      "luma/ray-flash-2-540p": {
-        name: "Luma Ray Flash 2-540p",
-        description: "Ultra-fast, ultra-cheap video generation",
-        costPerSecond: 0.12,
-        supportedDurations: [5, 9],
-        supportedResolutions: ["540p"],
-        defaultResolution: "540p",
-        supportedAspectRatios: [
-          "1:1",
-          "3:4",
-          "4:3",
-          "9:16",
-          "16:9",
-          "9:21",
-          "21:9",
-        ],
-        defaultAspectRatio: "16:9",
-        supportsLoop: true,
-        supportsCameraConcepts: true,
-        cameraConcepts: [
-          "pan_right",
-          "pan_left",
-          "zoom_in",
-          "zoom_out",
-          "aerial_drone",
-          "truck_left",
-          "truck_right",
-          "low_angle",
-          "high_angle",
-        ],
-        supportsStartEndImages: true,
-        isPremium: false,
-        isDefault: true,
-        isFast: true,
-      },
     },
     dataType: "object" as const,
     isActive: true,
@@ -234,103 +179,6 @@ const defaultConfigs = [
     },
     dataType: "object" as const,
     isActive: true,
-    isEditable: true,
-  },
-  // Seed Data for Development
-  {
-    key: "sample_video_urls",
-    category: "development",
-    name: "Sample Video URLs",
-    description: "Sample video URLs for development and testing",
-    value: {
-      standard:
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      high: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4",
-      ultra:
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    },
-    dataType: "object" as const,
-    isActive: process.env.NODE_ENV === "development",
-    isEditable: true,
-  },
-  {
-    key: "mock_generation_times",
-    category: "development",
-    name: "Mock Generation Times",
-    description: "Base processing times per second for different qualities",
-    value: {
-      standard: 2000, // 2 seconds processing per 1 second of video
-      high: 4000, // 4 seconds processing per 1 second of video
-      ultra: 8000, // 8 seconds processing per 1 second of video
-    },
-    dataType: "object" as const,
-    isActive: process.env.NODE_ENV === "development",
-    isEditable: true,
-  },
-  {
-    key: "video_quality_specs",
-    category: "development",
-    name: "Video Quality Specifications",
-    description: "Video specifications for different quality tiers",
-    value: {
-      standard: { width: 1280, height: 720, bitrate: 2000 },
-      high: { width: 1920, height: 1080, bitrate: 5000 },
-      ultra: { width: 3840, height: 2160, bitrate: 15000 },
-    },
-    dataType: "object" as const,
-    isActive: process.env.NODE_ENV === "development",
-    isEditable: true,
-  },
-  {
-    key: "sample_prompts",
-    category: "development",
-    name: "Sample Video Prompts",
-    description: "Sample prompts for testing video generation",
-    value: [
-      "A serene mountain landscape at sunset",
-      "A bustling city street with people walking",
-      "A cute cat playing with a ball of yarn",
-      "A futuristic robot walking through a neon-lit corridor",
-      "A peaceful forest with sunlight filtering through trees",
-      "A rocket launching into space",
-      "A chef preparing a delicious meal",
-      "A car driving through a scenic countryside",
-      "A dancer performing on stage",
-      "A bird flying over a beautiful ocean",
-    ],
-    dataType: "array" as const,
-    isActive: process.env.NODE_ENV === "development",
-    isEditable: true,
-  },
-  {
-    key: "test_user_data",
-    category: "development",
-    name: "Test User Data",
-    description: "Sample user data for development testing",
-    value: {
-      testUsers: [
-        {
-          email: "test@example.com",
-          name: "Test User",
-          credits: 100,
-          subscriptionTier: "free",
-        },
-        {
-          email: "pro@example.com",
-          name: "Pro User",
-          credits: 500,
-          subscriptionTier: "pro",
-        },
-        {
-          email: "business@example.com",
-          name: "Business User",
-          credits: 2000,
-          subscriptionTier: "max",
-        },
-      ],
-    },
-    dataType: "object" as const,
-    isActive: process.env.NODE_ENV === "development",
     isEditable: true,
   },
 ];
@@ -547,32 +395,9 @@ async function runMigrations(ctx: MutationCtx) {
         };
 
         // Map parameters using inline logic
-        let apiParameters: any = { prompt: video.prompt };
+        const apiParameters: Record<string, unknown> = { prompt: video.prompt };
 
-        if (video.model.includes("luma/ray")) {
-          // Luma Ray models
-          apiParameters.duration = parseInt(video.duration);
-          apiParameters.aspect_ratio = frontendParams.aspectRatio || "16:9";
-
-          if (
-            frontendParams.cameraConcept &&
-            frontendParams.cameraConcept !== "none"
-          ) {
-            apiParameters.concepts = [frontendParams.cameraConcept];
-          }
-
-          if (frontendParams.loop) {
-            apiParameters.loop = frontendParams.loop;
-          }
-
-          if (frontendParams.startImageUrl) {
-            apiParameters.start_image = frontendParams.startImageUrl;
-          }
-
-          if (frontendParams.endImageUrl) {
-            apiParameters.end_image = frontendParams.endImageUrl;
-          }
-        } else if (video.model.includes("google/veo")) {
+        if (video.model.includes("google/veo")) {
           // Google Veo models
           apiParameters.resolution = frontendParams.resolution || "720p";
 
@@ -581,11 +406,20 @@ async function runMigrations(ctx: MutationCtx) {
           }
 
           apiParameters.seed = Math.floor(Math.random() * 1000000);
-        } else {
-          // Default format
-          apiParameters.duration_seconds = parseInt(video.duration);
+        } else if (video.model.includes("seedance")) {
+          // Seedance models
+          apiParameters.duration = parseInt(video.duration);
           apiParameters.aspect_ratio = frontendParams.aspectRatio || "16:9";
+          apiParameters.resolution = frontendParams.resolution || "480p";
           apiParameters.seed = Math.floor(Math.random() * 1000000);
+
+          if (frontendParams.cameraPosition) {
+            apiParameters.camera_position = frontendParams.cameraPosition;
+          }
+        } else {
+          // Hailuo models (default)
+          apiParameters.duration = parseInt(video.duration);
+          apiParameters.resolution = frontendParams.resolution || "768p";
         }
 
         // Create modelParameters record
@@ -624,14 +458,13 @@ async function runMigrations(ctx: MutationCtx) {
     for (const video of videos) {
       try {
         // Check if video has the old thumbnail fields
-        const videoData = video as any;
+        const videoData = video as VideoData & {
+          thumbnailFileId?: string;
+          thumbnailUrl?: string;
+        };
         if (videoData.thumbnailFileId || videoData.thumbnailUrl) {
           // Remove the old fields by patching without them
-          const { thumbnailFileId, thumbnailUrl, ...cleanedVideo } = videoData;
-
-          // Update the video record without thumbnail fields
-          await ctx.db.replace(video._id, {
-            ...cleanedVideo,
+          await ctx.db.patch(video._id, {
             updatedAt: Date.now(),
           });
 
@@ -659,14 +492,10 @@ async function runMigrations(ctx: MutationCtx) {
     for (const video of videos) {
       try {
         // Check if video has the old title field
-        const videoData = video as any;
+        const videoData = video as VideoData & { title?: string };
         if (videoData.title !== undefined) {
           // Remove the title field by patching without it
-          const { title, ...cleanedVideo } = videoData;
-
-          // Update the video record without title field
-          await ctx.db.replace(video._id, {
-            ...cleanedVideo,
+          await ctx.db.patch(video._id, {
             updatedAt: Date.now(),
           });
 
@@ -793,8 +622,10 @@ async function migrateToNewParameterStructure(ctx: MutationCtx) {
 }
 
 // Helper function to get parameter definitions for a model
-function getModelParameterDefinitions(model: any) {
-  const baseParams = {
+function getModelParameterDefinitions(model: {
+  modelType: string;
+}): ModelParameterDefinitions {
+  const baseParams: ModelParameterDefinitions = {
     prompt: {
       type: "string",
       required: true,
@@ -806,60 +637,61 @@ function getModelParameterDefinitions(model: any) {
       required: true,
       description: "Duration of the video in seconds",
       allowedValues: getModelSupportedDurations(model.modelType),
+      defaultValue: Math.min(...getModelSupportedDurations(model.modelType)), // Set to smallest available
     },
   };
 
   // Add model-specific parameters based on model type
   if (model.modelType === "hailuo") {
-    (baseParams as any).resolution = {
+    baseParams.resolution = {
       type: "string",
       required: false,
       description: "Resolution of the video",
       allowedValues: ["768p", "1080p"],
-      defaultValue: "1080p",
+      defaultValue: "768p", // Set to smallest available
     };
   }
 
   if (model.modelType === "seedance") {
-    (baseParams as any).aspectRatio = {
+    baseParams.aspectRatio = {
       type: "string",
       required: false,
       description: "Aspect ratio of the video",
       allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
-      defaultValue: "16:9",
+      defaultValue: "16:9", // Keep 16:9 as requested
     };
-    (baseParams as any).resolution = {
+    baseParams.resolution = {
       type: "string",
       required: false,
       description: "Resolution of the video",
       allowedValues: ["480p", "1080p"],
-      defaultValue: "1080p",
+      defaultValue: "480p", // Set to smallest available
     };
-    (baseParams as any).seed = {
+    baseParams.seed = {
       type: "number",
       required: false,
       description: "Seed for reproducible generation",
       minValue: 0,
       maxValue: 2147483647,
     };
-    (baseParams as any).cameraPosition = {
+    baseParams.cameraPosition = {
       type: "string",
       required: false,
       description: "Camera movement type",
       allowedValues: ["fixed", "dynamic"],
-      defaultValue: "dynamic",
+      defaultValue: "fixed",
     };
   }
 
   if (model.modelType === "google_veo") {
-    (baseParams as any).resolution = {
+    baseParams.resolution = {
       type: "string",
       required: false,
       description: "Resolution of the video",
       allowedValues: ["720p", "1080p"],
-      defaultValue: "1080p",
+      defaultValue: "720p", // Set to smallest available
     };
-    (baseParams as any).seed = {
+    baseParams.seed = {
       type: "number",
       required: false,
       description: "Random seed for consistent results",
@@ -878,7 +710,7 @@ function getModelSupportedDurations(modelType: string): number[] {
       return [8];
     case "hailuo":
       return [6, 10];
-    case "kling":
+    case "seedance":
       return [5, 10];
     default:
       return [5];
@@ -886,7 +718,10 @@ function getModelSupportedDurations(modelType: string): number[] {
 }
 
 // Helper function to get mapping rules for a model
-function getModelMappingRules(model: any) {
+function getModelMappingRules(model: {
+  modelType: string;
+  parameterMappings?: Record<string, string>;
+}) {
   const baseMappings = {
     prompt: "prompt",
     duration: "duration",
@@ -905,10 +740,13 @@ function getModelMappingRules(model: any) {
     };
   }
 
-  if (model.modelType === "kling") {
+  if (model.modelType === "seedance") {
     return {
       ...baseMappings,
       aspectRatio: "aspect_ratio",
+      resolution: "resolution",
+      seed: "seed",
+      cameraPosition: "camera_position",
     };
   }
 
@@ -924,32 +762,35 @@ function getModelMappingRules(model: any) {
 }
 
 // Helper function to get constraints for a model
-function getModelConstraints(model: any) {
-  const constraints = {
+function getModelConstraints(model: { modelType: string }): ModelConstraints {
+  const constraints: ModelConstraints = {
     prompt: {
       maxLength: 500,
       minLength: 1,
     },
     duration: {
-      allowedValues: getModelSupportedDurations(model.modelType),
+      allowedValues: getModelSupportedDurations(model.modelType).map(String),
     },
   };
 
   // Add model-specific constraints based on model type
   if (model.modelType === "hailuo") {
-    (constraints as any).resolution = {
+    constraints.resolution = {
       allowedValues: ["768p", "1080p"],
     };
   }
 
-  if (model.modelType === "kling") {
-    (constraints as any).aspectRatio = {
-      allowedValues: ["16:9", "9:16", "1:1"],
+  if (model.modelType === "seedance") {
+    constraints.aspectRatio = {
+      allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
+    };
+    constraints.resolution = {
+      allowedValues: ["480p", "1080p"],
     };
   }
 
   if (model.modelType === "google_veo") {
-    (constraints as any).resolution = {
+    constraints.resolution = {
       allowedValues: ["720p", "1080p"],
     };
   }

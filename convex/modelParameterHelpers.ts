@@ -12,7 +12,6 @@ export interface ApiParameters {
   duration?: number;
   resolution?: string;
   aspectRatio?: string; // Use camelCase consistently
-  concepts?: string[];
   loop?: boolean;
   start_image?: string;
   end_image?: string;
@@ -27,7 +26,6 @@ export interface FrontendParameters {
   duration: number | string;
   resolution?: string;
   aspectRatio?: string;
-  cameraConcept?: string;
   cameraPosition?: string;
   loop?: boolean;
   startImageUrl?: string;
@@ -73,23 +71,25 @@ export const getModelParametersForForm = query({
     // Extract useful data for the frontend form
     const params = modelParams.parameterDefinitions;
 
-    return {
+    const result = {
       supportedDurations: params.duration?.allowedValues || [],
       supportedResolutions: params.resolution?.allowedValues || [],
       supportedAspectRatios: params.aspectRatio?.allowedValues || [],
-      supportedCameraConcepts: params.cameraConcept?.allowedValues || [],
+
       supportedCameraPositions: params.cameraPosition?.allowedValues || [],
       supportsLoop: !!params.loop,
       defaultValues: {
         duration: params.duration?.defaultValue,
         resolution: params.resolution?.defaultValue,
         aspectRatio: params.aspectRatio?.defaultValue,
-        cameraConcept: params.cameraConcept?.defaultValue,
+
         cameraPosition: params.cameraPosition?.defaultValue,
         loop: params.loop?.defaultValue,
       },
       constraints: modelParams.constraints || {},
     };
+
+    return result;
   },
 });
 
@@ -141,18 +141,6 @@ function applyParameterMappings(
           );
           break;
 
-        case "cameraConcept":
-          if (frontendValue !== "none") {
-            // Concepts are mapped as array for Luma Ray models
-            (apiParameters as unknown as Record<string, unknown>)[apiKey] = [
-              frontendValue,
-            ];
-            mappingLog.push(
-              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
-            );
-          }
-          break;
-
         case "loop":
           const loopValue = Boolean(frontendValue);
           (apiParameters as unknown as Record<string, unknown>)[apiKey] =
@@ -177,7 +165,7 @@ function applyParameterMappings(
  * Maps frontend form values to API parameters using database-driven capabilities
  */
 export async function mapParametersForModel(
-  ctx: any,
+  ctx: { db: { query: (table: string) => any } },
   modelId: string,
   frontendParams: FrontendParameters
 ): Promise<ParameterMapping> {
@@ -191,7 +179,7 @@ export async function mapParametersForModel(
   // Get model with capabilities from database
   const model = await ctx.db
     .query("models")
-    .withIndex("by_model_id", (q: any) => q.eq("modelId", modelId))
+    .withIndex("by_model_id", (q) => q.eq("modelId", modelId))
     .first();
 
   if (!model) {
@@ -215,7 +203,7 @@ export async function mapParametersForModel(
   // Get model parameters from the new modelParameters table
   const modelParams = await ctx.db
     .query("modelParameters")
-    .withIndex("by_model_id", (q: any) => q.eq("modelId", modelId))
+    .withIndex("by_model_id", (q) => q.eq("modelId", modelId))
     .first();
 
   if (modelParams && modelParams.mappingRules) {
@@ -302,7 +290,7 @@ export const getModelParameterStats = query({
  */
 export function validateParametersForModel(
   model: Doc<"models">,
-  frontendParams: any
+  frontendParams: FrontendParameters
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
