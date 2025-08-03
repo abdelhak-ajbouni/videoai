@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { Video, Clock, Play, Eye } from "lucide-react";
 import { useState } from "react";
-import Image from "next/image";
 import { VideoModal } from "@/components/VideoModal";
 
 interface RecentVideosProps {
@@ -62,21 +61,14 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {videos.map((video) => (
+              {videos.map((video: Doc<"videos">) => (
                 <div
                   key={video._id}
                   className="group cursor-pointer"
                   onClick={() => handleVideoClick(video)}
                 >
                   <div className="relative aspect-video rounded-lg overflow-hidden border border-border hover:border-ai-primary-300 transition-all duration-200 bg-surface-elevated">
-                    {video.thumbnailUrl ? (
-                      <Image
-                        src={video.thumbnailUrl}
-                        alt={video.title || "Video thumbnail"}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : video.videoUrl ? (
+                    {video.videoUrl ? (
                       <video
                         className="w-full h-full object-cover"
                         muted
@@ -99,8 +91,8 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
 
                     {/* Video info overlay */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                      <h4 className="text-white text-sm font-medium line-clamp-1">
-                        {video.title || "Untitled"}
+                      <h4 className="text-white text-sm font-medium line-clamp-2">
+                        {video.prompt || "No prompt available"}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-white/80 text-xs">
@@ -117,7 +109,7 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
                   {/* Video details below thumbnail */}
                   <div className="mt-2 space-y-1">
                     <p className="text-xs text-text-secondary line-clamp-2">
-                      {video.prompt}
+                      {video.prompt || "No prompt available"}
                     </p>
                     <div className="flex items-center justify-between text-xs text-text-tertiary">
                       <span>{video.creditsCost} credits</span>

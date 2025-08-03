@@ -1,6 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
+import {
+  validateSubscription,
+  throwValidationError,
+  logValidationWarnings,
+  sanitizeString,
+} from "./lib/validation";
 
 // Get user's current subscription
 export const getSubscription = query({
@@ -20,7 +26,9 @@ export const getSubscriptionByStripeCustomerId = query({
   handler: async (ctx, { stripeCustomerId }) => {
     return await ctx.db
       .query("subscriptions")
-      .withIndex("by_stripe_customer_id", (q) => q.eq("stripeCustomerId", stripeCustomerId))
+      .withIndex("by_stripe_customer_id", (q) =>
+        q.eq("stripeCustomerId", stripeCustomerId)
+      )
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
   },
@@ -65,6 +73,49 @@ export const createSubscription = mutation({
       cancelAtPeriodEnd,
     }
   ) => {
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    const sanitizedArgs = {
+      clerkId: sanitizeString(clerkId, 100),
+      planId,
+      stripeCustomerId: sanitizeString(stripeCustomerId, 100),
+      stripeSubscriptionId: sanitizeString(stripeSubscriptionId, 100),
+    };
+
+    // Validate subscription parameters
+    const validation = validateSubscription(sanitizedArgs);
+    if (!validation.isValid) {
+      throwValidationError(validation.errors, "Subscription validation failed");
+    }
+
+    // Log warnings if any
+    logValidationWarnings(validation.warnings || [], "Subscription creation");
+
+    // Validate date ranges
+    if (currentPeriodStart >= currentPeriodEnd) {
+      throw new Error("Invalid period: start must be before end");
+    }
+
+    // Validate subscription status
+    const validStatuses = [
+      "active",
+      "canceled",
+      "past_due",
+      "trialing",
+      "incomplete",
+      "incomplete_expired",
+      "unpaid",
+    ];
+    if (!validStatuses.includes(subscriptionStatus)) {
+      throw new Error(`Invalid subscription status: ${subscriptionStatus}`);
+    }
+
+    // ============================================================================
+    // PLAN VALIDATION
+    // ============================================================================
+
     // Get plan from database - inline to avoid circular dependency
     const plan = await ctx.db
       .query("subscriptionPlans")
@@ -359,7 +410,6 @@ export const allocateMonthlyCredits = mutation({
       subscription.creditsGrantedAt &&
       subscription.creditsGrantedAt > subscription.currentPeriodStart
     ) {
-      console.log("Credits already granted for this period");
       return;
     }
 
@@ -376,82 +426,6 @@ export const allocateMonthlyCredits = mutation({
       creditsGrantedAt: now,
       updatedAt: now,
     });
-  },
-});
-
-// Get subscription usage statistics
-export const getSubscriptionStats = query({
-  args: { clerkId: v.string() },
-  handler: async (ctx, { clerkId }) => {
-    const subscription = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-
-    if (!subscription) {
-      return {
-        hasActiveSubscription: false,
-        tier: null,
-        monthlyCredits: 0,
-        creditsUsedThisPeriod: 0,
-        creditsRemaining: 0,
-        nextBillingDate: null,
-        cancelAtPeriodEnd: false,
-        monthlyPrice: 0,
-      };
-    }
-
-    // Get subscription plan details for pricing - inline to avoid circular dependency
-    const plan = await ctx.db
-      .query("subscriptionPlans")
-      .withIndex("by_plan_id", (q) => q.eq("planId", subscription.tier))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .first();
-
-    // Calculate credits used this period
-    const periodStart = subscription.currentPeriodStart;
-    const periodEnd = subscription.currentPeriodEnd;
-
-    const transactions = await ctx.db
-      .query("creditTransactions")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("createdAt"), periodStart),
-          q.lte(q.field("createdAt"), periodEnd),
-          q.eq(q.field("type"), "video_generation")
-        )
-      )
-      .collect();
-
-    const creditsUsedThisPeriod = transactions.reduce(
-      (total, tx) => total + Math.abs(tx.amount),
-      0
-    );
-
-    return {
-      hasActiveSubscription: true,
-      tier: subscription.tier,
-      monthlyCredits: subscription.monthlyCredits,
-      creditsUsedThisPeriod,
-      creditsRemaining: subscription.monthlyCredits - creditsUsedThisPeriod,
-      nextBillingDate: subscription.currentPeriodEnd,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-      monthlyPrice: plan?.price || 0,
-    };
-  },
-});
-
-// Get subscription history
-export const getSubscriptionHistory = query({
-  args: { clerkId: v.string() },
-  handler: async (ctx, { clerkId }) => {
-    return await ctx.db
-      .query("subscriptions")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .order("desc")
-      .collect();
   },
 });
 

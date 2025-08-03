@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import {
+  validateCreditTransaction,
+  validateUserCredits,
+  throwValidationError,
+  logValidationWarnings,
+  sanitizeString,
+} from "./lib/validation";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -75,13 +82,66 @@ export const updateCredits = mutation({
     operation: v.union(v.literal("add"), v.literal("subtract")),
   },
   handler: async (ctx, { clerkId, creditAmount, operation }) => {
+    // ============================================================================
+    // INPUT VALIDATION
+    // ============================================================================
+
+    // Validate creditAmount is a positive finite number
+    if (
+      !Number.isFinite(creditAmount) ||
+      creditAmount <= 0 ||
+      Number.isNaN(creditAmount)
+    ) {
+      throw new Error("Credit amount must be a positive finite number");
+    }
+
+    const sanitizedArgs = {
+      clerkId: sanitizeString(clerkId, 100),
+      amount: creditAmount,
+      operation,
+    };
+
+    // Validate credit transaction parameters
+    const validation = validateCreditTransaction(sanitizedArgs);
+    if (!validation.isValid) {
+      throwValidationError(
+        validation.errors,
+        "Credit transaction validation failed"
+      );
+    }
+
+    // Log warnings if any
+    logValidationWarnings(validation.warnings || [], "Credit transaction");
+
+    // ============================================================================
+    // USER PROFILE VALIDATION
+    // ============================================================================
+
     const profile = await ctx.db
       .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", sanitizedArgs.clerkId))
       .first();
 
     if (!profile) {
       throw new Error("User profile not found");
+    }
+
+    // ============================================================================
+    // CREDIT VALIDATION
+    // ============================================================================
+
+    // Validate user has sufficient credits for subtraction
+    if (operation === "subtract") {
+      const creditValidation = validateUserCredits(
+        profile.credits,
+        creditAmount
+      );
+      if (!creditValidation.isValid) {
+        throwValidationError(
+          creditValidation.errors,
+          "Credit validation failed"
+        );
+      }
     }
 
     const newCredits =
@@ -94,7 +154,7 @@ export const updateCredits = mutation({
         ? profile.totalCreditsUsed + creditAmount
         : profile.totalCreditsUsed;
 
-    // Ensure credits don't go negative
+    // Additional safety check
     if (newCredits < 0) {
       throw new Error("Insufficient credits");
     }
@@ -188,14 +248,6 @@ export const getCreditBalance = query({
           totalCreditsUsed: profile.totalCreditsUsed,
         }
       : null;
-  },
-});
-
-// Get all user profiles (admin function)
-export const getAllUserProfiles = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("userProfiles").collect();
   },
 });
 
@@ -327,82 +379,5 @@ export const getCreditHistory = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .order("desc")
       .collect();
-  },
-});
-
-// Get credit usage statistics
-export const getCreditStats = query({
-  args: { clerkId: v.string() },
-  handler: async (ctx, { clerkId }) => {
-    const transactions = await ctx.db
-      .query("creditTransactions")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .collect();
-
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .first();
-
-    const stats = {
-      totalPurchased: 0,
-      totalUsed: 0,
-      totalRefunded: 0,
-      totalGranted: 0,
-      currentBalance: profile?.credits || 0,
-      monthlyUsage: 0,
-      averagePerMonth: 0,
-    };
-
-    // Calculate current month usage
-    const now = Date.now();
-    const currentMonthStart = new Date(now);
-    currentMonthStart.setDate(1);
-    currentMonthStart.setHours(0, 0, 0, 0);
-    const currentMonthTimestamp = currentMonthStart.getTime();
-
-    transactions.forEach((tx) => {
-      if (tx.type === "purchase") {
-        stats.totalPurchased += tx.amount;
-      } else if (tx.type === "video_generation") {
-        stats.totalUsed += Math.abs(tx.amount);
-        // Calculate monthly usage
-        if (tx.createdAt >= currentMonthTimestamp) {
-          stats.monthlyUsage += Math.abs(tx.amount);
-        }
-      } else if (tx.type === "refund") {
-        stats.totalRefunded += tx.amount;
-      } else if (tx.type === "subscription_grant") {
-        stats.totalGranted += tx.amount;
-      }
-    });
-
-    // Calculate average monthly usage (based on user's account age)
-    if (profile?.createdAt) {
-      const accountAgeInMonths = Math.max(
-        1,
-        (now - profile.createdAt) / (1000 * 60 * 60 * 24 * 30)
-      );
-      stats.averagePerMonth = Math.round(stats.totalUsed / accountAgeInMonths);
-    }
-
-    return stats;
-  },
-});
-
-// Get current user's credit history (using auth)
-export const getCurrentUserCreditHistory = query({
-  args: { limit: v.optional(v.number()) },
-  handler: async (ctx, { limit = 50 }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    return await ctx.db
-      .query("creditTransactions")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .order("desc")
-      .take(limit);
   },
 });

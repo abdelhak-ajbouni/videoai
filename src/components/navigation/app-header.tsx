@@ -59,7 +59,7 @@ export function AppHeader({ className }: AppHeaderProps) {
             <div className="hidden sm:flex items-center space-x-1">
               {/* Credits */}
               <Link href="/pricing">
-                <div className="flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900/60 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                <div className="flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors"></div>
                     <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
@@ -75,7 +75,7 @@ export function AppHeader({ className }: AppHeaderProps) {
 
               {/* Subscription */}
               <Link href="/pricing">
-                <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900/60 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
                   <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors capitalize">
                     {currentUser.subscriptionTier || 'Free'}
                   </span>

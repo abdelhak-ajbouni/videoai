@@ -1,19 +1,14 @@
 "use client";
 
 import { useUser, SignUpButton } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { Sparkles, Zap, ArrowRight, Video, Globe } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 export default function Home() {
-  const { isSignedIn, user, isLoaded } = useUser();
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const createUser = useMutation(api.userProfiles.createUserProfile);
+  const { isSignedIn, isLoaded } = useUser();
   const router = useRouter();
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -24,30 +19,12 @@ export default function Home() {
     "/videos/tmpxsomu815.mp4"
   ];
 
-  // Handle user creation after signup and redirect existing users
+  // Auto-redirect authenticated users to generate page
   useEffect(() => {
-    if (isSignedIn && user && isLoaded) {
-      if (currentUser === null) {
-        // User is signed in but doesn't exist in our database
-        // This handles cases where the webhook might have failed
-        const createUserRecord = async () => {
-          try {
-            await createUser({
-              clerkId: user.id,
-            });
-            router.push("/generate");
-          } catch (error) {
-            console.error("Error creating user:", error);
-          }
-        };
-
-        createUserRecord();
-      } else if (currentUser) {
-        // Existing user - redirect to generate page automatically
-        router.push("/generate");
-      }
+    if (isLoaded && isSignedIn) {
+      router.push("/generate");
     }
-  }, [isSignedIn, user, currentUser, isLoaded, createUser, router]);
+  }, [isLoaded, isSignedIn, router]);
 
   // Video rotation effect
   useEffect(() => {
@@ -63,19 +40,17 @@ export default function Home() {
     const currentVideo = videoRefs.current[currentVideoIndex];
     if (currentVideo) {
       currentVideo.currentTime = 0;
-      currentVideo.play().catch(e => console.log('Video play failed:', e));
+      currentVideo.play().catch(() => {
+        // Silent error handling for video play
+      });
     }
   }, [currentVideoIndex]);
 
-  // Show loading state while Clerk or Convex data is loading, or redirecting signed-in users
-  if (!isLoaded || (isSignedIn && currentUser === undefined) || (isSignedIn && currentUser)) {
+  // Show loading state while authentication is loading or redirecting
+  if (!isLoaded || isSignedIn) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <Loading text={
-          isSignedIn && currentUser ? "Redirecting to generate page..." :
-            isSignedIn ? "Setting up your account..." :
-              "Loading..."
-        } />
+        <Loading text={isSignedIn ? "Redirecting to dashboard..." : "Loading..."} />
       </div>
     );
   }
@@ -96,7 +71,7 @@ export default function Home() {
                 <span className="text-lg font-semibold text-white">VideoAI</span>
               </div>
               <div className="flex items-center space-x-4">
-                <SignUpButton mode="modal" forceRedirectUrl="/generate">
+                <SignUpButton mode="redirect" forceRedirectUrl="/generate">
                   <Button size="sm" className="bg-white/90 backdrop-blur-sm text-gray-900 hover:bg-white border border-white/20">
                     Get Started
                   </Button>
@@ -156,7 +131,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center items-center mb-16">
-              <SignUpButton mode="modal" forceRedirectUrl="/generate">
+              <SignUpButton mode="redirect" forceRedirectUrl="/generate">
                 <Button size="lg" className="relative group overflow-hidden bg-gradient-to-r from-white via-gray-50 to-white text-gray-900 hover:from-gray-50 hover:via-white hover:to-gray-50 px-12 py-6 text-xl font-bold rounded-2xl border-2 border-white/20 shadow-2xl hover:shadow-white/30 transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-1">
                   {/* Animated background gradient */}
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -201,7 +176,7 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mx-auto mb-6">
                 <Video className="h-8 w-8 text-blue-400" />
               </div>
@@ -211,7 +186,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
                 <Zap className="h-8 w-8 text-purple-400" />
               </div>
@@ -221,7 +196,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                 <Globe className="h-8 w-8 text-green-400" />
               </div>
@@ -244,7 +219,7 @@ export default function Home() {
             <p className="text-xl text-gray-400 mb-8">
               Join thousands of creators using AI to bring their ideas to life
             </p>
-            <SignUpButton mode="modal" forceRedirectUrl="/generate">
+            <SignUpButton mode="redirect" forceRedirectUrl="/generate">
               <Button size="lg" className="text-lg px-8 py-4 bg-white text-gray-900 hover:bg-gray-100 group">
                 <Sparkles className="mr-2 h-5 w-5" />
                 Start Creating Now

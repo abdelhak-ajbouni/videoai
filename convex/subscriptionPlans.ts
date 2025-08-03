@@ -101,89 +101,6 @@ export const deletePlan = mutation({
   },
 });
 
-// Initialize default subscription plans
-export const initializeDefaultPlans = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-
-    const defaultPlans = [
-      {
-        planId: "starter",
-        name: "Starter",
-        description: "Perfect for getting started with video generation",
-        price: 999, // $9.99
-        currency: "usd",
-        monthlyCredits: 100,
-        features: [
-          "100 credits per month",
-          "HD video quality",
-          "Standard support",
-          "Personal video library",
-        ],
-        isActive: true,
-        isPopular: false,
-      },
-      {
-        planId: "pro",
-        name: "Pro",
-        description: "For creators who need more power and features",
-        price: 2999, // $29.99
-        currency: "usd",
-        monthlyCredits: 500,
-        features: [
-          "500 credits per month",
-          "HD + Ultra video quality",
-          "Priority processing",
-          "Advanced analytics",
-          "Priority support",
-        ],
-        isActive: true,
-        isPopular: true,
-      },
-      {
-        planId: "max",
-        name: "Max",
-        description: "Enterprise-grade features for teams and businesses",
-        price: 9999, // $99.99
-        currency: "usd",
-        monthlyCredits: 2000,
-        features: [
-          "2000 credits per month",
-          "4K video quality",
-          "API access",
-          "Team management",
-          "Dedicated support",
-          "Custom integrations",
-        ],
-        isActive: true,
-        isPopular: false,
-      },
-    ];
-
-    const planIds = [];
-
-    for (const plan of defaultPlans) {
-      // Check if plan already exists
-      const existingPlan = await ctx.db
-        .query("subscriptionPlans")
-        .withIndex("by_plan_id", (q) => q.eq("planId", plan.planId))
-        .first();
-
-      if (!existingPlan) {
-        const planId = await ctx.db.insert("subscriptionPlans", {
-          ...plan,
-          createdAt: now,
-          updatedAt: now,
-        });
-        planIds.push(planId);
-      }
-    }
-
-    return planIds;
-  },
-});
-
 // Create Stripe products and prices for subscription plans
 export const createStripeProducts = action({
   args: {},
@@ -271,11 +188,6 @@ export const createStripeProducts = action({
           priceId: price.id,
           productId: product.id,
           status: "success",
-        });
-
-        console.log(`Created Stripe product and price for ${plan.name}:`, {
-          productId: product.id,
-          priceId: price.id,
         });
       } catch (error) {
         console.error(`Error creating Stripe product for ${plan.name}:`, error);

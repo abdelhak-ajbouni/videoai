@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,9 +41,8 @@ export function VideoLibrary() {
   const filteredAndSortedVideos = useMemo(() => {
     if (!videos) return [];
 
-    const filtered = videos.filter((video) => {
+    const filtered = videos.filter((video: Doc<"videos">) => {
       const matchesSearch =
-        (video.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || video.status === statusFilter;
@@ -52,7 +51,7 @@ export function VideoLibrary() {
     });
 
     // Sort videos
-    filtered.sort((a, b) => {
+    filtered.sort((a: Doc<"videos">, b: Doc<"videos">) => {
       switch (sortBy) {
         case "newest":
           return b.createdAt - a.createdAt;
@@ -60,8 +59,6 @@ export function VideoLibrary() {
           return a.createdAt - b.createdAt;
         case "most-credits":
           return b.creditsCost - a.creditsCost;
-        case "title":
-          return (a.title || "").localeCompare(b.title || "");
         default:
           return b.createdAt - a.createdAt;
       }
@@ -83,19 +80,34 @@ export function VideoLibrary() {
         action: "download"
       });
 
-      // Create a temporary link to download the video
+      // Fetch the video file
+      const response = await fetch(video.videoUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video: ${response.statusText}`);
+      }
+
+      // Convert to blob
+      const blob = await response.blob();
+
+      // Create object URL
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Create download link
       const link = document.createElement('a');
-      link.href = video.videoUrl;
-      link.download = `${video.title || 'video'}.mp4`;
-      link.target = '_blank';
+      link.href = objectUrl;
+      link.download = `video-${video._id}.mp4`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
 
-      toast.success("Download started");
+      // Cleanup
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success("Video downloaded successfully!");
     } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Failed to download video");
+      console.error("Download failed:", error);
+      toast.error("Failed to download video. Please try again.");
     }
   };
 
@@ -104,8 +116,8 @@ export function VideoLibrary() {
     try {
       await toggleFavorite({ videoId });
       toast.success("Video favorite status updated");
-    } catch (error) {
-      console.error("Toggle favorite error:", error);
+    } catch {
+
       toast.error("Failed to update favorite status");
     }
   };
@@ -116,8 +128,8 @@ export function VideoLibrary() {
         videoId,
         action: "view"
       });
-    } catch (error) {
-      console.error("Track view error:", error);
+    } catch {
+
       // Don't show error to user for analytics
     }
   };
@@ -130,8 +142,8 @@ export function VideoLibrary() {
     try {
       await deleteVideo({ videoId });
       toast.success("Video deleted successfully");
-    } catch (error) {
-      console.error("Delete error:", error);
+    } catch {
+
       toast.error("Failed to delete video");
     }
   };
@@ -285,12 +297,12 @@ export function VideoLibrary() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedVideos.map((video) => (
+          {filteredAndSortedVideos.map((video: Doc<"videos">) => (
             <Card key={video._id} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {video.title}
+                  <CardTitle className="text-lg line-clamp-3">
+                    {video.prompt}
                   </CardTitle>
                   {getStatusBadge(video.status)}
                 </div>
@@ -303,8 +315,12 @@ export function VideoLibrary() {
                     <video
                       className="w-full h-full object-cover rounded-lg"
                       controls
-                      poster={video.thumbnailUrl}
+                      preload="metadata"
                       onPlay={() => handleVideoView(video._id)}
+                      onLoadedMetadata={(e) => {
+                        const videoEl = e.target as HTMLVideoElement;
+                        videoEl.currentTime = 0.5; // Seek to 0.5 seconds for better thumbnail
+                      }}
                     >
                       <source src={video.videoUrl} type="video/mp4" />
                       Your browser does not support the video tag.
@@ -401,7 +417,7 @@ export function VideoLibrary() {
                     size="sm"
                     variant="outline"
                     className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(video._id, video.title || 'Untitled')}
+                    onClick={() => handleDelete(video._id, video.prompt)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
