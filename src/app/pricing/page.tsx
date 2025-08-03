@@ -183,7 +183,7 @@ export default function PricingPage() {
                       <div className="space-y-3 mb-6 flex-1">
                         <div className="flex items-center space-x-2 text-sm text-gray-300">
                           <Check className="h-4 w-4 text-emerald-400" />
-                          <span>{plan.monthlyCredits.toLocaleString()} credits/month</span>
+                          <span>{plan.monthlyCredits.toLocaleString()} credits per month</span>
                         </div>
                         {plan.features?.map((feature, index) => (
                           <div key={index} className="flex items-center space-x-2 text-sm text-gray-300">
@@ -210,73 +210,106 @@ export default function PricingPage() {
             </div>
           </section>
 
-          {/* Credit Packages */}
-          <section>
-            <div className="flex items-center space-x-3 mb-6">
-              <CreditCard className="h-5 w-5 text-yellow-400" />
-              <h2 className="text-xl font-semibold text-white">
-                One-Time Credit Packages
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Show loading state for credit packages */}
-              {creditPackages === undefined ? (
-                <div className="col-span-full flex justify-center py-8">
-                  <Loading text="Loading packages..." />
+          {/* Credit Packages - Only for subscribers */}
+          {currentUser && currentUser.subscriptionTier && currentUser.subscriptionTier !== "free" && (
+            <section>
+              <div className="flex items-center space-x-3 mb-6">
+                <CreditCard className="h-5 w-5 text-yellow-400" />
+                <h2 className="text-xl font-semibold text-white">
+                  One-Time Credit Packages
+                </h2>
+                <div className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
+                  Subscribers Only
                 </div>
-              ) : creditPackages?.length === 0 ? (
-                <div className="col-span-full text-center py-8 text-gray-400">
-                  No credit packages available at the moment.
-                </div>
-              ) : (
-                creditPackages?.map((pkg) => (
-                  <Card key={pkg._id} className="bg-gray-900/30 border-gray-800/50 hover:bg-gray-900/50 transition-all duration-200 flex flex-col">
-                    <CardContent className="p-6 flex flex-col flex-1">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Package className="h-5 w-5 text-yellow-400" />
-                        <h3 className="text-lg font-semibold text-white">
-                          {pkg.name}
-                        </h3>
-                      </div>
+              </div>
 
-                      <div className="mb-6">
-                        <div className="text-3xl font-bold text-white">
-                          ${(pkg.price / 100).toFixed(2)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Show loading state for credit packages */}
+                {creditPackages === undefined ? (
+                  <div className="col-span-full flex justify-center py-8">
+                    <Loading text="Loading packages..." />
+                  </div>
+                ) : creditPackages?.length === 0 ? (
+                  <div className="col-span-full text-center py-8 text-gray-400">
+                    No credit packages available at the moment.
+                  </div>
+                ) : (
+                  creditPackages?.map((pkg) => (
+                    <Card key={pkg._id} className="bg-gray-900/30 border-gray-800/50 hover:bg-gray-900/50 transition-all duration-200 flex flex-col">
+                      <CardContent className="p-6 flex flex-col flex-1">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <Package className="h-5 w-5 text-yellow-400" />
+                          <h3 className="text-lg font-semibold text-white">
+                            {pkg.name}
+                          </h3>
                         </div>
-                        <div className="text-sm text-gray-400">
-                          {pkg.credits.toLocaleString()} credits
-                        </div>
-                      </div>
 
-                      <div className="space-y-2 mb-6 flex-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Credits:</span>
-                          <span className="text-white font-medium">
-                            {pkg.credits.toLocaleString()}
-                          </span>
+                        <div className="mb-6">
+                          <div className="text-3xl font-bold text-white">
+                            ${(pkg.price / 100).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {pkg.credits.toLocaleString()} credits
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Cost per credit:</span>
-                          <span className="text-white font-medium">
-                            ${(pkg.price / 100 / pkg.credits).toFixed(3)}
-                          </span>
-                        </div>
-                      </div>
 
-                      <Button
-                        onClick={() => handleBuyCredits(pkg.packageId)}
-                        disabled={isLoading}
-                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-medium disabled:opacity-50 mt-auto"
-                      >
-                        Buy Credits
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </section>
+                        <div className="space-y-2 mb-6 flex-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Credits:</span>
+                            <span className="text-white font-medium">
+                              {pkg.credits.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Cost per credit:</span>
+                            <span className="text-white font-medium">
+                              ${(pkg.price / 100 / pkg.credits).toFixed(3)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => handleBuyCredits(pkg.packageId)}
+                          disabled={isLoading}
+                          className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-medium disabled:opacity-50 mt-auto"
+                        >
+                          Buy Credits
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Show upgrade message for non-subscribers */}
+          {currentUser && (!currentUser.subscriptionTier || currentUser.subscriptionTier === "free") && (
+            <section>
+              <div className="flex items-center space-x-3 mb-6">
+                <CreditCard className="h-5 w-5 text-yellow-400" />
+                <h2 className="text-xl font-semibold text-white">
+                  One-Time Credit Packages
+                </h2>
+              </div>
+              
+              <Card className="bg-gray-900/30 border-gray-800/50">
+                <CardContent className="p-8 text-center">
+                  <Package className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    Subscribe to Access Credit Packages
+                  </h3>
+                  <p className="text-gray-400 mb-6">
+                    One-time credit packages are available exclusively for subscribers. 
+                    Choose a subscription plan above to unlock additional credit purchasing options.
+                  </p>
+                  <div className="text-sm text-gray-500">
+                    Get started with any subscription plan to access bonus credit packages
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
         </div>
       </div>

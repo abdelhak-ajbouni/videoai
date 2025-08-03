@@ -37,6 +37,26 @@ export interface SubscriptionValidation {
 // INPUT VALIDATION FUNCTIONS
 // ============================================================================
 
+// Validation constants
+const VALIDATION_CONSTANTS = {
+  PROMPT: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 1000,
+  },
+  DURATION: {
+    MAX_SECONDS: 60,
+  },
+  QUALITY: {
+    ALLOWED_VALUES: ["standard", "high", "ultra"] as const,
+  },
+  ASPECT_RATIO: {
+    ALLOWED_VALUES: ["16:9", "9:16", "1:1"] as const,
+  },
+  RESOLUTION: {
+    ALLOWED_VALUES: ["768p", "720p", "1080p"] as const,
+  },
+} as const;
+
 /**
  * Validates video generation parameters
  */
@@ -49,10 +69,16 @@ export function validateVideoGeneration(
   // Prompt validation
   if (!args.prompt || args.prompt.trim().length === 0) {
     errors.push("Prompt is required");
-  } else if (args.prompt.length < 10) {
-    errors.push("Prompt must be at least 10 characters long");
-  } else if (args.prompt.length > 1000) {
-    errors.push("Prompt must be less than 1000 characters");
+  } else if (
+    args.prompt.trim().length < VALIDATION_CONSTANTS.PROMPT.MIN_LENGTH
+  ) {
+    errors.push(
+      `Prompt must be at least ${VALIDATION_CONSTANTS.PROMPT.MIN_LENGTH} characters long`
+    );
+  } else if (args.prompt.length > VALIDATION_CONSTANTS.PROMPT.MAX_LENGTH) {
+    errors.push(
+      `Prompt must be less than ${VALIDATION_CONSTANTS.PROMPT.MAX_LENGTH} characters`
+    );
   }
 
   // Model validation
@@ -61,8 +87,10 @@ export function validateVideoGeneration(
   }
 
   // Quality validation
-  if (!["standard", "high", "ultra"].includes(args.quality)) {
-    errors.push("Quality must be one of: standard, high, ultra");
+  if (!VALIDATION_CONSTANTS.QUALITY.ALLOWED_VALUES.includes(args.quality)) {
+    errors.push(
+      `Quality must be one of: ${VALIDATION_CONSTANTS.QUALITY.ALLOWED_VALUES.join(", ")}`
+    );
   }
 
   // Duration validation
@@ -72,8 +100,10 @@ export function validateVideoGeneration(
     const durationNum = parseFloat(args.duration);
     if (isNaN(durationNum) || durationNum <= 0) {
       errors.push("Duration must be a positive number");
-    } else if (durationNum > 60) {
-      errors.push("Duration cannot exceed 60 seconds");
+    } else if (durationNum > VALIDATION_CONSTANTS.DURATION.MAX_SECONDS) {
+      errors.push(
+        `Duration cannot exceed ${VALIDATION_CONSTANTS.DURATION.MAX_SECONDS} seconds`
+      );
     }
   }
 
@@ -87,19 +117,23 @@ export function validateVideoGeneration(
 
       if (
         settings.aspectRatio &&
-        !["16:9", "9:16", "1:1"].includes(settings.aspectRatio)
+        !VALIDATION_CONSTANTS.ASPECT_RATIO.ALLOWED_VALUES.includes(
+          settings.aspectRatio
+        )
       ) {
         errors.push(
-          "Invalid aspect ratio. Must be one of: 16:9, 9:16, 1:1"
+          `Invalid aspect ratio. Must be one of: ${VALIDATION_CONSTANTS.ASPECT_RATIO.ALLOWED_VALUES.join(", ")}`
         );
       }
 
       if (
         settings.resolution &&
-        !["768p", "720p", "1080p"].includes(settings.resolution)
+        !VALIDATION_CONSTANTS.RESOLUTION.ALLOWED_VALUES.includes(
+          settings.resolution
+        )
       ) {
         errors.push(
-          "Invalid resolution. Must be one of: 768p, 720p, 1080p"
+          `Invalid resolution. Must be one of: ${VALIDATION_CONSTANTS.RESOLUTION.ALLOWED_VALUES.join(", ")}`
         );
       }
 

@@ -72,6 +72,7 @@ export function VideoPreview({
             muted
             loop
             preload="metadata"
+            aria-label={`Video preview: ${video.prompt || 'Generated video'}`}
             onMouseEnter={(e) => {
               e.stopPropagation();
               const videoEl = e.target as HTMLVideoElement;

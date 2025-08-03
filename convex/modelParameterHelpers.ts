@@ -1,15 +1,44 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 
 /**
  * Helper functions for managing model-specific parameters
  */
 
+// Define specific interfaces for type safety
+export interface ApiParameters {
+  prompt: string;
+  duration?: number;
+  resolution?: string;
+  aspectRatio?: string; // Use camelCase consistently
+  concepts?: string[];
+  loop?: boolean;
+  start_image?: string;
+  end_image?: string;
+  image?: string;
+  seed?: number;
+  duration_seconds?: number;
+  camera_position?: string;
+}
+
+export interface FrontendParameters {
+  prompt: string;
+  duration: number | string;
+  resolution?: string;
+  aspectRatio?: string;
+  cameraConcept?: string;
+  cameraPosition?: string;
+  loop?: boolean;
+  startImageUrl?: string;
+  endImageUrl?: string;
+  quality?: string;
+}
+
 // Interface for parameter mapping results
 export interface ParameterMapping {
-  apiParameters: any; // Parameters to send to Replicate API
-  frontendParameters: any; // Original frontend form values
+  apiParameters: ApiParameters; // Parameters to send to Replicate API
+  frontendParameters: FrontendParameters; // Original frontend form values
   mappingLog: string[]; // Log of parameter transformations
 }
 
@@ -49,12 +78,14 @@ export const getModelParametersForForm = query({
       supportedResolutions: params.resolution?.allowedValues || [],
       supportedAspectRatios: params.aspectRatio?.allowedValues || [],
       supportedCameraConcepts: params.cameraConcept?.allowedValues || [],
+      supportedCameraPositions: params.cameraPosition?.allowedValues || [],
       supportsLoop: !!params.loop,
       defaultValues: {
         duration: params.duration?.defaultValue,
         resolution: params.resolution?.defaultValue,
         aspectRatio: params.aspectRatio?.defaultValue,
         cameraConcept: params.cameraConcept?.defaultValue,
+        cameraPosition: params.cameraPosition?.defaultValue,
         loop: params.loop?.defaultValue,
       },
       constraints: modelParams.constraints || {},
@@ -86,15 +117,72 @@ export const getVideoParameters = query({
 });
 
 /**
+ * Reusable function to apply parameter mappings and log transformations
+ */
+function applyParameterMappings(
+  mappings: Record<string, string>,
+  frontendParams: FrontendParameters,
+  apiParameters: ApiParameters,
+  mappingLog: string[]
+): void {
+  for (const [frontendKey, apiKey] of Object.entries(mappings)) {
+    const frontendValue =
+      frontendParams[frontendKey as keyof FrontendParameters];
+
+    if (frontendValue !== undefined && frontendValue !== null) {
+      // Special handling for different parameter types
+      switch (frontendKey) {
+        case "duration":
+          const durationValue = parseInt(frontendValue as string);
+          (apiParameters as unknown as Record<string, unknown>)[apiKey] =
+            durationValue;
+          mappingLog.push(
+            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${durationValue}`
+          );
+          break;
+
+        case "cameraConcept":
+          if (frontendValue !== "none") {
+            // Concepts are mapped as array for Luma Ray models
+            (apiParameters as unknown as Record<string, unknown>)[apiKey] = [
+              frontendValue,
+            ];
+            mappingLog.push(
+              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
+            );
+          }
+          break;
+
+        case "loop":
+          const loopValue = Boolean(frontendValue);
+          (apiParameters as unknown as Record<string, unknown>)[apiKey] =
+            loopValue;
+          mappingLog.push(
+            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${loopValue}`
+          );
+          break;
+
+        default:
+          (apiParameters as unknown as Record<string, unknown>)[apiKey] =
+            frontendValue;
+          mappingLog.push(
+            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
+          );
+      }
+    }
+  }
+}
+
+/**
  * Maps frontend form values to API parameters using database-driven capabilities
  */
 export async function mapParametersForModel(
   ctx: any,
   modelId: string,
-  frontendParams: any
+  frontendParams: FrontendParameters
 ): Promise<ParameterMapping> {
   const mappingLog: string[] = [];
-  let apiParameters: any = {
+  const apiParameters: ApiParameters = {
     prompt: frontendParams.prompt,
   };
 
@@ -110,7 +198,7 @@ export async function mapParametersForModel(
     mappingLog.push("Model not found, using basic mapping");
     // Fallback to basic duration mapping
     if (frontendParams.duration) {
-      apiParameters.duration = parseInt(frontendParams.duration);
+      apiParameters.duration = parseInt(frontendParams.duration.toString());
       mappingLog.push(
         `Mapped duration: ${frontendParams.duration} -> ${apiParameters.duration}`
       );
@@ -132,90 +220,20 @@ export async function mapParametersForModel(
 
   if (modelParams && modelParams.mappingRules) {
     // Use mapping rules from modelParameters table
-    const mappings = modelParams.mappingRules;
-
-    for (const [frontendKey, apiKey] of Object.entries(mappings)) {
-      const frontendValue = frontendParams[frontendKey];
-
-      if (frontendValue !== undefined && frontendValue !== null) {
-        // Special handling for different parameter types
-        switch (frontendKey) {
-          case "duration":
-            apiParameters[apiKey as string] = parseInt(frontendValue);
-            mappingLog.push(
-              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${apiParameters[apiKey as string]}`
-            );
-            break;
-
-          case "cameraConcept":
-            if (frontendValue !== "none") {
-              // Concepts are mapped as array for Luma Ray models
-              apiParameters[apiKey as string] = [frontendValue];
-              mappingLog.push(
-                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
-              );
-            }
-            break;
-
-          case "loop":
-            apiParameters[apiKey as string] = Boolean(frontendValue);
-            mappingLog.push(
-              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${Boolean(frontendValue)}`
-            );
-            break;
-
-          default:
-            apiParameters[apiKey as string] = frontendValue;
-            mappingLog.push(
-              `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
-            );
-        }
-      }
-    }
-  } else {
+    applyParameterMappings(
+      modelParams.mappingRules,
+      frontendParams,
+      apiParameters,
+      mappingLog
+    );
+  } else if (model.parameterMappings) {
     // Fallback to model.parameterMappings if modelParameters not found
-    if (model.parameterMappings) {
-      const mappings = model.parameterMappings;
-
-      for (const [frontendKey, apiKey] of Object.entries(mappings)) {
-        const frontendValue = frontendParams[frontendKey];
-
-        if (frontendValue !== undefined && frontendValue !== null) {
-          // Special handling for different parameter types
-          switch (frontendKey) {
-            case "duration":
-              apiParameters[apiKey as string] = parseInt(frontendValue);
-              mappingLog.push(
-                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${apiParameters[apiKey as string]}`
-              );
-              break;
-
-            case "cameraConcept":
-              if (frontendValue !== "none") {
-                // Concepts are mapped as array for Luma Ray models
-                apiParameters[apiKey as string] = [frontendValue];
-                mappingLog.push(
-                  `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: [${frontendValue}]`
-                );
-              }
-              break;
-
-            case "loop":
-              apiParameters[apiKey as string] = Boolean(frontendValue);
-              mappingLog.push(
-                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${Boolean(frontendValue)}`
-              );
-              break;
-
-            default:
-              apiParameters[apiKey as string] = frontendValue;
-              mappingLog.push(
-                `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
-              );
-          }
-        }
-      }
-    }
+    applyParameterMappings(
+      model.parameterMappings,
+      frontendParams,
+      apiParameters,
+      mappingLog
+    );
   }
 
   // Add model-specific defaults based on model type

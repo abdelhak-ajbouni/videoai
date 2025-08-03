@@ -46,8 +46,11 @@ export default defineSchema({
     replicateWebhookId: v.optional(v.string()),
 
     // File storage
-    videoUrl: v.optional(v.string()),
-    convexFileId: v.optional(v.id("_storage")),
+    videoUrl: v.optional(v.string()), // Primary video URL (CDN or external)
+    convexFileId: v.optional(v.id("_storage")), // Legacy Convex storage
+    r2FileKey: v.optional(v.string()), // CDN storage key
+    videoCdnUrl: v.optional(v.string()), // Stored CDN signed URL
+    videoCdnUrlExpiresAt: v.optional(v.number()), // When the CDN URL expires
 
     // Video file metadata
     fileSize: v.optional(v.number()), // in bytes
@@ -294,7 +297,9 @@ export default defineSchema({
     .index("by_active", ["isActive"])
     .index("by_default", ["isDefault"])
     .index("by_model_type", ["modelType"])
-    .index("by_api_provider", ["apiProvider"]),
+    .index("by_api_provider", ["apiProvider"])
+    .index("by_active_type", ["isActive", "modelType"])
+    .index("by_active_premium", ["isActive", "isPremium"]),
 
   // Model parameters - transitioning from old to new structure
   modelParameters: defineTable({

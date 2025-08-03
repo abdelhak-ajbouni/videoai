@@ -39,12 +39,12 @@ export const getDefaultModel = query({
 export const getPremiumModels = query({
   args: {},
   handler: async (ctx) => {
-    const models = await ctx.db
+    return await ctx.db
       .query("models")
-      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .withIndex("by_active_premium", (q) =>
+        q.eq("isActive", true).eq("isPremium", true)
+      )
       .collect();
-
-    return models.filter((model) => model.isPremium);
   },
 });
 
@@ -179,11 +179,8 @@ export const getModelsByType = query({
   handler: async (ctx, { modelType }) => {
     return await ctx.db
       .query("models")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("isActive"), true),
-          q.eq(q.field("modelType"), modelType)
-        )
+      .withIndex("by_active_type", (q) =>
+        q.eq("isActive", true).eq("modelType", modelType)
       )
       .collect();
   },

@@ -9,6 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PremiumBadge } from "@/components/ui/premium-badge";
+import {
   Sparkles,
   Clock,
   AlertCircle,
@@ -19,7 +26,8 @@ import {
   Wand2,
   Target,
   Star,
-  Repeat
+  Repeat,
+  Info
 } from "lucide-react";
 import { toast } from "sonner";
 import { Doc } from "../../convex/_generated/dataModel";
@@ -29,12 +37,14 @@ export function VideoGenerationForm() {
   const [modelId, setModelId] = useState<string>("");
   const [duration, setDuration] = useState<number>(5);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPublic, setIsPublic] = useState<boolean>(true);
 
   // Model-specific options
   const [resolution, setResolution] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [loop, setLoop] = useState<boolean>(false);
   const [cameraConcept, setCameraConcept] = useState<string>("none");
+  const [cameraPosition, setCameraPosition] = useState<string>("");
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const createVideo = useMutation(api.videos.createVideo);
@@ -118,8 +128,32 @@ export function VideoGenerationForm() {
       setAspectRatio(modelParameters.defaultValues.aspectRatio || "");
       setLoop(modelParameters.defaultValues.loop || false);
       setCameraConcept(modelParameters.defaultValues.cameraConcept || "none");
+      setCameraPosition(modelParameters.defaultValues.cameraPosition || "");
     }
   }, [currentModel, modelParameters]);
+
+  // Set default visibility based on subscription tier
+  useEffect(() => {
+    if (currentUser) {
+      // Max plan users get private videos by default, others get public
+      const isPublicByDefault = currentUser.subscriptionTier !== "max";
+      setIsPublic(isPublicByDefault);
+    }
+  }, [currentUser]);
+
+  // Filter resolutions based on subscription tier
+  const getAvailableResolutions = (resolutions: string[]) => {
+    if (!currentUser || !resolutions) return [];
+
+    const userTier = currentUser.subscriptionTier || "free";
+
+    // Only Pro and Max users can access 1080p
+    if (userTier === "free" || userTier === "starter") {
+      return resolutions.filter(res => res !== "1080p");
+    }
+
+    return resolutions;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +186,9 @@ export function VideoGenerationForm() {
           aspectRatio: aspectRatio || undefined,
           loop: loop || undefined,
           cameraConcept: cameraConcept === "none" ? undefined : cameraConcept || undefined,
+          cameraPosition: cameraPosition || undefined,
         },
+        isPublic,
       });
 
       // Reset form
@@ -181,247 +217,355 @@ export function VideoGenerationForm() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50">
-        <CardHeader className="pb-6">
-          <CardTitle className="text-lg font-medium text-white/95">
-            Create New Video
-          </CardTitle>
-          <p className="text-sm text-gray-400">
-            Generate AI-powered videos from your description
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-2">
-            {/* Prompt */}
-            <div className="space-y-3">
-              <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
-                Video Description
-              </Label>
-              <Textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your video in detail... Be specific about scenes, actions, and visual style for best results."
-                className="min-h-32 resize-none bg-gray-800/50 border-gray-700/50 text-white placeholder:text-gray-500 focus:border-gray-600 focus:ring-1 focus:ring-gray-600"
-                maxLength={500}
-              />
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">{prompt.length}/500 characters</span>
-                {prompt.length > 450 && (
-                  <span className="text-yellow-400">Almost at limit</span>
-                )}
+    <TooltipProvider>
+      <div className="space-y-4">
+        <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50">
+          <CardHeader className="pb-6">
+            <CardTitle className="text-lg font-medium text-white/95">
+              Create New Video
+            </CardTitle>
+            <p className="text-sm text-gray-400">
+              Generate AI-powered videos from your description
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              {/* Prompt */}
+              <div className="space-y-3">
+                <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
+                  Video Description
+                </Label>
+                <Textarea
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describe your video in detail... Be specific about scenes, actions, and visual style for best results."
+                  className="min-h-32 resize-none bg-gray-800/50 border-gray-700/50 text-white placeholder:text-gray-500 focus:border-gray-600 focus:ring-1 focus:ring-gray-600"
+                  maxLength={500}
+                />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500">{prompt.length}/500 characters</span>
+                  {prompt.length > 450 && (
+                    <span className="text-yellow-400">Almost at limit</span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* AI Model Selection */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-white/90">AI Model</Label>
-              <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
-                <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                  <SelectValue placeholder="Select an AI model" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                  {activeModels?.map((model) => (
-                    <SelectItem key={model.modelId} value={model.modelId} className="focus:bg-gray-800 focus:text-white">
-                      <div className="flex items-start space-x-3 py-1 text-left">
-                        {getModelIcon(model)}
-                        <div className="text-left">
-                          <div className="font-medium text-white text-sm text-left">{model.name}</div>
+              {/* AI Model Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-white/90">AI Model</Label>
+                <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                    <SelectValue placeholder="Select an AI model" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                    {activeModels?.map((model) => (
+                      <SelectItem key={model.modelId} value={model.modelId} className="focus:bg-gray-800 focus:text-white">
+                        <div className="text-left py-1">
+                          <div className={`text-sm text-left ${modelId === model.modelId ? 'font-medium text-blue-400' : 'font-medium text-white'}`}>{model.name}</div>
                           <div className="text-xs text-gray-400 line-clamp-1 text-left">{model.description}</div>
                         </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isLoading && (
-                <p className="text-sm text-gray-500">Loading available models...</p>
-              )}
-            </div>
-
-
-            {/* Model-Specific Options */}
-            {currentModel && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Duration */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium text-white/90">Duration</Label>
-                  <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                    <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                      {getValidDurations(currentModel).map((item) => (
-                        <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span>{item.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Resolution (when supported by model) */}
-                {modelParameters?.supportedResolutions && modelParameters.supportedResolutions.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-white/90">Resolution</Label>
-                    <Select value={resolution} onValueChange={setResolution}>
-                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                        <SelectValue placeholder="Select resolution" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        {modelParameters.supportedResolutions.map((res) => (
-                          <SelectItem key={res} value={res} className="focus:bg-gray-800 focus:text-white">
-                            <div className="flex items-center space-x-2">
-                              <Video className="h-4 w-4 text-gray-400" />
-                              <span>{res}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Aspect Ratio (when supported by model) */}
-                {modelParameters?.supportedAspectRatios && modelParameters.supportedAspectRatios.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
-                    <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                        <SelectValue placeholder="select aspect ratio" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        {modelParameters.supportedAspectRatios.map((ratio) => (
-                          <SelectItem key={ratio} value={ratio} className="focus:bg-gray-800 focus:text-white">
-                            <div className="flex items-center space-x-2">
-                              <Target className="h-4 w-4 text-gray-400" />
-                              <span>{ratio}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Camera Concept (when supported by model) */}
-                {modelParameters?.supportedCameraConcepts && modelParameters.supportedCameraConcepts.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
-                    <Select value={cameraConcept} onValueChange={setCameraConcept}>
-                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
-                        <SelectValue placeholder="Optional camera movement" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
-                        <SelectItem value="none" className="focus:bg-gray-800 focus:text-white">
-                          <div className="flex items-center space-x-2">
-                            <Wand2 className="h-4 w-4 text-gray-400" />
-                            <span>None (Auto)</span>
-                          </div>
-                        </SelectItem>
-                        {modelParameters.supportedCameraConcepts.map((concept) => (
-                          <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
-                            <div className="flex items-center space-x-2">
-                              <Video className="h-4 w-4 text-gray-400" />
-                              <span className="capitalize">{concept.replace('_', ' ')}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Loop Option (when supported by model) */}
-                {modelParameters?.supportsLoop && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-white/90">Loop Video</Label>
-                    <div
-                      className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-12 flex items-center"
-                      onClick={() => setLoop(!loop)}
-                    >
-                      <div className="flex items-center space-x-3 w-full">
-                        <div className="relative">
-                          <input
-                            id="loop"
-                            type="checkbox"
-                            checked={loop}
-                            onChange={(e) => setLoop(e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${loop
-                            ? 'bg-blue-600 border-blue-600'
-                            : 'bg-gray-700 border-gray-600 group-hover:border-gray-500'
-                            }`}>
-                            {loop && (
-                              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 flex-1">
-                          <Repeat className="h-4 w-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
-                          <span className="text-sm text-white/90">
-                            Create looping video
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isLoading && (
+                  <p className="text-sm text-gray-500">Loading available models...</p>
                 )}
               </div>
-            )}
 
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
-              disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || isLoading}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Video...
-                </>
-              ) : isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <div className="flex items-center justify-center w-full relative">
-                  <div className="flex items-center">
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Video
+              {/* Model-Specific Options */}
+              {currentModel && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Duration */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-white/90">Duration</Label>
+                    <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                        {getValidDurations(currentModel).map((item) => (
+                          <SelectItem key={item.value} value={item.value.toString()} className="focus:bg-gray-800 focus:text-white">
+                            <div className="flex items-center space-x-2">
+                              <Clock className={`h-4 w-4 ${duration === item.value ? 'text-blue-400' : 'text-gray-400'}`} />
+                              <span className={duration === item.value ? 'font-medium text-blue-400' : ''}>{item.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  {creditsCost > 0 && (
-                    <div className="absolute right-0 flex items-center space-x-1 text-sm opacity-80">
-                      <span>{creditsCost}</span>
-                      <span>credits</span>
+                  {/* Resolution (when supported by model) */}
+                  {modelParameters?.supportedResolutions && modelParameters.supportedResolutions.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-white/90">
+                        Resolution
+                      </Label>
+                      <Select value={resolution} onValueChange={setResolution}>
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                          <SelectValue placeholder="Select resolution" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                          {getAvailableResolutions(modelParameters.supportedResolutions).map((res) => (
+                            <SelectItem key={res} value={res} className="focus:bg-gray-800 focus:text-white">
+                              <div className="flex items-center space-x-2">
+                                <Video className={`h-4 w-4 ${resolution === res ? 'text-blue-400' : 'text-gray-400'}`} />
+                                <span className={resolution === res ? 'font-medium text-blue-400' : ''}>{res}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                          {/* Show 1080p as disabled for lower tiers */}
+                          {(currentUser?.subscriptionTier === "free" || currentUser?.subscriptionTier === "starter") &&
+                            modelParameters.supportedResolutions.includes("1080p") && (
+                              <SelectItem value="1080p" disabled className="focus:bg-gray-800 focus:text-white opacity-50">
+                                <div className="flex items-center space-x-2">
+                                  <Video className="h-4 w-4 text-gray-400" />
+                                  <span>1080p</span>
+                                  <PremiumBadge 
+                                    size="sm" 
+                                    className="ml-1"
+                                    tooltipTitle="Pro+ Required"
+                                    tooltipDescription="1080p resolution requires Pro or Max plan subscription."
+                                  />
+                                </div>
+                              </SelectItem>
+                            )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Aspect Ratio (when supported by model) */}
+                  {modelParameters?.supportedAspectRatios && modelParameters.supportedAspectRatios.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
+                      <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                          <SelectValue placeholder="select aspect ratio" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                          {modelParameters.supportedAspectRatios.map((ratio) => (
+                            <SelectItem key={ratio} value={ratio} className="focus:bg-gray-800 focus:text-white">
+                              <div className="flex items-center space-x-2">
+                                <Target className={`h-4 w-4 ${aspectRatio === ratio ? 'text-blue-400' : 'text-gray-400'}`} />
+                                <span className={aspectRatio === ratio ? 'font-medium text-blue-400' : ''}>{ratio}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Camera Concept (when supported by model) */}
+                  {modelParameters?.supportedCameraConcepts && modelParameters.supportedCameraConcepts.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-white/90">Camera Movement</Label>
+                      <Select value={cameraConcept} onValueChange={setCameraConcept}>
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                          <SelectValue placeholder="Optional camera movement" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                          <SelectItem value="none" className="focus:bg-gray-800 focus:text-white">
+                            <div className="flex items-center space-x-2">
+                              <Wand2 className={`h-4 w-4 ${cameraConcept === "none" ? 'text-blue-400' : 'text-gray-400'}`} />
+                              <span className={cameraConcept === "none" ? 'font-medium text-blue-400' : ''}>None (Auto)</span>
+                            </div>
+                          </SelectItem>
+                          {modelParameters.supportedCameraConcepts.map((concept) => (
+                            <SelectItem key={concept} value={concept} className="focus:bg-gray-800 focus:text-white">
+                              <div className="flex items-center space-x-2">
+                                <Video className={`h-4 w-4 ${cameraConcept === concept ? 'text-blue-400' : 'text-gray-400'}`} />
+                                <span className={`capitalize ${cameraConcept === concept ? 'font-medium text-blue-400' : ''}`}>{concept.replace('_', ' ')}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Camera Position (when supported by model) */}
+                  {modelParameters?.supportedCameraPositions && modelParameters.supportedCameraPositions.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-white/90">Camera Position</Label>
+                      <Select value={cameraPosition} onValueChange={setCameraPosition}>
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
+                          <SelectValue placeholder="Select camera position" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
+                          {modelParameters.supportedCameraPositions.map((position) => (
+                            <SelectItem key={position} value={position} className="focus:bg-gray-800 focus:text-white">
+                              <div className="flex items-center space-x-2">
+                                <Video className={`h-4 w-4 ${cameraPosition === position ? 'text-blue-400' : 'text-gray-400'}`} />
+                                <span className={`capitalize ${cameraPosition === position ? 'font-medium text-blue-400' : ''}`}>
+                                  {position}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Loop Option (when supported by model) */}
+                  {modelParameters?.supportsLoop && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-white/90">Loop Video</Label>
+                      <div
+                        className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-12 flex items-center"
+                        onClick={() => setLoop(!loop)}
+                      >
+                        <div className="flex items-center space-x-3 w-full">
+                          <div className="relative">
+                            <input
+                              id="loop"
+                              type="checkbox"
+                              checked={loop}
+                              onChange={(e) => setLoop(e.target.checked)}
+                              className="sr-only"
+                            />
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${loop
+                              ? 'bg-blue-600 border-blue-600'
+                              : 'bg-gray-700 border-gray-600 group-hover:border-gray-500'
+                              }`}>
+                              {loop && (
+                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-1">
+                            <Repeat className="h-4 w-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                            <span className="text-sm text-white/90">
+                              Create looping video
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
-            </Button>
 
-            {/* Error Messages */}
-            {!hasEnoughCredits && (
-              <div className="flex items-start space-x-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-400">Insufficient credits</p>
-                  <p className="text-xs text-red-300/80 mt-1">You need {creditsCost} credits but only have {currentUser?.credits || 0}. Upgrade your plan to get more credits.</p>
+              {/* Public Visibility Option */}
+              <div className="space-y-3">
+                <div
+                  className={`group relative py-3 rounded-lg border transition-all duration-200 h-12 flex items-center ${currentUser?.subscriptionTier === "max"
+                    ? "bg-gray-800/30 border-gray-600 hover:bg-gray-800/50 cursor-pointer"
+                    : "bg-gray-800/20 border-gray-700/50 opacity-75"
+                    }`}
+                  onClick={() => {
+                    if (currentUser?.subscriptionTier === "max") {
+                      setIsPublic(!isPublic);
+                    }
+                  }}
+                >
+                  <div className="flex items-center space-x-3 w-full">
+                    <div className="relative">
+                      <input
+                        id="isPublic"
+                        type="checkbox"
+                        checked={isPublic}
+                        onChange={(e) => {
+                          if (currentUser?.subscriptionTier === "max") {
+                            setIsPublic(e.target.checked);
+                          }
+                        }}
+                        disabled={currentUser?.subscriptionTier !== "max"}
+                        className="sr-only"
+                      />
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 ${isPublic
+                        ? 'bg-blue-600 border-blue-600'
+                        : 'bg-gray-700 border-gray-600 group-hover:border-gray-500'
+                        }`}>
+                        {isPublic && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3 flex-1">
+                      <span className="text-sm text-white/90">
+                        Public video
+                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="p-1 rounded-full bg-gray-700/50 hover:bg-gray-600/50 transition-colors cursor-help">
+                            <Info className="h-4 w-4 text-gray-300 hover:text-white" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-64 text-center">
+                          <p className="font-medium mb-1 text-white">Public Videos</p>
+                          <p className="text-xs text-gray-300">
+                            Public videos appear in the explore page for all users to discover and view.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                      {currentUser?.subscriptionTier !== "max" && (
+                        <PremiumBadge 
+                          size="sm"
+                          tooltipTitle="Max Plan Required"
+                          tooltipDescription="Upgrade to Max plan to create private videos that won't appear in the explore page."
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
+                disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating || isLoading}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Video...
+                  </>
+                ) : isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center w-full relative">
+                    <div className="flex items-center">
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Video
+                    </div>
+                    {creditsCost > 0 && (
+                      <div className="absolute right-0 flex items-center space-x-1 text-sm opacity-80">
+                        <span>{creditsCost}</span>
+                        <span>credits</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Button>
+
+              {/* Error Messages */}
+              {!hasEnoughCredits && (
+                <div className="flex items-start space-x-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-400">Insufficient credits</p>
+                    <p className="text-xs text-red-300/80 mt-1">You need {creditsCost} credits but only have {currentUser?.credits || 0}. Upgrade your plan to get more credits.</p>
+                  </div>
+                </div>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 } 

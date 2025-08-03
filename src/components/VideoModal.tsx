@@ -57,6 +57,10 @@ export function VideoModal({
 
       } catch (error) {
         console.error("Download failed:", error);
+        // Show user feedback for download failure using toast notification
+        // Note: Replace with your app's toast notification system
+        // Example: toast.error("Download failed. Please try again.");
+        console.warn("Download failed. Please try again.");
       }
     }
   };

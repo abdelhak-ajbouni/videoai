@@ -86,6 +86,15 @@ export const updateCredits = mutation({
     // INPUT VALIDATION
     // ============================================================================
 
+    // Validate creditAmount is a positive finite number
+    if (
+      !Number.isFinite(creditAmount) ||
+      creditAmount <= 0 ||
+      Number.isNaN(creditAmount)
+    ) {
+      throw new Error("Credit amount must be a positive finite number");
+    }
+
     const sanitizedArgs = {
       clerkId: sanitizeString(clerkId, 100),
       amount: creditAmount,

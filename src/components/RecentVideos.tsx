@@ -92,7 +92,7 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
                     {/* Video info overlay */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                       <h4 className="text-white text-sm font-medium line-clamp-2">
-                        {video.prompt}
+                        {video.prompt || "No prompt available"}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-white/80 text-xs">
@@ -109,7 +109,7 @@ export function RecentVideos({ limit = 12 }: RecentVideosProps) {
                   {/* Video details below thumbnail */}
                   <div className="mt-2 space-y-1">
                     <p className="text-xs text-text-secondary line-clamp-2">
-                      {video.prompt}
+                      {video.prompt || "No prompt available"}
                     </p>
                     <div className="flex items-center justify-between text-xs text-text-tertiary">
                       <span>{video.creditsCost} credits</span>

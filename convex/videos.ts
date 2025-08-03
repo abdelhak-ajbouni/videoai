@@ -16,6 +16,10 @@ import {
   sanitizeString,
   validatePagination,
 } from "./lib/validation";
+import { R2 } from "@convex-dev/r2";
+import { components } from "./_generated/api";
+
+const r2 = new R2(components.r2);
 
 // Query to get user's videos with file URLs
 export const getUserVideos = query({
@@ -32,21 +36,16 @@ export const getUserVideos = query({
       .order("desc")
       .collect();
 
-    // Add file URLs for completed videos with stored files
-    const videosWithUrls = await Promise.all(
-      videos.map(async (video) => {
-        if (video.convexFileId && video.status === "completed") {
-          const fileUrl = await ctx.storage.getUrl(video.convexFileId);
-          return {
-            ...video,
-            videoUrl: fileUrl || video.videoUrl, // Use Convex URL if available
-          };
-        }
-        return video;
-      })
-    );
+    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
+    return videos.map((video) => {
+      // Use stored R2 URL if available, fallback to original URL
+      const videoUrl = video.videoCdnUrl || video.videoUrl;
 
-    return videosWithUrls;
+      return {
+        ...video,
+        videoUrl,
+      };
+    });
   },
 });
 
@@ -68,16 +67,13 @@ export const getVideo = query({
       throw new Error("Unauthorized");
     }
 
-    // Add file URL if stored in Convex
-    if (video.convexFileId && video.status === "completed") {
-      const fileUrl = await ctx.storage.getUrl(video.convexFileId);
-      return {
-        ...video,
-        videoUrl: fileUrl || video.videoUrl, // Use Convex URL if available
-      };
-    }
+    // Use stored R2 URL if available, otherwise use existing videoUrl
+    const videoUrl = video.videoCdnUrl || video.videoUrl;
 
-    return video;
+    return {
+      ...video,
+      videoUrl,
+    };
   },
 });
 
@@ -98,13 +94,24 @@ export const getVideosByStatus = query({
       throw new Error("Not authenticated");
     }
 
-    return await ctx.db
+    const videos = await ctx.db
       .query("videos")
       .withIndex("by_clerk_id_and_status", (q) =>
         q.eq("clerkId", identity.subject).eq("status", args.status)
       )
       .order("desc")
       .collect();
+
+    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
+    return videos.map((video) => {
+      // Use stored R2 URL if available, fallback to original URL
+      const videoUrl = video.videoCdnUrl || video.videoUrl;
+
+      return {
+        ...video,
+        videoUrl,
+      };
+    });
   },
 });
 
@@ -126,12 +133,24 @@ export const getLatestVideosFromOthers = query({
       .order("desc")
       .collect();
 
-    // Filter out videos from current user and limit results
+    // Filter out videos from current user and private videos, then limit results
     const otherUsersVideos = allVideos
-      .filter((video) => video.clerkId !== identity.subject)
+      .filter(
+        (video) =>
+          video.clerkId !== identity.subject && video.isPublic !== false // Only show public videos (excludes private videos)
+      )
       .slice(0, args.limit || 12);
 
-    return otherUsersVideos;
+    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
+    return otherUsersVideos.map((video) => {
+      // Use stored R2 URL if available, fallback to original URL
+      const videoUrl = video.videoCdnUrl || video.videoUrl;
+
+      return {
+        ...video,
+        videoUrl,
+      };
+    });
   },
 });
 
@@ -148,6 +167,7 @@ export const createVideo = mutation({
     duration: v.string(), // Keep as string for compatibility
     // Generic parameters object - flexible for any model
     generationSettings: v.optional(v.any()), // Contains all model-specific options
+    isPublic: v.optional(v.boolean()), // Video visibility setting
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -278,6 +298,15 @@ export const createVideo = mutation({
 
     // Check quality access based on subscription
     const hasQualityAccess = checkQualityAccess(subscriptionTier, args.quality);
+
+    // Check resolution access based on subscription tier
+    if (args.generationSettings?.resolution === "1080p") {
+      if (subscriptionTier !== "pro" && subscriptionTier !== "max") {
+        throw new Error(
+          "1080p resolution is only available for Pro and Max plan subscribers"
+        );
+      }
+    }
     if (!hasQualityAccess) {
       throw new Error(
         "Your subscription plan doesn't support this quality tier"
@@ -299,6 +328,24 @@ export const createVideo = mutation({
 
     const now = Date.now();
 
+    // Determine video privacy based on subscription tier and user preference
+    let finalIsPublic = true; // Default to public
+
+    if (args.isPublic !== undefined) {
+      // User has specified a preference
+      if (!args.isPublic && subscriptionTier !== "max") {
+        // User wants private video but doesn't have Max plan
+        throw new Error(
+          "Private videos are only available for Max plan subscribers"
+        );
+      }
+      finalIsPublic = args.isPublic;
+    } else {
+      // No preference specified, use tier-based default
+      // Max plan users get private videos by default for premium privacy
+      finalIsPublic = subscriptionTier !== "max";
+    }
+
     // Create video record
     const videoId = await ctx.db.insert("videos", {
       clerkId: identity.subject,
@@ -314,7 +361,7 @@ export const createVideo = mutation({
       viewCount: 0,
       downloadCount: 0,
       shareCount: 0,
-      isPublic: false,
+      isPublic: finalIsPublic, // Based on user preference and subscription tier
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
@@ -377,6 +424,9 @@ export const updateVideoStatus = mutation({
     errorMessage: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
     convexFileId: v.optional(v.id("_storage")),
+    r2FileKey: v.optional(v.string()),
+    videoCdnUrl: v.optional(v.string()),
+    videoCdnUrlExpiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const video = await ctx.db.get(args.videoId);
@@ -403,6 +453,18 @@ export const updateVideoStatus = mutation({
 
     if (args.convexFileId) {
       updateData.convexFileId = args.convexFileId;
+    }
+
+    if (args.r2FileKey) {
+      updateData.r2FileKey = args.r2FileKey;
+    }
+
+    if (args.videoCdnUrl) {
+      updateData.videoCdnUrl = args.videoCdnUrl;
+    }
+
+    if (args.videoCdnUrlExpiresAt) {
+      updateData.videoCdnUrlExpiresAt = args.videoCdnUrlExpiresAt;
     }
 
     if (args.status === "processing" && !video.processingStartedAt) {
@@ -433,6 +495,16 @@ export const deleteVideo = mutation({
 
     if (video.clerkId !== identity.subject) {
       throw new Error("Unauthorized");
+    }
+
+    // Delete R2 file if it exists
+    if (video.r2FileKey) {
+      try {
+        await r2.deleteByKey(ctx, video.r2FileKey);
+      } catch (error) {
+        console.error("Failed to delete R2 file:", error);
+        // Continue with video deletion even if R2 deletion fails
+      }
     }
 
     await ctx.db.delete(args.videoId);
@@ -672,7 +744,15 @@ export const getVideoFileUrl = query({
       throw new Error("Unauthorized");
     }
 
-    // If we have a Convex file ID, get the URL from storage
+    // Prefer R2 storage over Convex storage
+    if (video.r2FileKey) {
+      const fileUrl = await r2.getUrl(ctx, video.r2FileKey, {
+        expiresIn: 3600, // 1 hour expiration
+      });
+      return fileUrl;
+    }
+
+    // Fallback to Convex storage
     if (video.convexFileId) {
       const fileUrl = await ctx.storage.getUrl(video.convexFileId);
       return fileUrl;
@@ -710,13 +790,7 @@ export const pollReplicateStatus = action({
               ? prediction.output[0]
               : prediction.output;
 
-            await ctx.runMutation(api.videos.updateVideoStatus, {
-              videoId: args.videoId,
-              status: "completed",
-              videoUrl: videoUrl,
-            });
-
-            // Schedule video download and storage
+            // Schedule video download and storage (this will mark as completed with CDN URL)
             await ctx.runAction(api.videos.downloadAndStoreVideo, {
               videoId: args.videoId,
               videoUrl: videoUrl,
@@ -796,8 +870,27 @@ export const downloadAndStoreVideo = action({
       const blob = await response.blob();
       const fileSize = blob.size;
 
-      // Store the video file in Convex file storage
-      const fileId = await ctx.storage.store(blob);
+      // Get video data to create proper file key
+      const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
+        videoId: args.videoId,
+      });
+
+      // Generate unique key for R2 storage
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 15);
+      const fileKey = `videos/${video?.clerkId}/${timestamp}-${random}-${args.videoId}.mp4`;
+
+      // Store the video file in R2 storage
+      const key = await r2.store(ctx, blob, {
+        key: fileKey,
+        metadata: {
+          videoId: args.videoId,
+          clerkId: video?.clerkId || "",
+          originalUrl: args.videoUrl,
+          uploadedAt: timestamp.toString(),
+          fileSize: fileSize.toString(),
+        },
+      });
 
       const downloadTime = Date.now() - startTime;
 
@@ -805,24 +898,26 @@ export const downloadAndStoreVideo = action({
       const format = "mp4"; // Most common format from Replicate
       const codec = "h264"; // Most common codec
 
-      // Get video data via query (actions can't access db directly)
-      const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
-        videoId: args.videoId,
-      });
       const dimensions =
         video?.quality === "high"
           ? { width: 1920, height: 1080 }
           : { width: 1280, height: 720 };
 
-      // Get the Convex file URL for serving
-      const convexVideoUrl = await ctx.storage.getUrl(fileId);
+      // Generate R2 signed URL with longer expiration (24 hours)
+      const expirationTime = 24 * 60 * 60; // 24 hours in seconds
+      const r2VideoUrl = await r2.getUrl(ctx, key, {
+        expiresIn: expirationTime,
+      });
+      const expiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
 
       // Update video with metadata and mark as completed
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
-        convexFileId: fileId,
-        videoUrl: convexVideoUrl || args.videoUrl, // Use Convex URL if available, fallback to original
+        r2FileKey: key,
+        videoCdnUrl: r2VideoUrl,
+        videoCdnUrlExpiresAt: expiresAt,
+        videoUrl: r2VideoUrl || args.videoUrl, // Use CDN URL as primary URL
       });
 
       // Update video metadata
@@ -841,7 +936,7 @@ export const downloadAndStoreVideo = action({
         },
       });
 
-      return fileId;
+      return key;
     } catch (error) {
       console.error("Error downloading and storing video:", error);
 
@@ -1083,8 +1178,19 @@ export const searchVideos = query({
     const limit = args.limit || 50;
     const paginatedVideos = filteredVideos.slice(offset, offset + limit);
 
+    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
+    const videosWithUrls = paginatedVideos.map((video) => {
+      // Use stored R2 URL if available, fallback to original URL
+      const videoUrl = video.videoCdnUrl || video.videoUrl;
+
+      return {
+        ...video,
+        videoUrl,
+      };
+    });
+
     return {
-      videos: paginatedVideos,
+      videos: videosWithUrls,
       total: filteredVideos.length,
       hasMore: offset + limit < filteredVideos.length,
     };
@@ -1276,6 +1382,40 @@ export const toggleVideoFavorite = mutation({
     });
 
     return newFavoriteStatus;
+  },
+});
+
+// Toggle video privacy status
+export const toggleVideoPrivacy = mutation({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const video = await ctx.db.get(args.videoId);
+    if (!video) {
+      throw new Error("Video not found");
+    }
+
+    if (video.clerkId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    const newPrivacyStatus = !(video.isPublic || false);
+
+    await ctx.db.patch(args.videoId, {
+      isPublic: newPrivacyStatus,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      isPublic: newPrivacyStatus,
+      message: newPrivacyStatus
+        ? "Video is now public"
+        : "Video is now private",
+    };
   },
 });
 
@@ -1475,11 +1615,13 @@ export const mockGenerationComplete = action({
       // Generate realistic mock video URLs based on quality
       const mockVideos = generateMockVideoUrls(video.quality, video.duration);
 
-      // Mark video as completed
+      // Mark video as completed with CDN URL (simulated)
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
         videoUrl: mockVideos.videoUrl,
+        videoCdnUrl: mockVideos.videoUrl, // For dev mode, use mock URL as CDN URL
+        videoCdnUrlExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       });
 
       // Update video metadata with realistic values
@@ -1537,6 +1679,107 @@ function calculateMockGenerationTime(
 
   return Math.floor(baseTime * durationNum * randomFactor);
 }
+
+// Mutation to refresh expired CDN URLs
+export const refreshExpiredCdnUrls = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    // Find videos with expired CDN URLs (or expiring within 1 hour)
+    const videosWithExpiredUrls = await ctx.db
+      .query("videos")
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("r2FileKey"), undefined),
+          q.or(
+            q.eq(q.field("videoCdnUrlExpiresAt"), undefined),
+            q.lt(q.field("videoCdnUrlExpiresAt"), now + 60 * 60 * 1000) // Expires within 1 hour
+          )
+        )
+      )
+      .collect();
+
+    let refreshedCount = 0;
+
+    for (const video of videosWithExpiredUrls) {
+      if (video.r2FileKey) {
+        try {
+          // Generate new CDN signed URL with 24 hour expiration
+          const expirationTime = 24 * 60 * 60; // 24 hours in seconds
+          const newCdnUrl = await r2.getUrl(ctx, video.r2FileKey, {
+            expiresIn: expirationTime,
+          });
+          const newExpiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
+
+          // Update the video with new URL and expiration
+          await ctx.db.patch(video._id, {
+            videoCdnUrl: newCdnUrl,
+            videoCdnUrlExpiresAt: newExpiresAt,
+            videoUrl: newCdnUrl, // Update primary video URL
+            updatedAt: Date.now(),
+          });
+
+          refreshedCount++;
+        } catch (error) {
+          console.error(
+            `Failed to refresh CDN URL for video ${video._id}:`,
+            error
+          );
+        }
+      }
+    }
+
+    return {
+      message: `Refreshed ${refreshedCount} expired CDN URLs`,
+      refreshedCount,
+      totalChecked: videosWithExpiredUrls.length,
+    };
+  },
+});
+
+// Action to refresh a specific video's CDN URL
+export const refreshVideoCdnUrl = action({
+  args: { videoId: v.id("videos") },
+  handler: async (ctx, args) => {
+    const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
+      videoId: args.videoId,
+    });
+
+    if (!video || !video.r2FileKey) {
+      throw new Error("Video not found or doesn't have CDN storage");
+    }
+
+    try {
+      // Generate new CDN signed URL with 24 hour expiration
+      const expirationTime = 24 * 60 * 60; // 24 hours in seconds
+      const newCdnUrl = await r2.getUrl(ctx, video.r2FileKey, {
+        expiresIn: expirationTime,
+      });
+      const newExpiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
+
+      // Update the video with new URL and expiration
+      await ctx.runMutation(api.videos.updateVideoStatus, {
+        videoId: args.videoId,
+        videoCdnUrl: newCdnUrl,
+        videoCdnUrlExpiresAt: newExpiresAt,
+        videoUrl: newCdnUrl,
+      });
+
+      return {
+        success: true,
+        newUrl: newCdnUrl,
+        expiresAt: newExpiresAt,
+      };
+    } catch (error) {
+      console.error(
+        `Failed to refresh CDN URL for video ${args.videoId}:`,
+        error
+      );
+      throw new Error("Failed to refresh CDN URL");
+    }
+  },
+});
 
 // Helper function to generate realistic mock video URLs and metadata
 function generateMockVideoUrls(quality: string, duration: string) {

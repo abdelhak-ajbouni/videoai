@@ -82,6 +82,22 @@ export const createCreditCheckoutSession = action({
     ),
   },
   handler: async (ctx: ActionCtx, { clerkId, packageId }): Promise<string> => {
+    // Validate that user has an active subscription
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId,
+    });
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
+
+    // Check if user has an active subscription
+    const currentUser = await ctx.runQuery(api.users.getCurrentUserByClerkId, {
+      clerkId: clerkId,
+    });
+    if (!currentUser || !currentUser.subscriptionTier || currentUser.subscriptionTier === "free") {
+      throw new Error("Credit packages are only available for subscribers. Please subscribe to a plan first.");
+    }
+
     const packageConfig = await getCreditPackage(ctx, packageId);
     const customerId: string = await ctx.runAction(
       api.stripe.getOrCreateStripeCustomer,

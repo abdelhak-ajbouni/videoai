@@ -260,7 +260,7 @@ function GeneratePageContent() {
                             preload="metadata"
                             onLoadedMetadata={(e) => {
                               const videoEl = e.target as HTMLVideoElement;
-                              videoEl.currentTime = 0.01; // Seek to 0.5 seconds for better thumbnail
+                              videoEl.currentTime = 0.01; // Seek to 0.01 seconds for better thumbnail
                             }}
                           >
                             <source src={currentVideo.videoUrl} type="video/mp4" />

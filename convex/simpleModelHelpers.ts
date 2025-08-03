@@ -3,7 +3,7 @@ import { query } from "./_generated/server";
 
 /**
  * Simplified model parameter helpers
- * 
+ *
  * This replaces the complex modelParameterHelpers.ts with a much simpler approach.
  * Instead of complex nested structures, we return simple, flat objects that the frontend can easily use.
  */
@@ -13,17 +13,17 @@ export interface ModelCapabilities {
   // Basic info
   modelId: string;
   tierName: string; // Budget, Quality, Pro
-  
+
   // Duration options
   supportedDurations: number[];
-  
+
   // Simple parameter options (only show what's actually configurable)
   hasResolutionOptions: boolean;
   resolutionOptions?: string[];
-  
+
   hasAspectRatioOptions: boolean;
   aspectRatioOptions?: string[];
-  
+
   // Defaults
   defaultDuration: number;
   defaultResolution?: string;
@@ -53,7 +53,8 @@ export const getModelCapabilities = query({
     if (!params) return null;
 
     // Extract durations
-    const supportedDurations = params.parameterDefinitions.duration?.allowedValues || [5];
+    const supportedDurations = params.parameterDefinitions.duration
+      ?.allowedValues || [5];
     const defaultDuration = supportedDurations[0];
 
     // Check for resolution options
@@ -62,7 +63,7 @@ export const getModelCapabilities = query({
     const resolutionOptions = resolutionDef?.allowedValues;
     const defaultResolution = resolutionDef?.defaultValue;
 
-    // Check for aspect ratio options  
+    // Check for aspect ratio options
     const aspectRatioDef = params.parameterDefinitions.aspectRatio;
     const hasAspectRatioOptions = !!aspectRatioDef;
     const aspectRatioOptions = aspectRatioDef?.allowedValues;
@@ -106,7 +107,8 @@ export const getAllModelCapabilities = query({
       if (!params) continue;
 
       // Extract durations
-      const supportedDurations = params.parameterDefinitions.duration?.allowedValues || [5];
+      const supportedDurations = params.parameterDefinitions.duration
+        ?.allowedValues || [5];
       const defaultDuration = supportedDurations[0];
 
       // Check for resolution options
@@ -115,7 +117,7 @@ export const getAllModelCapabilities = query({
       const resolutionOptions = resolutionDef?.allowedValues;
       const defaultResolution = resolutionDef?.defaultValue;
 
-      // Check for aspect ratio options  
+      // Check for aspect ratio options
       const aspectRatioDef = params.parameterDefinitions.aspectRatio;
       const hasAspectRatioOptions = !!aspectRatioDef;
       const aspectRatioOptions = aspectRatioDef?.allowedValues;
@@ -138,8 +140,10 @@ export const getAllModelCapabilities = query({
     return capabilities.sort((a, b) => {
       // Sort by tier: Budget, Quality, Pro
       const tierOrder = { "Budget Tier": 1, "Quality Tier": 2, "Pro Tier": 3 };
-      return (tierOrder[a.tierName as keyof typeof tierOrder] || 99) - 
-             (tierOrder[b.tierName as keyof typeof tierOrder] || 99);
+      return (
+        (tierOrder[a.tierName as keyof typeof tierOrder] || 99) -
+        (tierOrder[b.tierName as keyof typeof tierOrder] || 99)
+      );
     });
   },
 });
@@ -154,27 +158,28 @@ export function mapToApiParameters(
     duration: number;
     resolution?: string;
     aspectRatio?: string;
-  }
+  },
+  modelTier: "budget" | "quality" | "pro"
 ): any {
   // Base parameters that all models need
   const apiParams: any = {
     prompt: frontendParams.prompt,
   };
 
-  // Model-specific mapping based on simple rules
-  if (modelId.includes("hailuo")) {
+  // Model-specific mapping based on explicit model tier
+  if (modelTier === "budget") {
     // Budget tier (Hailuo)
     apiParams.duration = frontendParams.duration;
     if (frontendParams.resolution) {
       apiParams.resolution = frontendParams.resolution;
     }
-  } else if (modelId.includes("kling")) {
+  } else if (modelTier === "quality") {
     // Quality tier (Kling)
     apiParams.duration = frontendParams.duration;
     if (frontendParams.aspectRatio) {
       apiParams.aspect_ratio = frontendParams.aspectRatio;
     }
-  } else if (modelId.includes("veo")) {
+  } else if (modelTier === "pro") {
     // Pro tier (Google Veo) - fixed 8s duration
     if (frontendParams.resolution) {
       apiParams.resolution = frontendParams.resolution;
@@ -190,28 +195,28 @@ export function mapToApiParameters(
  * Simple validation
  */
 export function validateParameters(
-  modelId: string,
+  modelTier: "budget" | "quality" | "pro",
   params: { duration: number; resolution?: string; aspectRatio?: string }
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Duration validation based on simple rules
-  if (modelId.includes("hailuo")) {
+  // Duration validation based on explicit model tier
+  if (modelTier === "budget") {
     if (![6, 10].includes(params.duration)) {
       errors.push("Budget tier supports 6s or 10s videos");
     }
-  } else if (modelId.includes("kling")) {
+  } else if (modelTier === "quality") {
     if (![5, 10].includes(params.duration)) {
       errors.push("Quality tier supports 5s or 10s videos");
     }
-  } else if (modelId.includes("veo")) {
+  } else if (modelTier === "pro") {
     if (params.duration !== 8) {
       errors.push("Pro tier only supports 8s videos");
     }
   }
 
   // Aspect ratio validation
-  if (params.aspectRatio && modelId.includes("kling")) {
+  if (params.aspectRatio && modelTier === "quality") {
     if (!["16:9", "9:16", "1:1"].includes(params.aspectRatio)) {
       errors.push("Invalid aspect ratio for Quality tier");
     }

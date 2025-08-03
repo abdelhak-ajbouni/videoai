@@ -5,6 +5,7 @@ import { Video, Calendar, Eye, Filter, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
 import { VideoModal } from "@/components/VideoModal";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export function VideoGallery({
   onDelete,
   variant = "explore"
 }: VideoGalleryProps) {
+  const router = useRouter();
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
@@ -101,7 +103,7 @@ export function VideoGallery({
   const filteredVideos = videos.filter(video => {
     // Always exclude failed videos
     if (video.status === "failed") return false;
-    
+
     if (filterBy === "all") return true;
     if (filterBy === "completed" || filterBy === "processing") {
       return video.status === filterBy;
@@ -120,7 +122,9 @@ export function VideoGallery({
       case "oldest":
         return a._creationTime - b._creationTime;
       case "duration":
-        return parseInt(b.duration) - parseInt(a.duration);
+        const durationA = parseInt(a.duration) || 0;
+        const durationB = parseInt(b.duration) || 0;
+        return durationB - durationA;
       case "cost":
         return b.creditsCost - a.creditsCost;
       default:
@@ -154,7 +158,7 @@ export function VideoGallery({
         </p>
         {showGenerateButton && (
           <Button
-            onClick={() => window.location.href = '/generate'}
+            onClick={() => router.push('/generate')}
             className="bg-white hover:bg-gray-100 text-gray-900"
           >
             Generate Video
