@@ -151,7 +151,7 @@ export default function PricingPage() {
                 subscriptionPlans?.map((plan) => (
                   <Card key={plan._id} className={`relative overflow-hidden transition-all duration-200 flex flex-col ${isCurrentPlan(plan.planId)
                     ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20'
-                    : 'bg-gray-900/30 border-gray-800/50 hover:bg-gray-900/50'
+                    : 'bg-gray-900 border-gray-800/50 hover:bg-gray-900'
                     }`}>
                     <CardContent className="p-6 flex flex-col flex-1">
                       {plan.isPopular && (
@@ -235,7 +235,7 @@ export default function PricingPage() {
                   </div>
                 ) : (
                   creditPackages?.map((pkg) => (
-                    <Card key={pkg._id} className="bg-gray-900/30 border-gray-800/50 hover:bg-gray-900/50 transition-all duration-200 flex flex-col">
+                    <Card key={pkg._id} className="bg-gray-900 border-gray-800/50 hover:bg-gray-900 transition-all duration-200 flex flex-col">
                       <CardContent className="p-6 flex flex-col flex-1">
                         <div className="flex items-center space-x-2 mb-4">
                           <Package className="h-5 w-5 text-yellow-400" />

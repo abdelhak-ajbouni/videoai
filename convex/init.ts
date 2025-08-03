@@ -536,6 +536,66 @@ async function runMigrations(ctx: MutationCtx) {
     criticalErrors.push(errorMessage);
   }
 
+  // Migration 7: Clean up deprecated CDN URL fields
+  let cdnFieldsRemoved = 0;
+  try {
+    console.log("Starting CDN URL fields cleanup...");
+    const videos = await ctx.db.query("videos").collect();
+
+    for (const video of videos) {
+      try {
+        // Check if video has the deprecated CDN fields
+        const videoData = video as VideoData & {
+          videoCdnUrl?: string;
+          videoCdnUrlExpiresAt?: number;
+        };
+        if (videoData.videoCdnUrl || videoData.videoCdnUrlExpiresAt) {
+          // Remove the deprecated fields by patching without them
+          await ctx.db.patch(video._id, {
+            updatedAt: Date.now(),
+          });
+
+          cdnFieldsRemoved++;
+        }
+      } catch (error) {
+        const errorMessage = `Error removing CDN fields from video ${video._id}: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(errorMessage);
+        errors.push(errorMessage);
+      }
+    }
+    console.log("CDN URL fields cleanup completed successfully");
+  } catch (error) {
+    const errorMessage = `CDN URL fields cleanup failed: ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMessage);
+    criticalErrors.push(errorMessage);
+  }
+
+  // Migration 8: Report videos still using Convex storage
+  let convexStorageVideos = 0;
+  let r2StorageVideos = 0;
+  try {
+    console.log("Analyzing video storage distribution...");
+    const videos = await ctx.db.query("videos").filter(q => q.eq(q.field("status"), "completed")).collect();
+
+    for (const video of videos) {
+      if (video.r2FileKey) {
+        r2StorageVideos++;
+      } else if (video.convexFileId) {
+        convexStorageVideos++;
+      }
+    }
+    
+    console.log(`Storage analysis: ${r2StorageVideos} videos in R2, ${convexStorageVideos} videos still in Convex storage`);
+    
+    if (convexStorageVideos > 0) {
+      console.log("Note: Videos in Convex storage will continue to work but may have slower access times");
+    }
+  } catch (error) {
+    const errorMessage = `Storage analysis failed: ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMessage);
+    errors.push(errorMessage);
+  }
+
   // Check for critical errors and throw if any exist
   if (criticalErrors.length > 0) {
     const errorSummary = `Migration failed with ${criticalErrors.length} critical errors:\n${criticalErrors.join("\n")}`;
@@ -550,6 +610,8 @@ async function runMigrations(ctx: MutationCtx) {
     - Thumbnail fields removed: ${thumbnailFieldsRemoved}
     - Title fields removed: ${titleFieldsRemoved}
     - Parameter structure migrated
+    - CDN URL fields removed: ${cdnFieldsRemoved}
+    - Storage analysis: ${r2StorageVideos} videos in R2, ${convexStorageVideos} in Convex
     - Non-critical errors: ${errors.length}
   `);
 
@@ -561,6 +623,9 @@ async function runMigrations(ctx: MutationCtx) {
     videoErrors,
     thumbnailFieldsRemoved,
     titleFieldsRemoved,
+    cdnFieldsRemoved,
+    r2StorageVideos,
+    convexStorageVideos,
     nonCriticalErrors: errors.length,
   };
 }

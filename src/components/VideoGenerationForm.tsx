@@ -29,7 +29,11 @@ import {
 import { toast } from "sonner";
 import { Doc } from "../../convex/_generated/dataModel";
 
-export function VideoGenerationForm() {
+interface VideoGenerationFormProps {
+  onVideoCreated?: (videoId: string) => void;
+}
+
+export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps) {
   const [prompt, setPrompt] = useState("");
   const [modelId, setModelId] = useState<string>("");
   const [duration, setDuration] = useState<number>(5);
@@ -181,7 +185,7 @@ export function VideoGenerationForm() {
     setIsGenerating(true);
 
     try {
-      await createVideo({
+      const videoId = await createVideo({
         prompt: prompt.trim(),
         model: modelId,
         quality: "standard",
@@ -195,6 +199,11 @@ export function VideoGenerationForm() {
         },
         isPublic,
       });
+
+      // Notify parent component about the created video
+      if (onVideoCreated && videoId) {
+        onVideoCreated(videoId);
+      }
 
       // Reset form
       setPrompt("");
@@ -220,7 +229,7 @@ export function VideoGenerationForm() {
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800/50">
+        <Card className="bg-gray-900 backdrop-blur-sm border-gray-800/50">
           <CardHeader className="pb-6">
             <CardTitle className="text-lg font-medium text-white/95">
               Create New Video

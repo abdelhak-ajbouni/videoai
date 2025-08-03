@@ -176,7 +176,7 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mx-auto mb-6">
                 <Video className="h-8 w-8 text-blue-400" />
               </div>
@@ -186,7 +186,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
                 <Zap className="h-8 w-8 text-purple-400" />
               </div>
@@ -196,7 +196,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="text-center p-8 bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900/50 transition-all duration-300">
+            <div className="text-center p-8 bg-gray-900 backdrop-blur-sm rounded-2xl border border-gray-800/50 hover:bg-gray-900 transition-all duration-300">
               <div className="w-16 h-16 rounded-2xl bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                 <Globe className="h-8 w-8 text-green-400" />
               </div>

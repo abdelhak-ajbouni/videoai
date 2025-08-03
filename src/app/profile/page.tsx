@@ -171,7 +171,7 @@ export default function ProfilePage() {
 
         <div className="px-6 pb-8 space-y-6">
           {/* Profile Information */}
-          <Card className="bg-gray-900/30 border-gray-800/50">
+          <Card className="bg-gray-900 border-gray-800/50">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -295,7 +295,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Account Security */}
-          <Card className="bg-gray-900/30 border-gray-800/50">
+          <Card className="bg-gray-900 border-gray-800/50">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center space-x-2">

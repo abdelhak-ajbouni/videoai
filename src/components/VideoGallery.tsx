@@ -237,7 +237,7 @@ export function VideoGallery({
       )}
 
       {/* Video Gallery */}
-      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
         {sortedVideos.map((video) => (
           <div
             key={video._id}

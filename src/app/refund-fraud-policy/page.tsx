@@ -7,9 +7,9 @@ export default function RefundFraudPolicyPage() {
         <div className="container mx-auto px-6 py-12">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold text-white mb-8">Refund & Fraud Policy</h1>
-            
+
             <div className="prose prose-invert max-w-none">
-              <div className="bg-gray-900/30 rounded-2xl p-8 border border-gray-800/50 space-y-6">
+              <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800/50 space-y-6">
                 <p className="text-gray-300 text-sm mb-6">
                   <strong>Last updated:</strong> {new Date().toLocaleDateString()}
                 </p>
@@ -21,7 +21,7 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">1. Credit Purchases</h3>
                   <p className="text-gray-300">
-                    Credits purchased through our platform are generally non-refundable. However, 
+                    Credits purchased through our platform are generally non-refundable. However,
                     we may provide refunds in the following circumstances:
                   </p>
                   <ul className="list-disc list-inside text-gray-300 space-y-2 ml-4">
@@ -35,7 +35,7 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">2. Subscription Refunds</h3>
                   <p className="text-gray-300">
-                    Subscription fees are billed in advance and are generally non-refundable. 
+                    Subscription fees are billed in advance and are generally non-refundable.
                     Exceptions include:
                   </p>
                   <ul className="list-disc list-inside text-gray-300 space-y-2 ml-4">
@@ -61,7 +61,7 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">4. Partial Refunds</h3>
                   <p className="text-gray-300">
-                    In some cases, we may offer partial refunds based on unused service or 
+                    In some cases, we may offer partial refunds based on unused service or
                     prorated subscription periods. This is evaluated on a case-by-case basis.
                   </p>
                 </section>
@@ -101,8 +101,8 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">7. Chargeback Protection</h3>
                   <p className="text-gray-300">
-                    We actively monitor and respond to chargebacks. Accounts associated with 
-                    illegitimate chargebacks may be permanently suspended. We encourage users 
+                    We actively monitor and respond to chargebacks. Accounts associated with
+                    illegitimate chargebacks may be permanently suspended. We encourage users
                     to contact us directly before initiating chargeback procedures.
                   </p>
                 </section>
@@ -123,8 +123,8 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">9. Reporting Fraud</h3>
                   <p className="text-gray-300">
-                    If you suspect fraudulent activity on your account or unauthorized charges, 
-                    please contact us immediately at fraud@videoai.com or through our priority 
+                    If you suspect fraudulent activity on your account or unauthorized charges,
+                    please contact us immediately at fraud@videoai.com or through our priority
                     support channel.
                   </p>
                 </section>
@@ -132,8 +132,8 @@ export default function RefundFraudPolicyPage() {
                 <section className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">10. Data Protection</h3>
                   <p className="text-gray-300">
-                    All fraud-related investigations are conducted in accordance with our Privacy 
-                    Policy. Personal information is only used for security purposes and is not 
+                    All fraud-related investigations are conducted in accordance with our Privacy
+                    Policy. Personal information is only used for security purposes and is not
                     shared with third parties except as required by law.
                   </p>
                 </section>

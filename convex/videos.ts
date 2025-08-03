@@ -21,6 +21,26 @@ import { components } from "./_generated/api";
 
 const r2 = new R2(components.r2);
 
+// Helper function to generate dynamic R2 URL for a video
+async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
+  let videoUrl = video.videoUrl; // Default fallback
+  
+  // Generate fresh R2 URL if video is stored in R2
+  if (video.r2FileKey) {
+    try {
+      videoUrl = await r2.getUrl(ctx, video.r2FileKey, {
+        expiresIn: 3600, // 1 hour expiration
+      });
+    } catch (error) {
+      console.error("Failed to generate R2 URL:", error);
+      // Fallback to stored URL
+      videoUrl = video.videoCdnUrl || video.videoUrl;
+    }
+  }
+  
+  return videoUrl;
+}
+
 // Query to get user's videos with file URLs
 export const getUserVideos = query({
   args: {},
@@ -36,16 +56,14 @@ export const getUserVideos = query({
       .order("desc")
       .collect();
 
-    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
-    return videos.map((video) => {
-      // Use stored R2 URL if available, fallback to original URL
-      const videoUrl = video.videoCdnUrl || video.videoUrl;
-
+    // Return videos with dynamically generated R2 URLs
+    return Promise.all(videos.map(async (video) => {
+      const videoUrl = await generateDynamicVideoUrl(ctx, video);
       return {
         ...video,
         videoUrl,
       };
-    });
+    }));
   },
 });
 
@@ -67,9 +85,7 @@ export const getVideo = query({
       throw new Error("Unauthorized");
     }
 
-    // Use stored R2 URL if available, otherwise use existing videoUrl
-    const videoUrl = video.videoCdnUrl || video.videoUrl;
-
+    const videoUrl = await generateDynamicVideoUrl(ctx, video);
     return {
       ...video,
       videoUrl,
@@ -102,16 +118,14 @@ export const getVideosByStatus = query({
       .order("desc")
       .collect();
 
-    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
-    return videos.map((video) => {
-      // Use stored R2 URL if available, fallback to original URL
-      const videoUrl = video.videoCdnUrl || video.videoUrl;
-
+    // Return videos with dynamically generated R2 URLs
+    return Promise.all(videos.map(async (video) => {
+      const videoUrl = await generateDynamicVideoUrl(ctx, video);
       return {
         ...video,
         videoUrl,
       };
-    });
+    }));
   },
 });
 
@@ -141,16 +155,14 @@ export const getLatestVideosFromOthers = query({
       )
       .slice(0, args.limit || 12);
 
-    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
-    return otherUsersVideos.map((video) => {
-      // Use stored R2 URL if available, fallback to original URL
-      const videoUrl = video.videoCdnUrl || video.videoUrl;
-
+    // Return videos with dynamically generated R2 URLs
+    return Promise.all(otherUsersVideos.map(async (video) => {
+      const videoUrl = await generateDynamicVideoUrl(ctx, video);
       return {
         ...video,
         videoUrl,
       };
-    });
+    }));
   },
 });
 
@@ -425,8 +437,6 @@ export const updateVideoStatus = mutation({
     videoUrl: v.optional(v.string()),
     convexFileId: v.optional(v.id("_storage")),
     r2FileKey: v.optional(v.string()),
-    videoCdnUrl: v.optional(v.string()),
-    videoCdnUrlExpiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const video = await ctx.db.get(args.videoId);
@@ -457,14 +467,6 @@ export const updateVideoStatus = mutation({
 
     if (args.r2FileKey) {
       updateData.r2FileKey = args.r2FileKey;
-    }
-
-    if (args.videoCdnUrl) {
-      updateData.videoCdnUrl = args.videoCdnUrl;
-    }
-
-    if (args.videoCdnUrlExpiresAt) {
-      updateData.videoCdnUrlExpiresAt = args.videoCdnUrlExpiresAt;
     }
 
     if (args.status === "processing" && !video.processingStartedAt) {
@@ -726,7 +728,7 @@ export const getVideoByReplicateJobId = query({
   },
 });
 
-// Query to get video file URL from Convex storage
+// Query to get video file URL - generates fresh R2 URL
 export const getVideoFileUrl = query({
   args: { videoId: v.id("videos") },
   handler: async (ctx, args) => {
@@ -744,21 +746,18 @@ export const getVideoFileUrl = query({
       throw new Error("Unauthorized");
     }
 
-    // Prefer R2 storage over Convex storage
+    // Try to generate dynamic R2 URL first
     if (video.r2FileKey) {
-      const fileUrl = await r2.getUrl(ctx, video.r2FileKey, {
-        expiresIn: 3600, // 1 hour expiration
-      });
-      return fileUrl;
+      return await generateDynamicVideoUrl(ctx, video);
     }
 
-    // Fallback to Convex storage
+    // Fallback to Convex storage (legacy videos)
     if (video.convexFileId) {
       const fileUrl = await ctx.storage.getUrl(video.convexFileId);
       return fileUrl;
     }
 
-    // Fallback to original video URL
+    // Final fallback to original video URL
     return video.videoUrl;
   },
 });
@@ -903,21 +902,13 @@ export const downloadAndStoreVideo = action({
           ? { width: 1920, height: 1080 }
           : { width: 1280, height: 720 };
 
-      // Generate R2 signed URL with longer expiration (24 hours)
-      const expirationTime = 24 * 60 * 60; // 24 hours in seconds
-      const r2VideoUrl = await r2.getUrl(ctx, key, {
-        expiresIn: expirationTime,
-      });
-      const expiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
-
       // Update video with metadata and mark as completed
+      // No need to store signed URLs since we generate them dynamically
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
         r2FileKey: key,
-        videoCdnUrl: r2VideoUrl,
-        videoCdnUrlExpiresAt: expiresAt,
-        videoUrl: r2VideoUrl || args.videoUrl, // Use CDN URL as primary URL
+        videoUrl: args.videoUrl, // Keep original Replicate URL as fallback
       });
 
       // Update video metadata
@@ -1178,16 +1169,14 @@ export const searchVideos = query({
     const limit = args.limit || 50;
     const paginatedVideos = filteredVideos.slice(offset, offset + limit);
 
-    // Return videos with their stored URLs (R2 URLs are pre-generated and stored)
-    const videosWithUrls = paginatedVideos.map((video) => {
-      // Use stored R2 URL if available, fallback to original URL
-      const videoUrl = video.videoCdnUrl || video.videoUrl;
-
+    // Return videos with dynamically generated R2 URLs
+    const videosWithUrls = await Promise.all(paginatedVideos.map(async (video) => {
+      const videoUrl = await generateDynamicVideoUrl(ctx, video);
       return {
         ...video,
         videoUrl,
       };
-    });
+    }));
 
     return {
       videos: videosWithUrls,
@@ -1615,13 +1604,11 @@ export const mockGenerationComplete = action({
       // Generate realistic mock video URLs based on quality
       const mockVideos = generateMockVideoUrls(video.quality, video.duration);
 
-      // Mark video as completed with CDN URL (simulated)
+      // Mark video as completed with mock URL
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
         status: "completed",
         videoUrl: mockVideos.videoUrl,
-        videoCdnUrl: mockVideos.videoUrl, // For dev mode, use mock URL as CDN URL
-        videoCdnUrlExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       });
 
       // Update video metadata with realistic values
@@ -1680,106 +1667,6 @@ function calculateMockGenerationTime(
   return Math.floor(baseTime * durationNum * randomFactor);
 }
 
-// Mutation to refresh expired CDN URLs
-export const refreshExpiredCdnUrls = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-
-    // Find videos with expired CDN URLs (or expiring within 1 hour)
-    const videosWithExpiredUrls = await ctx.db
-      .query("videos")
-      .filter((q) =>
-        q.and(
-          q.neq(q.field("r2FileKey"), undefined),
-          q.or(
-            q.eq(q.field("videoCdnUrlExpiresAt"), undefined),
-            q.lt(q.field("videoCdnUrlExpiresAt"), now + 60 * 60 * 1000) // Expires within 1 hour
-          )
-        )
-      )
-      .collect();
-
-    let refreshedCount = 0;
-
-    for (const video of videosWithExpiredUrls) {
-      if (video.r2FileKey) {
-        try {
-          // Generate new CDN signed URL with 24 hour expiration
-          const expirationTime = 24 * 60 * 60; // 24 hours in seconds
-          const newCdnUrl = await r2.getUrl(ctx, video.r2FileKey, {
-            expiresIn: expirationTime,
-          });
-          const newExpiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
-
-          // Update the video with new URL and expiration
-          await ctx.db.patch(video._id, {
-            videoCdnUrl: newCdnUrl,
-            videoCdnUrlExpiresAt: newExpiresAt,
-            videoUrl: newCdnUrl, // Update primary video URL
-            updatedAt: Date.now(),
-          });
-
-          refreshedCount++;
-        } catch (error) {
-          console.error(
-            `Failed to refresh CDN URL for video ${video._id}:`,
-            error
-          );
-        }
-      }
-    }
-
-    return {
-      message: `Refreshed ${refreshedCount} expired CDN URLs`,
-      refreshedCount,
-      totalChecked: videosWithExpiredUrls.length,
-    };
-  },
-});
-
-// Action to refresh a specific video's CDN URL
-export const refreshVideoCdnUrl = action({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    const video = await ctx.runQuery(api.videos.getVideoForGeneration, {
-      videoId: args.videoId,
-    });
-
-    if (!video || !video.r2FileKey) {
-      throw new Error("Video not found or doesn't have CDN storage");
-    }
-
-    try {
-      // Generate new CDN signed URL with 24 hour expiration
-      const expirationTime = 24 * 60 * 60; // 24 hours in seconds
-      const newCdnUrl = await r2.getUrl(ctx, video.r2FileKey, {
-        expiresIn: expirationTime,
-      });
-      const newExpiresAt = Date.now() + expirationTime * 1000; // Convert to milliseconds
-
-      // Update the video with new URL and expiration
-      await ctx.runMutation(api.videos.updateVideoStatus, {
-        videoId: args.videoId,
-        videoCdnUrl: newCdnUrl,
-        videoCdnUrlExpiresAt: newExpiresAt,
-        videoUrl: newCdnUrl,
-      });
-
-      return {
-        success: true,
-        newUrl: newCdnUrl,
-        expiresAt: newExpiresAt,
-      };
-    } catch (error) {
-      console.error(
-        `Failed to refresh CDN URL for video ${args.videoId}:`,
-        error
-      );
-      throw new Error("Failed to refresh CDN URL");
-    }
-  },
-});
 
 // Helper function to generate realistic mock video URLs and metadata
 function generateMockVideoUrls(quality: string, duration: string) {
