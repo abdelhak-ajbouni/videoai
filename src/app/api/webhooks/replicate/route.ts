@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Extract the prediction data from the webhook
-    const { id: replicateJobId, status, output, error } = body;
+    const { id: replicateJobId, status, output } = body;
 
     if (!replicateJobId) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Webhook processing error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

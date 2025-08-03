@@ -1,46 +1,5 @@
-import {
-  internalMutation,
-  mutation,
-  type MutationCtx,
-} from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-
-// Type definitions for better type safety
-interface ModelParameterDefinition {
-  type: string;
-  required: boolean;
-  description: string;
-  allowedValues?: string[] | number[];
-  defaultValue?: string | number;
-  minValue?: number;
-  maxValue?: number;
-  maxLength?: number;
-}
-
-interface ModelParameterDefinitions {
-  [key: string]: ModelParameterDefinition;
-}
-
-interface ModelConstraints {
-  [key: string]: {
-    allowedValues?: string[] | number[];
-    minValue?: number;
-    maxValue?: number;
-    maxLength?: number;
-    minLength?: number;
-  };
-}
-
-interface VideoData {
-  _id: string;
-  prompt: string;
-  duration: string;
-  model: string;
-  quality?: string;
-  generationSettings?: Record<string, unknown>;
-  createdAt: number;
-  [key: string]: unknown;
-}
 
 // Default configurations data
 const defaultConfigs = [
@@ -98,61 +57,61 @@ const defaultConfigs = [
   },
   // Feature Flags
   {
-    key: "enable_ultra_quality",
+    key: "enable_subscriptions",
     category: "features",
-    name: "Enable Ultra Quality",
-    description: "Whether ultra quality tier is available",
+    name: "Enable Subscriptions",
+    description: "Enable subscription plans for users",
     value: true,
     dataType: "boolean" as const,
     isActive: true,
     isEditable: true,
   },
   {
-    key: "enable_priority_processing",
+    key: "enable_public_videos",
     category: "features",
-    name: "Enable Priority Processing",
-    description:
-      "Whether priority processing is available for Pro/Business users",
+    name: "Enable Public Videos",
+    description: "Allow users to make videos public",
     value: true,
     dataType: "boolean" as const,
     isActive: true,
     isEditable: true,
   },
   {
-    key: "enable_api_access",
+    key: "enable_video_analytics",
     category: "features",
-    name: "Enable API Access",
-    description: "Whether API access is available for Business users",
+    name: "Enable Video Analytics",
+    description: "Track video views, downloads, and shares",
     value: true,
     dataType: "boolean" as const,
     isActive: true,
     isEditable: true,
   },
-  // System Limits
+  // Model Configuration
   {
-    key: "max_prompt_length",
-    category: "limits",
-    name: "Maximum Prompt Length",
-    description: "Maximum number of characters allowed in video prompts",
-    value: 500,
-    dataType: "number" as const,
+    key: "default_model",
+    category: "models",
+    name: "Default Model",
+    description: "Default model for new video generations",
+    value: "google/veo-3",
+    dataType: "string" as const,
     isActive: true,
     isEditable: true,
-    minValue: 100,
-    maxValue: 2000,
   },
   {
-    key: "max_concurrent_generations",
-    category: "limits",
-    name: "Maximum Concurrent Generations",
-    description: "Maximum number of videos a user can generate simultaneously",
-    value: 3,
-    dataType: "number" as const,
+    key: "available_models",
+    category: "models",
+    name: "Available Models",
+    description: "List of models available for video generation",
+    value: [
+      "google/veo-3",
+      "luma/ray-2-540p",
+      "stability-ai/stable-video-diffusion",
+    ],
+    dataType: "array" as const,
     isActive: true,
     isEditable: true,
-    minValue: 1,
-    maxValue: 10,
   },
+  // Limits Configuration
   {
     key: "max_video_duration",
     category: "limits",
@@ -162,131 +121,111 @@ const defaultConfigs = [
     dataType: "number" as const,
     isActive: true,
     isEditable: true,
-    minValue: 5,
-    maxValue: 120,
+    minValue: 1,
+    maxValue: 300,
   },
-  // Subscription Quality Access
   {
-    key: "subscription_quality_access",
-    category: "subscriptions",
-    name: "Subscription Quality Access",
-    description: "Quality tiers available for each subscription level",
-    value: {
-      free: ["standard"],
-      starter: ["standard", "high"],
-      pro: ["standard", "high", "ultra"],
-      business: ["standard", "high", "ultra"],
-    },
-    dataType: "object" as const,
+    key: "max_prompt_length",
+    category: "limits",
+    name: "Maximum Prompt Length",
+    description: "Maximum number of characters in video prompts",
+    value: 1000,
+    dataType: "number" as const,
     isActive: true,
     isEditable: true,
+    minValue: 1,
+    maxValue: 5000,
   },
 ];
 
-// Clean AI models data - Budget/Quality/Pro tier structure
+// Default AI models data
 const defaultModels = [
   {
-    modelId: "minimax/hailuo-02",
-    name: "Budget Model",
-    description: "Fast and affordable videos with excellent physics",
-    replicateModelId: "minimax/hailuo-02",
-    costPerSecond: 0.08,
-    parameterMappings: {
-      duration: "duration",
-      resolution: "resolution",
-    },
-    modelType: "hailuo",
+    modelId: "google/veo-3",
+    name: "Google Veo-3",
+    description:
+      "Google's latest video generation model with high quality and fast generation",
+    replicateModelId: "google/veo-3:2b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8",
+    costPerSecond: 0.02,
+    fixedDuration: 5,
+    modelType: "google_veo",
     apiProvider: "replicate",
-
     isActive: true,
     isDefault: true,
     isPremium: false,
   },
   {
-    modelId: "bytedance/seedance-1-pro",
-    name: "Advanced Model",
-    description:
-      "Professional videos with multiple aspect ratios and camera position",
-    replicateModelId: "bytedance/seedance-1-pro",
-    costPerSecond: 0.28,
-    parameterMappings: {
-      duration: "duration",
-      aspectRatio: "aspect_ratio",
-      resolution: "resolution",
-      seed: "seed",
-      cameraPosition: "camera_position",
-    },
-    modelType: "seedance",
+    modelId: "luma/ray-2-540p",
+    name: "Luma Ray Flash 2-540p",
+    description: "Fast video generation with good quality at 540p resolution",
+    replicateModelId:
+      "luma/ray-2-540p:2b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8",
+    costPerSecond: 0.015,
+    modelType: "luma_ray",
     apiProvider: "replicate",
-
     isActive: true,
     isDefault: false,
     isPremium: false,
   },
   {
-    modelId: "google/veo-3",
-    name: "Flagship Model",
-    description: "Premium videos with audio support",
+    modelId: "stability-ai/stable-video-diffusion",
+    name: "Stable Video Diffusion",
+    description:
+      "Stable Diffusion's video generation model with high quality output",
     replicateModelId:
-      "google/veo-3:838c69a013a666f41312ba018c1ae55a2807f27c109a9cb93b22a45f207ad918",
-    costPerSecond: 0.75,
-    fixedDuration: 8,
-    parameterMappings: {
-      resolution: "resolution",
-      startImageUrl: "image",
-    },
-    modelType: "google_veo",
+      "stability-ai/stable-video-diffusion:2b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8",
+    costPerSecond: 0.025,
+    modelType: "stability_ai",
     apiProvider: "replicate",
-
     isActive: true,
     isDefault: false,
     isPremium: true,
   },
 ];
 
-// Default credit packages data - Subscriber-only bonus packages
+// Default credit packages data
 const defaultPackages = [
   {
     packageId: "small",
-    name: "Small Boost",
-    description: "Extra credits for subscribers",
-    price: 1499, // $14.99
+    name: "Small",
+    description: "Perfect for trying out video generation",
+    price: 999, // $9.99
     currency: "usd",
-    credits: 500, // $0.030/credit (premium pricing for bonus)
+    credits: 100,
     isActive: true,
     isPopular: false,
   },
   {
     packageId: "medium",
-    name: "Medium Boost",
-    description: "Popular choice for subscribers",
-    price: 2999, // $29.99
+    name: "Medium",
+    description: "Great for regular video creation",
+    price: 1999, // $19.99
     currency: "usd",
-    credits: 1000, // $0.030/credit (consistent pricing)
+    credits: 250,
     isActive: true,
     isPopular: true,
   },
   {
     packageId: "large",
-    name: "Large Boost",
-    description: "For heavy users",
-    price: 5999, // $59.99
+    name: "Large",
+    description: "Best value for frequent users",
+    price: 3499, // $34.99
     currency: "usd",
-    credits: 2000, // $0.030/credit (consistent pricing)
+    credits: 500,
     isActive: true,
     isPopular: false,
   },
   {
     packageId: "xlarge",
-    name: "X-Large Boost",
-    description: "Maximum boost for power users",
-    price: 11999, // $119.99
+    name: "X-Large",
+    description: "Maximum value for power users",
+    price: 5999, // $59.99
     currency: "usd",
-    credits: 4000, // $0.030/credit (consistent pricing)
+    credits: 1000,
     isActive: true,
     isPopular: false,
   },
-] as const;
+];
 
 // Default subscription plans data
 const defaultPlans = [
@@ -294,10 +233,10 @@ const defaultPlans = [
     planId: "starter",
     name: "Starter",
     description: "Perfect for getting started with video generation",
-    price: 499,
+    price: 999, // $9.99/month
     currency: "usd",
-    monthlyCredits: 250,
-    features: ["720p video quality", "No Watermarks", "Full Commercial Use"],
+    monthlyCredits: 50,
+    features: ["HD video quality", "Standard processing", "Basic support"],
     isActive: true,
     isPopular: false,
   },
@@ -305,636 +244,52 @@ const defaultPlans = [
     planId: "pro",
     name: "Pro",
     description: "For creators who need more power and features",
-    price: 1499,
+    price: 2499, // $24.99/month
     currency: "usd",
-    monthlyCredits: 750,
-    features: ["1080p video quality", "No Watermarks", "Full Commercial Use"],
+    monthlyCredits: 150,
+    features: [
+      "Ultra HD video quality",
+      "Priority processing",
+      "Advanced analytics",
+      "Priority support",
+    ],
     isActive: true,
     isPopular: true,
   },
   {
     planId: "max",
     name: "Max",
-    description: "Enterprise-grade features for teams and businesses",
-    price: 3999,
+    description: "Maximum features for professional creators",
+    price: 4999, // $49.99/month
     currency: "usd",
-    monthlyCredits: 2000,
+    monthlyCredits: 350,
     features: [
-      "1080p video quality",
-      "No Watermarks",
-      "Full Commercial Use",
-      "Private videos by default",
+      "Ultra HD video quality",
+      "Highest priority processing",
+      "Advanced analytics",
+      "Custom model access",
+      "Dedicated support",
     ],
     isActive: true,
     isPopular: false,
   },
 ];
 
-// Migration function to clean up database
-async function runMigrations(ctx: MutationCtx) {
-  console.log("Starting database migrations...");
-
-  const errors: string[] = [];
-  const criticalErrors: string[] = [];
-
-  // Migration 1: Clean up models table - replace with clean schema
-  try {
-    console.log("Starting models cleanup...");
-    const existingModels = await ctx.db.query("models").collect();
-    if (existingModels.length > 0) {
-      // Delete old models
-      for (const model of existingModels) {
-        await ctx.db.delete(model._id);
-      }
-
-      // Insert clean models
-      const now = Date.now();
-      for (const model of defaultModels) {
-        await ctx.db.insert("models", {
-          ...model,
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-    }
-    console.log("Models cleanup completed successfully");
-  } catch (error) {
-    const errorMessage = `Models cleanup failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 2: Populate modelParameters table for existing videos
-  let parametersCreated = 0;
-  let alreadyExists = 0;
-  let videoErrors = 0;
-
-  try {
-    console.log("Starting modelParameters population...");
-    const videos = await ctx.db.query("videos").collect();
-
-    for (const video of videos) {
-      try {
-        // Check if modelParameters already exists for this video
-        const existingParams = await ctx.db
-          .query("modelParameters")
-          .withIndex("by_video_id", (q) => q.eq("videoId", video._id))
-          .first();
-
-        if (existingParams) {
-          alreadyExists++;
-          continue;
-        }
-
-        // Create parameters based on video data and model type
-        const frontendParams = {
-          prompt: video.prompt,
-          duration: video.duration,
-          quality: video.quality,
-          ...(video.generationSettings || {}),
-        };
-
-        // Map parameters using inline logic
-        const apiParameters: Record<string, unknown> = { prompt: video.prompt };
-
-        if (video.model.includes("google/veo")) {
-          // Google Veo models
-          apiParameters.resolution = frontendParams.resolution || "720p";
-
-          if (frontendParams.startImageUrl) {
-            apiParameters.image = frontendParams.startImageUrl;
-          }
-
-          apiParameters.seed = Math.floor(Math.random() * 1000000);
-        } else if (video.model.includes("seedance")) {
-          // Seedance models
-          apiParameters.duration = parseInt(video.duration);
-          apiParameters.aspect_ratio = frontendParams.aspectRatio || "16:9";
-          apiParameters.resolution = frontendParams.resolution || "480p";
-          apiParameters.seed = Math.floor(Math.random() * 1000000);
-
-          if (frontendParams.cameraPosition) {
-            apiParameters.camera_position = frontendParams.cameraPosition;
-          }
-        } else {
-          // Hailuo models (default)
-          apiParameters.duration = parseInt(video.duration);
-          apiParameters.resolution = frontendParams.resolution || "768p";
-        }
-
-        // Create modelParameters record
-        await ctx.db.insert("modelParameters", {
-          videoId: video._id,
-          modelId: video.model,
-          parameters: apiParameters,
-          parameterMapping: {
-            frontendParameters: frontendParams,
-            mappingLog: [`Parameters mapped for ${video.model}`],
-          },
-          createdAt: video.createdAt,
-        });
-
-        parametersCreated++;
-      } catch (error) {
-        const errorMessage = `Error processing video ${video._id}: ${error instanceof Error ? error.message : String(error)}`;
-        console.error(errorMessage);
-        errors.push(errorMessage);
-        videoErrors++;
-      }
-    }
-    console.log("ModelParameters population completed successfully");
-  } catch (error) {
-    const errorMessage = `ModelParameters population failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 3: Remove old thumbnail fields from existing video records
-  let thumbnailFieldsRemoved = 0;
-  try {
-    console.log("Starting thumbnail fields removal...");
-    const videos = await ctx.db.query("videos").collect();
-
-    for (const video of videos) {
-      try {
-        // Check if video has the old thumbnail fields
-        const videoData = video as VideoData & {
-          thumbnailFileId?: string;
-          thumbnailUrl?: string;
-        };
-        if (videoData.thumbnailFileId || videoData.thumbnailUrl) {
-          // Remove the old fields by patching without them
-          await ctx.db.patch(video._id, {
-            updatedAt: Date.now(),
-          });
-
-          thumbnailFieldsRemoved++;
-        }
-      } catch (error) {
-        const errorMessage = `Error removing thumbnail fields from video ${video._id}: ${error instanceof Error ? error.message : String(error)}`;
-        console.error(errorMessage);
-        errors.push(errorMessage);
-      }
-    }
-    console.log("Thumbnail fields removal completed successfully");
-  } catch (error) {
-    const errorMessage = `Thumbnail fields removal failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 4: Remove title fields from existing video records
-  let titleFieldsRemoved = 0;
-  try {
-    console.log("Starting title fields removal...");
-    const videos = await ctx.db.query("videos").collect();
-
-    for (const video of videos) {
-      try {
-        // Check if video has the old title field
-        const videoData = video as VideoData & { title?: string };
-        if (videoData.title !== undefined) {
-          // Remove the title field by patching without it
-          await ctx.db.patch(video._id, {
-            updatedAt: Date.now(),
-          });
-
-          titleFieldsRemoved++;
-        }
-      } catch (error) {
-        const errorMessage = `Error removing title field from video ${video._id}: ${error instanceof Error ? error.message : String(error)}`;
-        console.error(errorMessage);
-        errors.push(errorMessage);
-      }
-    }
-    console.log("Title fields removal completed successfully");
-  } catch (error) {
-    const errorMessage = `Title fields removal failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 5: Restructure modelParameters and create videoParameters
-  try {
-    console.log("Starting parameter structure migration...");
-    await migrateToNewParameterStructure(ctx);
-    console.log("Parameter structure migration completed successfully");
-  } catch (error) {
-    const errorMessage = `Parameter structure migration failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 6: Ensure modelParameters table is properly populated
-  try {
-    console.log("Ensuring modelParameters table is populated...");
-    await ensureModelParametersPopulated(ctx);
-    console.log("ModelParameters population check completed successfully");
-  } catch (error) {
-    const errorMessage = `ModelParameters population failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 7: Clean up deprecated CDN URL fields
-  let cdnFieldsRemoved = 0;
-  try {
-    console.log("Starting CDN URL fields cleanup...");
-    const videos = await ctx.db.query("videos").collect();
-
-    for (const video of videos) {
-      try {
-        // Check if video has the deprecated CDN fields
-        const videoData = video as VideoData & {
-          videoCdnUrl?: string;
-          videoCdnUrlExpiresAt?: number;
-        };
-        if (videoData.videoCdnUrl || videoData.videoCdnUrlExpiresAt) {
-          // Remove the deprecated fields by patching without them
-          await ctx.db.patch(video._id, {
-            updatedAt: Date.now(),
-          });
-
-          cdnFieldsRemoved++;
-        }
-      } catch (error) {
-        const errorMessage = `Error removing CDN fields from video ${video._id}: ${error instanceof Error ? error.message : String(error)}`;
-        console.error(errorMessage);
-        errors.push(errorMessage);
-      }
-    }
-    console.log("CDN URL fields cleanup completed successfully");
-  } catch (error) {
-    const errorMessage = `CDN URL fields cleanup failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    criticalErrors.push(errorMessage);
-  }
-
-  // Migration 8: Report videos still using Convex storage
-  let convexStorageVideos = 0;
-  let r2StorageVideos = 0;
-  try {
-    console.log("Analyzing video storage distribution...");
-    const videos = await ctx.db.query("videos").filter(q => q.eq(q.field("status"), "completed")).collect();
-
-    for (const video of videos) {
-      if (video.r2FileKey) {
-        r2StorageVideos++;
-      } else if (video.convexFileId) {
-        convexStorageVideos++;
-      }
-    }
-    
-    console.log(`Storage analysis: ${r2StorageVideos} videos in R2, ${convexStorageVideos} videos still in Convex storage`);
-    
-    if (convexStorageVideos > 0) {
-      console.log("Note: Videos in Convex storage will continue to work but may have slower access times");
-    }
-  } catch (error) {
-    const errorMessage = `Storage analysis failed: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage);
-    errors.push(errorMessage);
-  }
-
-  // Check for critical errors and throw if any exist
-  if (criticalErrors.length > 0) {
-    const errorSummary = `Migration failed with ${criticalErrors.length} critical errors:\n${criticalErrors.join("\n")}`;
-    console.error(errorSummary);
-    throw new Error(errorSummary);
-  }
-
-  // Log summary of all migrations
-  console.log(`Migrations completed successfully:
-    - Models cleaned and recreated
-    - Model parameters created: ${parametersCreated}, already existed: ${alreadyExists}, errors: ${videoErrors}
-    - Thumbnail fields removed: ${thumbnailFieldsRemoved}
-    - Title fields removed: ${titleFieldsRemoved}
-    - Parameter structure migrated
-    - CDN URL fields removed: ${cdnFieldsRemoved}
-    - Storage analysis: ${r2StorageVideos} videos in R2, ${convexStorageVideos} in Convex
-    - Non-critical errors: ${errors.length}
-  `);
-
-  // Return summary for potential use by caller
-  return {
-    success: true,
-    parametersCreated,
-    alreadyExists,
-    videoErrors,
-    thumbnailFieldsRemoved,
-    titleFieldsRemoved,
-    cdnFieldsRemoved,
-    r2StorageVideos,
-    convexStorageVideos,
-    nonCriticalErrors: errors.length,
-  };
-}
-
-// Migration helper: Ensure modelParameters table is populated
-async function ensureModelParametersPopulated(ctx: MutationCtx) {
-  console.log("Checking modelParameters table population...");
-  
-  const now = Date.now();
-  
-  // Get all models
-  const models = await ctx.db.query("models").collect();
-  console.log(`Found ${models.length} models`);
-  
-  // Check which models already have parameters
-  const existingParams = await ctx.db.query("modelParameters").collect();
-  const existingModelIds = new Set(existingParams.map(p => p.modelId));
-  
-  console.log(`Found ${existingParams.length} existing modelParameters for models: ${Array.from(existingModelIds).join(", ")}`);
-  
-  // Find models that need parameters
-  const modelsNeedingParams = models.filter(model => !existingModelIds.has(model.modelId));
-  
-  if (modelsNeedingParams.length === 0) {
-    console.log("All models already have parameters defined");
-    return;
-  }
-  
-  console.log(`Creating parameters for ${modelsNeedingParams.length} models: ${modelsNeedingParams.map(m => m.modelId).join(", ")}`);
-  
-  // Create parameters for models that don't have them
-  for (const model of modelsNeedingParams) {
-    const parameterDefinitions = getModelParameterDefinitions(model);
-    const mappingRules = getModelMappingRules(model);
-    const constraints = getModelConstraints(model);
-
-    await ctx.db.insert("modelParameters", {
-      modelId: model.modelId,
-      parameterDefinitions,
-      mappingRules,
-      constraints,
-      parameterCategories: ["basic", "advanced"],
-      createdAt: now,
-      updatedAt: now,
-    });
-    
-    console.log(`Created parameters for model: ${model.modelId}`);
-  }
-  
-  console.log(`ModelParameters population completed for ${modelsNeedingParams.length} models`);
-}
-
-// Migration 3: Restructure modelParameters and create videoParameters
-async function migrateToNewParameterStructure(ctx: MutationCtx) {
-  console.log("Running parameter structure migration...");
-
-  // Step 1: Move existing modelParameters data to videoParameters
-  const existingModelParams = await ctx.db.query("modelParameters").collect();
-  console.log(
-    `Found ${existingModelParams.length} existing modelParameters records`
-  );
-
-  // Check if this is the old structure that needs migration
-  const hasOldStructure =
-    existingModelParams.length > 0 &&
-    existingModelParams.some((param) => param.videoId && param.parameters);
-
-  if (hasOldStructure) {
-    // Only migrate if we have the old structure with videoId
-    for (const param of existingModelParams) {
-      if (param.videoId && param.parameters) {
-        // Insert into videoParameters
-        await ctx.db.insert("videoParameters", {
-          videoId: param.videoId,
-          modelId: param.modelId,
-          parameters: param.parameters,
-          parameterMapping: param.parameterMapping,
-          createdAt: param.createdAt,
-        });
-      }
-
-      // Delete from old table
-      await ctx.db.delete(param._id);
-    }
-
-    // Step 2: Clear all modelParameters and recreate for current models
-    const allModelParams = await ctx.db.query("modelParameters").collect();
-    console.log(`Deleting ${allModelParams.length} old modelParameters`);
-
-    for (const param of allModelParams) {
-      await ctx.db.delete(param._id);
-    }
-
-    // Step 3: Create new modelParameters entries for each model
-    const models = await ctx.db.query("models").collect();
-    console.log(`Creating modelParameters for ${models.length} models`);
-
-    for (const model of models) {
-      const parameterDefinitions = getModelParameterDefinitions(model);
-      const mappingRules = getModelMappingRules(model);
-      const constraints = getModelConstraints(model);
-
-      await ctx.db.insert("modelParameters", {
-        modelId: model.modelId,
-        parameterDefinitions,
-        mappingRules,
-        constraints,
-        parameterCategories: ["basic", "advanced"],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    }
-
-    console.log("Parameter structure migration completed");
-  } else {
-    console.log("Parameter structure already migrated or no data to migrate");
-  }
-}
-
-// Helper function to get parameter definitions for a model
-function getModelParameterDefinitions(model: {
-  modelType: string;
-}): ModelParameterDefinitions {
-  const baseParams: ModelParameterDefinitions = {
-    prompt: {
-      type: "string",
-      required: true,
-      description: "Text description of the video to generate",
-      maxLength: 500,
-    },
-    duration: {
-      type: "number",
-      required: true,
-      description: "Duration of the video in seconds",
-      allowedValues: getModelSupportedDurations(model.modelType),
-      defaultValue: Math.min(...getModelSupportedDurations(model.modelType)), // Set to smallest available
-    },
-  };
-
-  // Add model-specific parameters based on model type
-  if (model.modelType === "hailuo") {
-    baseParams.resolution = {
-      type: "string",
-      required: false,
-      description: "Resolution of the video",
-      allowedValues: ["768p", "1080p"],
-      defaultValue: "768p", // Set to smallest available
-    };
-  }
-
-  if (model.modelType === "seedance") {
-    baseParams.aspectRatio = {
-      type: "string",
-      required: false,
-      description: "Aspect ratio of the video",
-      allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
-      defaultValue: "16:9", // Keep 16:9 as requested
-    };
-    baseParams.resolution = {
-      type: "string",
-      required: false,
-      description: "Resolution of the video",
-      allowedValues: ["480p", "1080p"],
-      defaultValue: "480p", // Set to smallest available
-    };
-    baseParams.seed = {
-      type: "number",
-      required: false,
-      description: "Seed for reproducible generation",
-      minValue: 0,
-      maxValue: 2147483647,
-    };
-    baseParams.cameraPosition = {
-      type: "string",
-      required: false,
-      description: "Camera movement type",
-      allowedValues: ["fixed", "dynamic"],
-      defaultValue: "fixed",
-    };
-  }
-
-  if (model.modelType === "google_veo") {
-    baseParams.resolution = {
-      type: "string",
-      required: false,
-      description: "Resolution of the video",
-      allowedValues: ["720p", "1080p"],
-      defaultValue: "720p", // Set to smallest available
-    };
-    baseParams.seed = {
-      type: "number",
-      required: false,
-      description: "Random seed for consistent results",
-      minValue: 0,
-      maxValue: 999999,
-    };
-  }
-
-  return baseParams;
-}
-
-// Helper function to get supported durations based on model type
-function getModelSupportedDurations(modelType: string): number[] {
-  switch (modelType) {
-    case "google_veo":
-      return [8];
-    case "hailuo":
-      return [6, 10];
-    case "seedance":
-      return [5, 10];
-    default:
-      return [5];
-  }
-}
-
-// Helper function to get mapping rules for a model
-function getModelMappingRules(model: {
-  modelType: string;
-  parameterMappings?: Record<string, string>;
-}) {
-  const baseMappings = {
-    prompt: "prompt",
-    duration: "duration",
-  };
-
-  // Add model-specific mappings
-  if (model.parameterMappings) {
-    return { ...baseMappings, ...model.parameterMappings };
-  }
-
-  // Default mappings based on model type
-  if (model.modelType === "hailuo") {
-    return {
-      ...baseMappings,
-      resolution: "resolution",
-    };
-  }
-
-  if (model.modelType === "seedance") {
-    return {
-      ...baseMappings,
-      aspectRatio: "aspect_ratio",
-      resolution: "resolution",
-      seed: "seed",
-      cameraPosition: "camera_position",
-    };
-  }
-
-  if (model.modelType === "google_veo") {
-    return {
-      ...baseMappings,
-      resolution: "resolution",
-      startImageUrl: "image",
-    };
-  }
-
-  return baseMappings;
-}
-
-// Helper function to get constraints for a model
-function getModelConstraints(model: { modelType: string }): ModelConstraints {
-  const constraints: ModelConstraints = {
-    prompt: {
-      maxLength: 500,
-      minLength: 1,
-    },
-    duration: {
-      allowedValues: getModelSupportedDurations(model.modelType).map(String),
-    },
-  };
-
-  // Add model-specific constraints based on model type
-  if (model.modelType === "hailuo") {
-    constraints.resolution = {
-      allowedValues: ["768p", "1080p"],
-    };
-  }
-
-  if (model.modelType === "seedance") {
-    constraints.aspectRatio = {
-      allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
-    };
-    constraints.resolution = {
-      allowedValues: ["480p", "1080p"],
-    };
-  }
-
-  if (model.modelType === "google_veo") {
-    constraints.resolution = {
-      allowedValues: ["720p", "1080p"],
-    };
-  }
-
-  return constraints;
-}
-
 export default internalMutation({
-  handler: async (ctx: MutationCtx) => {
+  handler: async (ctx) => {
     const now = Date.now();
 
-    // Check if this is the first run or if we need to run migrations
+    // Check if this is the first run
     const anyConfig = await ctx.db.query("configurations").first();
     const isFirstRun = !anyConfig;
 
-    // Run migrations for existing databases
+    // Only initialize if this is the first run
     if (!isFirstRun) {
-      await runMigrations(ctx);
+      console.log("Database already initialized, skipping initialization");
       return;
     }
+
+    console.log("Initializing database with default data...");
 
     // Initialize configurations
     for (const config of defaultConfigs) {
@@ -996,23 +351,177 @@ export default internalMutation({
   },
 });
 
+// Helper functions for model parameter definitions
+function getModelParameterDefinitions(model: {
+  modelType: string;
+}): Record<string, unknown> {
+  const baseParams = {
+    prompt: {
+      type: "string",
+      required: true,
+      description: "Text description of the video to generate",
+      maxLength: 1000,
+    },
+    duration: {
+      type: "number",
+      required: true,
+      description: "Duration of the video in seconds",
+      minValue: 1,
+      maxValue: 60,
+    },
+  };
+
+  switch (model.modelType) {
+    case "google_veo":
+      return {
+        ...baseParams,
+        resolution: {
+          type: "string",
+          required: false,
+          description: "Video resolution",
+          allowedValues: ["720p", "1080p"],
+          defaultValue: "720p",
+        },
+        startImageUrl: {
+          type: "string",
+          required: false,
+          description: "URL of starting image for video generation",
+        },
+      };
+    case "luma_ray":
+      return {
+        ...baseParams,
+        aspectRatio: {
+          type: "string",
+          required: false,
+          description: "Aspect ratio of the video",
+          allowedValues: ["16:9", "9:16", "1:1"],
+          defaultValue: "16:9",
+        },
+        resolution: {
+          type: "string",
+          required: false,
+          description: "Video resolution",
+          allowedValues: ["480p", "720p", "1080p"],
+          defaultValue: "480p",
+        },
+        cameraPosition: {
+          type: "string",
+          required: false,
+          description: "Camera position for 3D scenes",
+          allowedValues: ["front", "side", "back", "top"],
+        },
+      };
+    case "stability_ai":
+      return {
+        ...baseParams,
+        resolution: {
+          type: "string",
+          required: false,
+          description: "Video resolution",
+          allowedValues: ["768p", "1024p"],
+          defaultValue: "768p",
+        },
+      };
+    default:
+      return baseParams;
+  }
+}
+
+function getModelMappingRules(model: {
+  modelType: string;
+  parameterMappings?: Record<string, string>;
+}): Record<string, unknown> {
+  const baseRules = {
+    prompt: "prompt",
+    duration: "duration",
+  };
+
+  switch (model.modelType) {
+    case "google_veo":
+      return {
+        ...baseRules,
+        resolution: "resolution",
+        startImageUrl: "image",
+      };
+    case "luma_ray":
+      return {
+        ...baseRules,
+        aspectRatio: "aspect_ratio",
+        resolution: "resolution",
+        cameraPosition: "camera_position",
+      };
+    case "stability_ai":
+      return {
+        ...baseRules,
+        resolution: "resolution",
+      };
+    default:
+      return baseRules;
+  }
+}
+
+function getModelConstraints(model: {
+  modelType: string;
+}): Record<string, unknown> {
+  const baseConstraints = {
+    prompt: {
+      maxLength: 1000,
+    },
+    duration: {
+      minValue: 1,
+      maxValue: 60,
+    },
+  };
+
+  switch (model.modelType) {
+    case "google_veo":
+      return {
+        ...baseConstraints,
+        resolution: {
+          allowedValues: ["720p", "1080p"],
+        },
+      };
+    case "luma_ray":
+      return {
+        ...baseConstraints,
+        aspectRatio: {
+          allowedValues: ["16:9", "9:16", "1:1"],
+        },
+        resolution: {
+          allowedValues: ["480p", "720p", "1080p"],
+        },
+        cameraPosition: {
+          allowedValues: ["front", "side", "back", "top"],
+        },
+      };
+    case "stability_ai":
+      return {
+        ...baseConstraints,
+        resolution: {
+          allowedValues: ["768p", "1024p"],
+        },
+      };
+    default:
+      return baseConstraints;
+  }
+}
+
 // Update credit packages with new pricing
-export const updateCreditPackages = mutation({
+export const updateCreditPackages = internalMutation({
   args: {
-    confirmDeletion: v.boolean(), // Require explicit confirmation
-    environment: v.optional(v.string()), // Optional environment check
+    confirmDeletion: v.boolean(),
+    environment: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     console.log("Updating credit packages with new volume discount pricing...");
 
-    // Safety check: require explicit confirmation
     if (!args.confirmDeletion) {
       throw new Error(
         "Deletion confirmation required. Set confirmDeletion to true to proceed."
       );
     }
 
-    // Environment check: only allow in development or staging
     const allowedEnvironments = ["development", "staging", "test"];
     if (args.environment && !allowedEnvironments.includes(args.environment)) {
       throw new Error(
@@ -1022,7 +531,6 @@ export const updateCreditPackages = mutation({
 
     const now = Date.now();
 
-    // Delete existing packages with additional safety check
     const existingPackages = await ctx.db.query("creditPackages").collect();
     if (existingPackages.length === 0) {
       console.log("No existing packages to delete");
@@ -1038,7 +546,6 @@ export const updateCreditPackages = mutation({
       );
     }
 
-    // Insert new packages with volume discounts
     for (const package_ of defaultPackages) {
       await ctx.db.insert("creditPackages", {
         ...package_,
@@ -1059,23 +566,20 @@ export const updateCreditPackages = mutation({
   },
 });
 
-
 // Update subscription plans with new features
-export const updateSubscriptionPlans = mutation({
+export const updateSubscriptionPlans = internalMutation({
   args: {},
   handler: async (ctx) => {
     console.log("Updating subscription plans with new features...");
 
     const now = Date.now();
 
-    // Delete existing plans
     const existingPlans = await ctx.db.query("subscriptionPlans").collect();
     for (const plan of existingPlans) {
       await ctx.db.delete(plan._id);
     }
     console.log(`Deleted ${existingPlans.length} existing subscription plans`);
 
-    // Insert new plans with updated features
     for (const plan of defaultPlans) {
       await ctx.db.insert("subscriptionPlans", {
         ...plan,

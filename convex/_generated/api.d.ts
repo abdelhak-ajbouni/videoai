@@ -14,6 +14,7 @@ import type * as http from "../http.js";
 import type * as init from "../init.js";
 import type * as lib_replicateClient from "../lib/replicateClient.js";
 import type * as lib_validation from "../lib/validation.js";
+import type * as migrations from "../migrations.js";
 import type * as modelParameterHelpers from "../modelParameterHelpers.js";
 import type * as models from "../models.js";
 import type * as pricing from "../pricing.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   init: typeof init;
   "lib/replicateClient": typeof lib_replicateClient;
   "lib/validation": typeof lib_validation;
+  migrations: typeof migrations;
   modelParameterHelpers: typeof modelParameterHelpers;
   models: typeof models;
   pricing: typeof pricing;
