@@ -316,7 +316,7 @@ export function VideoGenerationForm() {
                       <Label className="text-sm font-medium text-white/90">
                         Resolution
                       </Label>
-                      <Select value={resolution} onValueChange={setResolution}>
+                      <Select value={resolution} onValueChange={(value: string) => value && setResolution(value)}>
                         <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
                           <SelectValue placeholder="Select resolution" />
                         </SelectTrigger>
@@ -354,7 +354,7 @@ export function VideoGenerationForm() {
                   {modelParameters?.supportedAspectRatios && modelParameters.supportedAspectRatios.length > 0 && (
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
-                      <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                      <Select value={aspectRatio} onValueChange={(value: string) => value && setAspectRatio(value)}>
                         <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
                           <SelectValue placeholder="select aspect ratio" />
                         </SelectTrigger>
@@ -378,7 +378,7 @@ export function VideoGenerationForm() {
                   {modelParameters?.supportedCameraPositions && modelParameters.supportedCameraPositions.length > 0 && (
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Camera Position</Label>
-                      <Select value={cameraPosition} onValueChange={setCameraPosition}>
+                      <Select value={cameraPosition} onValueChange={(value: string) => value && setCameraPosition(value)}>
                         <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-1 focus:ring-gray-600 h-12">
                           <SelectValue placeholder="Select camera position" />
                         </SelectTrigger>
