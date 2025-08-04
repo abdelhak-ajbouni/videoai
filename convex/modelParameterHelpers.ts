@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
-import { Doc } from "./_generated/dataModel";
 
 /**
  * Helper functions for managing model-specific parameters

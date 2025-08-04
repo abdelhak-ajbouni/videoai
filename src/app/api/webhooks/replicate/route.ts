@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Extract the prediction data from the webhook
-    const { id: replicateJobId, status, output, error } = body;
+    const { id: replicateJobId, status, output } = body;
 
     if (!replicateJobId) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         await convex.mutation(api.videos.updateVideoStatus, {
           videoId: video._id,
           status: "failed",
-          errorMessage: typeof error === "string" ? error : "Generation failed",
+          errorMessage: "Generation failed",
         });
 
         // Refund credits

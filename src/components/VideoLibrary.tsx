@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ export function VideoLibrary() {
   const filteredAndSortedVideos = useMemo(() => {
     if (!videos) return [];
 
-    const filtered = videos.filter((video) => {
+    const filtered = videos.filter((video: Doc<"videos">) => {
       const matchesSearch =
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -51,7 +51,7 @@ export function VideoLibrary() {
     });
 
     // Sort videos
-    filtered.sort((a, b) => {
+    filtered.sort((a: Doc<"videos">, b: Doc<"videos">) => {
       switch (sortBy) {
         case "newest":
           return b.createdAt - a.createdAt;
@@ -297,7 +297,7 @@ export function VideoLibrary() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedVideos.map((video) => (
+          {filteredAndSortedVideos.map((video: Doc<"videos">) => (
             <Card key={video._id} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">

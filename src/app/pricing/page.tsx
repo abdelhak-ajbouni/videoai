@@ -3,6 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { Doc } from "../../../convex/_generated/dataModel";
 import { Loading } from "@/components/ui/loading";
 import { AppLayout } from "@/components/layouts/app-layout";
 import { Button } from "@/components/ui/button";
@@ -148,7 +149,7 @@ export default function PricingPage() {
                 </div>
               ) : (
                 /* Dynamic Subscription Plans */
-                subscriptionPlans?.map((plan) => (
+                subscriptionPlans?.map((plan: Doc<"subscriptionPlans">) => (
                   <Card key={plan._id} className={`relative overflow-hidden transition-all duration-200 flex flex-col ${isCurrentPlan(plan.planId)
                     ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20'
                     : 'bg-gray-900 border-gray-800/50 hover:bg-gray-900'
@@ -185,7 +186,7 @@ export default function PricingPage() {
                           <Check className="h-4 w-4 text-emerald-400" />
                           <span>{plan.monthlyCredits.toLocaleString()} credits per month</span>
                         </div>
-                        {plan.features?.map((feature, index) => (
+                        {plan.features?.map((feature: string, index: number) => (
                           <div key={index} className="flex items-center space-x-2 text-sm text-gray-300">
                             <Check className="h-4 w-4 text-emerald-400" />
                             <span>{feature}</span>
@@ -234,7 +235,7 @@ export default function PricingPage() {
                     No credit packages available at the moment.
                   </div>
                 ) : (
-                  creditPackages?.map((pkg) => (
+                  creditPackages?.map((pkg: Doc<"creditPackages">) => (
                     <Card key={pkg._id} className="bg-gray-900 border-gray-800/50 hover:bg-gray-900 transition-all duration-200 flex flex-col">
                       <CardContent className="p-6 flex flex-col flex-1">
                         <div className="flex items-center space-x-2 mb-4">

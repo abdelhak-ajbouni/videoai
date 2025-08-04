@@ -67,8 +67,6 @@ export const getUserVideos = query({
     );
   },
 });
-
-// Query to get videos by status
 export const getVideosByStatus = query({
   args: {
     status: v.union(
@@ -160,7 +158,7 @@ export const createVideo = mutation({
     generationSettings: v.optional(v.any()), // Contains all model-specific options
     isPublic: v.optional(v.boolean()), // Video visibility setting
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<string> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
