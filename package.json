@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "convex dev --until-success",
     "dev": "next dev",
-    "predev": "convex dev --run init --until-success",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,7 +13,10 @@
     "test:coverage": "jest --coverage",
     "dev-mode": "node scripts/toggle-mode.js dev",
     "prod-mode": "node scripts/toggle-mode.js prod",
-    "check-mode": "node scripts/toggle-mode.js"
+    "check-mode": "node scripts/toggle-mode.js",
+    "db:clear": "npx convex dev --run db:clearDatabase --until-success",
+    "db:seed": "npx convex dev --run seed --until-success",
+    "db:reset": "npm run db:clear && npm run db:seed"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.1.1",

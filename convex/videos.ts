@@ -1,15 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, QueryCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
-import {
-  mapParametersForModel,
-  validateParametersForModel,
-} from "./modelParameterHelpers";
+import { mapParametersForModel } from "./modelParameterHelpers";
 import {
   validateVideoGeneration,
-  validateUserCredits,
   validateModelCapabilities,
   throwValidationError,
   logValidationWarnings,
@@ -18,23 +14,26 @@ import {
 } from "./lib/validation";
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
+import { Doc, Id } from "./_generated/dataModel";
 
 const r2 = new R2(components.r2);
 
 // Helper function to generate dynamic R2 URL for a video
-async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
+async function getR2VideoUrl(
+  video: Doc<"videos">
+): Promise<string | undefined> {
   let videoUrl = video.videoUrl; // Default fallback
 
   // Generate fresh R2 URL if video is stored in R2
   if (video.r2FileKey) {
     try {
       videoUrl = await r2.getUrl(video.r2FileKey, {
-        expiresIn: 3600, // 1 hour expiration
+        expiresIn: 3600 * 24 * 30, // 30 days expiration
       });
     } catch (error) {
       console.error("Failed to generate R2 URL:", error);
       // Fallback to stored URL
-      videoUrl = video.videoCdnUrl || video.videoUrl;
+      videoUrl = video.videoUrl;
     }
   }
 
@@ -59,7 +58,7 @@ export const getUserVideos = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       videos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -68,34 +67,6 @@ export const getUserVideos = query({
     );
   },
 });
-
-// Query to get a specific video with file URL
-export const getVideo = query({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const video = await ctx.db.get(args.videoId);
-    if (!video) {
-      throw new Error("Video not found");
-    }
-
-    if (video.clerkId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
-
-    const videoUrl = await generateDynamicVideoUrl(ctx, video);
-    return {
-      ...video,
-      videoUrl,
-    };
-  },
-});
-
-// Query to get videos by status
 export const getVideosByStatus = query({
   args: {
     status: v.union(
@@ -123,7 +94,7 @@ export const getVideosByStatus = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       videos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -162,7 +133,7 @@ export const getLatestVideosFromOthers = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       otherUsersVideos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -301,8 +272,9 @@ export const createVideo = mutation({
     };
 
     // Validate model capabilities using helper function
-    const parameterValidation = validateParametersForModel(
+    const parameterValidation = validateModelCapabilities(
       model,
+      modelCapabilities,
       frontendParams
     );
     if (!parameterValidation.isValid) {
@@ -365,7 +337,7 @@ export const createVideo = mutation({
     }
 
     // Create video record
-    const videoId = await ctx.db.insert("videos", {
+    const videoId: Id<"videos"> = await ctx.db.insert("videos", {
       clerkId: identity.subject,
       prompt: args.prompt,
       model: args.model,
@@ -441,7 +413,6 @@ export const updateVideoStatus = mutation({
     replicateJobId: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
-    convexFileId: v.optional(v.id("_storage")),
     r2FileKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -465,10 +436,6 @@ export const updateVideoStatus = mutation({
 
     if (args.videoUrl) {
       updateData.videoUrl = args.videoUrl;
-    }
-
-    if (args.convexFileId) {
-      updateData.convexFileId = args.convexFileId;
     }
 
     if (args.r2FileKey) {
@@ -508,7 +475,7 @@ export const deleteVideo = mutation({
     // Delete R2 file if it exists
     if (video.r2FileKey) {
       try {
-        await (r2 as any).deleteByKey(video.r2FileKey);
+        await r2.deleteObject(ctx, video.r2FileKey);
       } catch (error) {
         console.error("Failed to delete R2 file:", error);
         // Continue with video deletion even if R2 deletion fails
@@ -734,40 +701,6 @@ export const getVideoByReplicateJobId = query({
   },
 });
 
-// Query to get video file URL - generates fresh R2 URL
-export const getVideoFileUrl = query({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const video = await ctx.db.get(args.videoId);
-    if (!video) {
-      throw new Error("Video not found");
-    }
-
-    if (video.clerkId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
-
-    // Try to generate dynamic R2 URL first
-    if (video.r2FileKey) {
-      return await generateDynamicVideoUrl(ctx, video);
-    }
-
-    // Fallback to Convex storage (legacy videos)
-    if (video.convexFileId) {
-      const fileUrl = await ctx.storage.getUrl(video.convexFileId);
-      return fileUrl;
-    }
-
-    // Final fallback to original video URL
-    return video.videoUrl;
-  },
-});
-
 // Action to poll Replicate status
 export const pollReplicateStatus = action({
   args: {
@@ -888,7 +821,6 @@ export const downloadAndStoreVideo = action({
       // Store the video file in R2 storage
       const key = await r2.store(ctx, blob, {
         key: fileKey,
-        type: "video/mp4",
       });
 
       const downloadTime = Date.now() - startTime;
@@ -981,7 +913,6 @@ export const searchVideos = query({
     quality: v.optional(
       v.union(v.literal("standard"), v.literal("high"), v.literal("ultra"))
     ),
-    tags: v.optional(v.array(v.string())),
     dateFrom: v.optional(v.number()),
     dateTo: v.optional(v.number()),
     minCredits: v.optional(v.number()),
@@ -1031,11 +962,6 @@ export const searchVideos = query({
       ? sanitizeString(args.searchQuery, 200)
       : undefined;
 
-    // Validate tags array
-    if (args.tags && args.tags.length > 10) {
-      throw new Error("Maximum 10 tags allowed");
-    }
-
     // Validate date range
     if (args.dateFrom && args.dateTo && args.dateFrom > args.dateTo) {
       throw new Error("Invalid date range: start date must be before end date");
@@ -1070,15 +996,11 @@ export const searchVideos = query({
     const videos = await query.collect();
 
     // Filter videos based on search criteria
-    let filteredVideos = videos.filter((video) => {
+    const filteredVideos = videos.filter((video) => {
       // Text search in title, prompt, description, and tags
       if (args.searchQuery) {
         const searchLower = args.searchQuery.toLowerCase();
-        const searchableText = [
-          video.prompt,
-          video.description || "",
-          ...(video.tags || []),
-        ]
+        const searchableText = [video.prompt, video.description || ""]
           .join(" ")
           .toLowerCase();
 
@@ -1095,14 +1017,6 @@ export const searchVideos = query({
       // Quality filter
       if (args.quality && video.quality !== args.quality) {
         return false;
-      }
-
-      // Tags filter (video must have at least one of the specified tags)
-      if (args.tags && args.tags.length > 0) {
-        const videoTags = video.tags || [];
-        if (!args.tags.some((tag) => videoTags.includes(tag))) {
-          return false;
-        }
       }
 
       // Date range filter
@@ -1172,7 +1086,7 @@ export const searchVideos = query({
     // Return videos with dynamically generated R2 URLs
     const videosWithUrls = await Promise.all(
       paginatedVideos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -1410,12 +1324,11 @@ export const toggleVideoPrivacy = mutation({
   },
 });
 
-// Update video tags and description
+// Update video description
 export const updateVideoInfo = mutation({
   args: {
     videoId: v.id("videos"),
     description: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -1438,42 +1351,8 @@ export const updateVideoInfo = mutation({
 
     if (args.description !== undefined)
       updateData.description = args.description;
-    if (args.tags !== undefined) updateData.tags = args.tags;
 
     await ctx.db.patch(args.videoId, updateData);
-  },
-});
-
-// Get popular tags for user
-export const getUserTags = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const videos = await ctx.db
-      .query("videos")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .collect();
-
-    const tagCounts = new Map<string, number>();
-
-    videos.forEach((video) => {
-      if (video.tags) {
-        video.tags.forEach((tag) => {
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-        });
-      }
-    });
-
-    const sortedTags = Array.from(tagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([tag, count]) => ({ tag, count }));
-
-    return sortedTags;
   },
 });
 

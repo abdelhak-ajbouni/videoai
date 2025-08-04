@@ -116,9 +116,7 @@ export const getPricingMatrix = query({
           .first();
 
         let supportedDurations: number[] = [];
-        if (model.fixedDuration) {
-          supportedDurations = [model.fixedDuration];
-        } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+        if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
           supportedDurations =
             modelParams.parameterDefinitions.duration.allowedValues;
         }
@@ -158,9 +156,7 @@ export const getModelInfo = query({
         .first();
 
       let supportedDurations: number[] = [];
-      if (model.fixedDuration) {
-        supportedDurations = [model.fixedDuration];
-      } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+      if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
         supportedDurations =
           modelParams.parameterDefinitions.duration.allowedValues;
       }
@@ -169,7 +165,6 @@ export const getModelInfo = query({
         name: model.name,
         description: model.description,
         costPerSecond: model.costPerSecond,
-        fixedDuration: model.fixedDuration,
         supportedDurations: supportedDurations,
         isPremium: model.isPremium,
         isDefault: model.isDefault,
@@ -199,11 +194,6 @@ export const getAvailableModels = query({
     const availableModels = [];
 
     for (const model of models) {
-      // Check if model supports the requested duration
-      if (model.fixedDuration && duration !== model.fixedDuration) {
-        continue;
-      }
-
       // Get supported durations from modelParameters table
       const modelParams = await ctx.db
         .query("modelParameters")
@@ -211,13 +201,12 @@ export const getAvailableModels = query({
         .first();
 
       let supportedDurations: number[] = [];
-      if (model.fixedDuration) {
-        supportedDurations = [model.fixedDuration];
-      } else if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
+      if (modelParams?.parameterDefinitions?.duration?.allowedValues) {
         supportedDurations =
           modelParams.parameterDefinitions.duration.allowedValues;
       }
 
+      // Check if model supports the requested duration
       if (!supportedDurations.includes(duration)) {
         continue;
       }
@@ -250,10 +239,6 @@ export const getModelPricingComparison = query({
 
     const availableModels = models.filter((model: any) => {
       // Check if model supports the requested duration
-      if (model.fixedDuration && duration !== model.fixedDuration) {
-        return false;
-      }
-
       if (!model.supportedDurations.includes(duration)) {
         return false;
       }

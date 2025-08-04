@@ -26,22 +26,6 @@ async function getCreditPackage(ctx: ActionCtx, packageId: string) {
   };
 }
 
-// Helper function to get subscription plan from database
-async function getSubscriptionPlan(ctx: ActionCtx, planId: string) {
-  const plan = await ctx.runQuery(api.subscriptionPlans.getPlanById, {
-    planId,
-  });
-
-  if (!plan) {
-    throw new Error(`Subscription plan not found: ${planId}`);
-  }
-
-  return {
-    credits: plan.monthlyCredits,
-    price: plan.price,
-  };
-}
-
 // Get user's Stripe customer ID or create one
 export const getOrCreateStripeCustomer = action({
   args: { clerkId: v.string() },
@@ -91,11 +75,15 @@ export const createCreditCheckoutSession = action({
     }
 
     // Check if user has an active subscription
-    const currentSubscription = await ctx.runQuery(api.subscriptions.getCurrentSubscription, {
-      clerkId: clerkId,
-    });
-    if (!currentSubscription || currentSubscription.status !== "active") {
-      throw new Error("Credit packages are only available for subscribers. Please subscribe to a plan first.");
+    const currentUser = await ctx.runQuery(api.users.getCurrentUser);
+    if (
+      !currentUser ||
+      !currentUser.subscriptionTier ||
+      currentUser.subscriptionTier === "free"
+    ) {
+      throw new Error(
+        "Credit packages are only available for subscribers. Please subscribe to a plan first."
+      );
     }
 
     const packageConfig = await getCreditPackage(ctx, packageId);
@@ -145,7 +133,6 @@ export const createSubscriptionCheckoutSession = action({
     planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
   },
   handler: async (ctx: ActionCtx, { clerkId, planId }): Promise<string> => {
-    const planConfig = await getSubscriptionPlan(ctx, planId);
     const customerId: string = await ctx.runAction(
       api.stripe.getOrCreateStripeCustomer,
       {
@@ -284,20 +271,17 @@ async function handleCheckoutSessionCompleted(
       );
 
       // Create subscription in database
-      const subscriptionId = await ctx.runMutation(
-        api.subscriptions.createSubscription,
-        {
-          clerkId,
-          stripeSubscriptionId: session.subscription as string,
-          planId: planId as "starter" | "pro" | "max",
-          stripeCustomerId: subscription.customer as string,
-          stripePriceId: subscription.items.data[0].price.id,
-          subscriptionStatus: subscription.status,
-          currentPeriodStart: (subscription as any).current_period_start * 1000,
-          currentPeriodEnd: (subscription as any).current_period_end * 1000,
-          cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-        }
-      );
+      await ctx.runMutation(api.subscriptions.createSubscription, {
+        clerkId,
+        stripeSubscriptionId: session.subscription as string,
+        planId: planId as "starter" | "pro" | "max",
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodStart: (subscription as any).current_period_start * 1000,
+        currentPeriodEnd: (subscription as any).current_period_end * 1000,
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+      });
     } catch (error) {
       console.error("Error creating subscription:", {
         error: error instanceof Error ? error.message : String(error),

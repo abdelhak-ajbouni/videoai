@@ -68,9 +68,6 @@ export const storeVideoFile = action({
     // Store file in R2
     const key = await r2.store(ctx, args.blob, {
       key: fileKey,
-      type: args.filename.endsWith(".mp4")
-        ? "video/mp4"
-        : "application/octet-stream",
     });
 
     return key;
@@ -152,32 +149,10 @@ export const deleteVideoFile = mutation({
     }
 
     try {
-      // Delete file from R2
-      await (r2 as any).deleteByKey(args.key);
+      await r2.deleteObject(ctx, args.key);
     } catch (error) {
       console.error("Error deleting file from R2:", error);
       throw new Error("Failed to delete file");
     }
-  },
-});
-
-// List user's video files
-export const listUserVideoFiles = query({
-  args: {
-    limit: v.optional(v.number()),
-    cursor: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    // List files with user's prefix
-    const prefix = `videos/${identity.subject}/`;
-
-    const result = await r2.listMetadata(ctx, args.limit || 50);
-
-    return result;
   },
 });

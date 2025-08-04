@@ -1,6 +1,5 @@
 import { v } from "convex/values";
-import { mutation, MutationCtx, query } from "./_generated/server";
-import { Doc } from "./_generated/dataModel";
+import { mutation, query, QueryCtx } from "./_generated/server";
 
 /**
  * Helper functions for managing model-specific parameters
@@ -165,7 +164,7 @@ function applyParameterMappings(
  * Maps frontend form values to API parameters using database-driven capabilities
  */
 export async function mapParametersForModel(
-  ctx: MutationCtx,
+  ctx: QueryCtx,
   modelId: string,
   frontendParams: FrontendParameters
 ): Promise<ParameterMapping> {
@@ -214,14 +213,6 @@ export async function mapParametersForModel(
       apiParameters,
       mappingLog
     );
-  } else if (model.parameterMappings) {
-    // Fallback to model.parameterMappings if modelParameters not found
-    applyParameterMappings(
-      model.parameterMappings,
-      frontendParams,
-      apiParameters,
-      mappingLog
-    );
   }
 
   // Add model-specific defaults based on model type
@@ -265,27 +256,20 @@ export const storeVideoParameters = mutation({
 });
 
 /**
- * Validate parameters against model capabilities
- * Note: This function is deprecated in favor of the database-driven validation
- * in convex/lib/validation.ts. Consider using validateModelCapabilities instead.
+ * Get parameter statistics for a model (for analytics)
  */
-export function validateParametersForModel(
-  model: Doc<"models">,
-  frontendParams: FrontendParameters
-): { isValid: boolean; errors: string[] } {
-  const errors: string[] = [];
+export const getModelParameterStats = query({
+  args: { modelId: v.string() },
+  handler: async (ctx, args) => {
+    const parameters = await ctx.db
+      .query("videoParameters")
+      .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
+      .collect();
 
-  // Validate duration (basic validation only for backward compatibility)
-  if (model.fixedDuration) {
-    if (parseInt(frontendParams.duration.toString()) !== model.fixedDuration) {
-      errors.push(`Model only supports ${model.fixedDuration}s duration`);
-    }
-  }
-  // Note: For variable duration models, validation should now use the
-  // validateModelCapabilities function with modelParameters data
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
+    return {
+      totalGenerations: parameters.length,
+      modelId: args.modelId,
+      // Add more analytics as needed
+    };
+  },
+});

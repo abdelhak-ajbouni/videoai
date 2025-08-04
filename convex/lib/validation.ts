@@ -337,18 +337,11 @@ export function validateModelCapabilities(
   if (generationParams.duration) {
     const durationNum = parseFloat(generationParams.duration);
 
-    // Handle fixed duration models
-    if (model.fixedDuration) {
-      if (durationNum !== model.fixedDuration) {
-        errors.push(
-          `Model only supports ${model.fixedDuration}s duration (requested: ${durationNum}s)`
-        );
-      }
-    } else if (
+    // Check if duration is supported by the model
+    if (
       modelParams.supportedDurations &&
       modelParams.supportedDurations.length > 0
     ) {
-      // Handle models with variable durations
       if (!modelParams.supportedDurations.includes(durationNum)) {
         errors.push(
           `Model does not support duration ${durationNum}s. Supported: ${modelParams.supportedDurations.join(", ")}`

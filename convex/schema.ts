@@ -18,7 +18,6 @@ export default defineSchema({
     // Video metadata
     prompt: v.string(),
     description: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
 
     // Generation settings
     model: v.string(), // Accept any model ID string
@@ -43,14 +42,10 @@ export default defineSchema({
 
     // Replicate integration
     replicateJobId: v.optional(v.string()),
-    replicateWebhookId: v.optional(v.string()),
 
     // File storage
     videoUrl: v.optional(v.string()), // Primary video URL (CDN or external)
-    convexFileId: v.optional(v.id("_storage")), // Legacy Convex storage
     r2FileKey: v.optional(v.string()), // CDN storage key
-    videoCdnUrl: v.optional(v.string()), // Stored CDN signed URL
-    videoCdnUrlExpiresAt: v.optional(v.number()), // When the CDN URL expires
 
     // Video file metadata
     fileSize: v.optional(v.number()), // in bytes
@@ -75,7 +70,6 @@ export default defineSchema({
     errorMessage: v.optional(v.string()),
     processingStartedAt: v.optional(v.number()),
     processingCompletedAt: v.optional(v.number()),
-    estimatedCompletionTime: v.optional(v.number()),
     processingDuration: v.optional(v.number()), // total processing time in ms
 
     // Performance metrics
@@ -275,14 +269,9 @@ export default defineSchema({
 
     // Pricing and basic capabilities
     costPerSecond: v.number(), // Cost in USD per second
-    fixedDuration: v.optional(v.number()), // For models with fixed duration only (like Veo-3)
-
-    // Parameter mapping configuration - how frontend params map to API params
-    parameterMappings: v.optional(v.any()), // JSON object defining the mapping rules
 
     // Model type/category for grouping (replaces hardcoded string matching)
     modelType: v.string(), // "google_veo", "luma_ray", "stability_ai", etc.
-    apiProvider: v.string(), // "replicate", "openai", "anthropic", etc.
 
     // Model status
     isActive: v.boolean(), // Whether model is available for use
@@ -297,21 +286,15 @@ export default defineSchema({
     .index("by_active", ["isActive"])
     .index("by_default", ["isDefault"])
     .index("by_model_type", ["modelType"])
-    .index("by_api_provider", ["apiProvider"])
     .index("by_active_type", ["isActive", "modelType"])
     .index("by_active_premium", ["isActive", "isPremium"]),
 
-  // Model parameters - transitioning from old to new structure
+  // Model parameters - dynamic parameter configuration for each model
   modelParameters: defineTable({
-    // Link to model OR video (during transition)
+    // Link to model
     modelId: v.string(), // e.g., "luma/ray-2-540p", "google/veo-3"
 
-    // OLD STRUCTURE (will be migrated)
-    videoId: v.optional(v.id("videos")), // Link to video (old structure)
-    parameters: v.optional(v.any()), // Raw parameters (old structure)
-    parameterMapping: v.optional(v.any()), // Parameter mapping (old structure)
-
-    // NEW STRUCTURE
+    // Parameter configuration
     parameterDefinitions: v.optional(v.any()), // JSON object defining all possible parameters
     constraints: v.optional(v.any()), // Min/max values, allowed values, etc.
     mappingRules: v.optional(v.any()), // JSON object defining the mapping rules
@@ -321,8 +304,7 @@ export default defineSchema({
     // Timestamps
     createdAt: v.number(),
   })
-    .index("by_model_id", ["modelId"])
-    .index("by_video_id", ["videoId"]),
+    .index("by_model_id", ["modelId"]),
 
   // Video parameters - stores the actual parameters used for each video generation
   videoParameters: defineTable({

@@ -44,14 +44,16 @@ A complete SaaS platform that enables users to generate high-quality videos from
 ### Database Schema
 ```typescript
 // Core entities
-users: User profiles, credits, subscriptions
-videos: Video metadata, generation status, file storage
-creditTransactions: Credit purchases, usage, refunds
+userProfiles: User profiles, credits, subscriptions (linked via Clerk ID)
+videos: Video metadata, generation status, file storage, analytics
+creditTransactions: Credit purchases, usage, refunds with balance tracking
 subscriptions: Stripe subscriptions, billing cycles
 creditPackages: One-time credit purchase options
 subscriptionPlans: Monthly subscription tiers
 models: AI model configurations and pricing
 configurations: Business rules and feature flags
+modelParameters: Dynamic parameter configuration for each AI model
+videoParameters: Actual parameters used for each video generation
 ```
 
 ## 💰 Pricing Structure
@@ -108,11 +110,7 @@ npm install
 ```
 
 3. **Set up environment variables**
-```bash
-cp .env.example .env.local
-```
-
-Configure the following variables:
+Create a `.env.local` file in the project root with the following variables:
 ```env
 # Clerk Authentication
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
@@ -141,7 +139,7 @@ npm run dev
 ```
 
 6. **Access the application**
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3001](http://localhost:3001) (development server runs on port 3001)
 
 ## 📁 Project Structure
 
@@ -149,44 +147,54 @@ Open [http://localhost:3000](http://localhost:3000)
 videoai/
 ├── convex/                 # Backend functions and schema
 │   ├── schema.ts          # Database schema
-│   ├── init.ts            # Database initialization
+│   ├── seed.ts            # Database initialization
 │   ├── videos.ts          # Video generation logic
-│   ├── users.ts           # User management
+│   ├── users.ts & userProfiles.ts  # User management
 │   ├── stripe.ts          # Payment processing
 │   ├── models.ts          # AI model management
-│   └── configurations.ts  # Business configuration
+│   ├── configurations.ts  # Business configuration
+│   ├── pricing.ts         # Centralized pricing calculations
+│   └── lib/               # Utilities (validation, Replicate client)
 ├── src/
 │   ├── app/               # Next.js app router
+│   │   ├── api/webhooks/  # API webhooks (Replicate callbacks)  
 │   │   ├── generate/      # Video generation
 │   │   ├── my-videos/     # Video library
 │   │   ├── pricing/       # Pricing page
 │   │   ├── profile/       # User profile
+│   │   ├── explore/       # Video exploration
+│   │   ├── [legal]/       # Privacy policy, terms, refund policy
 │   │   └── layout.tsx     # Root layout
 │   ├── components/        # React components
 │   │   ├── ui/            # Reusable UI components
+│   │   ├── layouts/       # Layout components
+│   │   ├── navigation/    # Header, sidebar, mobile navigation
 │   │   ├── VideoGenerationForm.tsx
 │   │   ├── VideoLibrary.tsx
+│   │   ├── VideoModal.tsx
 │   │   └── ...
 │   └── lib/               # Utility functions
-├── specs/                 # Documentation
-│   ├── requirements.md    # Requirements specification
-│   ├── tasks.md          # Implementation plan
-│   ├── pricing-system.md # Pricing specification
-│   └── design.md         # Technical design
+├── scripts/               # Build and utility scripts
+│   └── toggle-mode.js     # Development/production mode switching
 └── public/               # Static assets
+    └── videos/           # Sample video files
 ```
 
 ## 🔧 Development
 
 ### Available Scripts
 ```bash
-npm run dev              # Start development server
+npm run dev              # Start development server (localhost:3001)
 npm run build            # Build for production
 npm run start            # Start production server
 npm run lint             # Run ESLint
-npm run predev           # Initialize database
+npm run predev           # Initialize database with seed data
 npm run dev-mode         # Switch to development mode
 npm run prod-mode        # Switch to production mode
+npm run check-mode       # Check current mode
+npm test                 # Run Jest tests
+npm run test:watch       # Run tests in watch mode
+npm run test:coverage    # Generate test coverage report
 ```
 
 ### Database Management
@@ -194,8 +202,14 @@ npm run prod-mode        # Switch to production mode
 # Initialize database with seed data
 npm run predev
 
-# Run database migrations
-npx convex dev --run migrations
+# Clear all database data
+npm run db:clear
+
+# Seed database with initial data  
+npm run db:seed
+
+# Clear and reseed database
+npm run db:reset
 
 # View database in Convex dashboard
 npx convex dashboard
@@ -287,10 +301,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Documentation
 
-- [Requirements Specification](specs/requirements.md)
-- [Implementation Plan](specs/tasks.md)
-- [Pricing System](specs/pricing-system.md)
-- [Technical Design](specs/design.md)
+- [Development Guidelines](CLAUDE.md) - Comprehensive guide for developers working with this codebase
+- Package.json scripts provide automated database management and testing capabilities
+- Convex dashboard provides real-time database inspection and debugging tools
 
 ---
 
