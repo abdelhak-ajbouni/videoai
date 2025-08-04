@@ -28,13 +28,13 @@ async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
   // Generate fresh R2 URL if video is stored in R2
   if (video.r2FileKey) {
     try {
-      videoUrl = await r2.getUrl(ctx, video.r2FileKey, {
-        expiresIn: 3600, // 1 hour expiration
+      videoUrl = await r2.getUrl(video.r2FileKey, {
+        expiresIn: 3600 * 24 * 30, // 30 days expiration
       });
     } catch (error) {
       console.error("Failed to generate R2 URL:", error);
       // Fallback to stored URL
-      videoUrl = video.videoCdnUrl || video.videoUrl;
+      videoUrl = video.videoUrl;
     }
   }
   
@@ -435,7 +435,6 @@ export const updateVideoStatus = mutation({
     replicateJobId: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
-    convexFileId: v.optional(v.id("_storage")),
     r2FileKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -459,10 +458,6 @@ export const updateVideoStatus = mutation({
 
     if (args.videoUrl) {
       updateData.videoUrl = args.videoUrl;
-    }
-
-    if (args.convexFileId) {
-      updateData.convexFileId = args.convexFileId;
     }
 
     if (args.r2FileKey) {
@@ -751,12 +746,6 @@ export const getVideoFileUrl = query({
       return await generateDynamicVideoUrl(ctx, video);
     }
 
-    // Fallback to Convex storage (legacy videos)
-    if (video.convexFileId) {
-      const fileUrl = await ctx.storage.getUrl(video.convexFileId);
-      return fileUrl;
-    }
-
     // Final fallback to original video URL
     return video.videoUrl;
   },
@@ -981,7 +970,6 @@ export const searchVideos = query({
     quality: v.optional(
       v.union(v.literal("standard"), v.literal("high"), v.literal("ultra"))
     ),
-    tags: v.optional(v.array(v.string())),
     dateFrom: v.optional(v.number()),
     dateTo: v.optional(v.number()),
     minCredits: v.optional(v.number()),
@@ -1031,10 +1019,6 @@ export const searchVideos = query({
       ? sanitizeString(args.searchQuery, 200)
       : undefined;
 
-    // Validate tags array
-    if (args.tags && args.tags.length > 10) {
-      throw new Error("Maximum 10 tags allowed");
-    }
 
     // Validate date range
     if (args.dateFrom && args.dateTo && args.dateFrom > args.dateTo) {
@@ -1077,7 +1061,6 @@ export const searchVideos = query({
         const searchableText = [
           video.prompt,
           video.description || "",
-          ...(video.tags || []),
         ]
           .join(" ")
           .toLowerCase();
@@ -1097,13 +1080,6 @@ export const searchVideos = query({
         return false;
       }
 
-      // Tags filter (video must have at least one of the specified tags)
-      if (args.tags && args.tags.length > 0) {
-        const videoTags = video.tags || [];
-        if (!args.tags.some((tag) => videoTags.includes(tag))) {
-          return false;
-        }
-      }
 
       // Date range filter
       if (args.dateFrom && video.createdAt < args.dateFrom) {
@@ -1408,12 +1384,11 @@ export const toggleVideoPrivacy = mutation({
   },
 });
 
-// Update video tags and description
+// Update video description
 export const updateVideoInfo = mutation({
   args: {
     videoId: v.id("videos"),
     description: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -1436,44 +1411,11 @@ export const updateVideoInfo = mutation({
 
     if (args.description !== undefined)
       updateData.description = args.description;
-    if (args.tags !== undefined) updateData.tags = args.tags;
 
     await ctx.db.patch(args.videoId, updateData);
   },
 });
 
-// Get popular tags for user
-export const getUserTags = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const videos = await ctx.db
-      .query("videos")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .collect();
-
-    const tagCounts = new Map<string, number>();
-
-    videos.forEach((video) => {
-      if (video.tags) {
-        video.tags.forEach((tag) => {
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-        });
-      }
-    });
-
-    const sortedTags = Array.from(tagCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([tag, count]) => ({ tag, count }));
-
-    return sortedTags;
-  },
-});
 
 // Cleanup failed videos older than specified days
 export const cleanupFailedVideos = mutation({

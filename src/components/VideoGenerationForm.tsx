@@ -89,9 +89,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
   const getValidDurations = (model: Doc<"models"> | undefined) => {
     if (!model) return [];
 
-    if (model.fixedDuration) {
-      return [{ value: model.fixedDuration, label: `${model.fixedDuration} seconds`, badge: "Fixed duration" }];
-    } else if (modelParameters?.supportedDurations && modelParameters.supportedDurations.length > 0) {
+    if (modelParameters?.supportedDurations && modelParameters.supportedDurations.length > 0) {
       // Use data from modelParameters table
       const durations = modelParameters.supportedDurations;
       return durations.map((d: number) => ({

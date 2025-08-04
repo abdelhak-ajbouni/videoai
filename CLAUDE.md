@@ -17,11 +17,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run check-mode` - Check current mode
 
 ### Database & Configuration Management
-- `npm run init-configs` - Initialize system configurations
-- `npm run init-models` - Initialize AI model data
 - `npx convex dev --run init` - Initialize database with seed data
 - `npx convex dashboard` - Open Convex database dashboard
-- `npx convex dev --run migrations` - Run database migrations
+- `npm run db:clear` - Clear all database data
+- `npm run db:seed` - Seed database with initial data
+- `npm run db:reset` - Clear and reseed database
+
+### Testing Commands
+- `npm test` - Run Jest tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Generate test coverage report
 
 ## Application Architecture
 
@@ -34,14 +39,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Database Schema (Convex)
 The application uses Convex as both database and backend. Key tables:
-- `users` - User profiles, credits, subscription status
-- `videos` - Video metadata, generation status, file storage
-- `creditTransactions` - All credit purchases, usage, refunds  
-- `subscriptions` - Stripe subscription management
-- `models` - Dynamic AI model configurations
-- `configurations` - Business rules and feature flags
-- `creditPackages` - One-time credit purchase packages
-- `subscriptionPlans` - Monthly subscription tiers
+- `userProfiles` - User profiles, credits, subscription status (linked via Clerk ID)
+- `videos` - Video metadata, generation status, file storage, analytics
+- `creditTransactions` - All credit purchases, usage, refunds with balance tracking
+- `subscriptions` - Stripe subscription management with billing cycles
+- `models` - Dynamic AI model configurations with pricing and capabilities
+- `configurations` - Business rules and feature flags with type validation
+- `creditPackages` - One-time credit purchase packages with popularity flags
+- `subscriptionPlans` - Monthly subscription tiers with feature lists
+- `modelParameters` - Dynamic parameter configuration for each AI model
+- `videoParameters` - Actual parameters used for each video generation
 
 ### Credit System
 - **Base Rate**: 1 credit = $0.02 USD (50 credits per dollar)
@@ -59,24 +66,29 @@ All models are dynamically configured in the database:
 ```
 src/
 ├── app/                    # Next.js App Router
-│   ├── dashboard/         # Main user dashboard
-│   ├── admin/            # Admin interface (models, configurations)
-│   ├── generate/         # Video generation page
-│   └── library/          # Video library/gallery
+│   ├── api/webhooks/      # API webhooks (Replicate callbacks)
+│   ├── generate/          # Video generation page
+│   ├── my-videos/         # Video library/gallery
+│   ├── pricing/           # Pricing and subscription page
+│   ├── profile/           # User profile management
+│   └── [legal]/           # Privacy policy, terms, refund policy
 ├── components/
-│   ├── ui/               # Reusable UI components (Radix + custom)
-│   ├── layouts/          # Layout components (DashboardLayout)
+│   ├── ui/                # Reusable UI components (Radix + custom)
+│   ├── layouts/           # Layout components (app-layout)
+│   ├── navigation/        # Header, sidebar, mobile navigation
 │   ├── VideoGenerationForm.tsx  # Main video creation form
 │   ├── VideoLibrary.tsx         # Video gallery/management
-│   └── BillingDashboard.tsx     # Credits/subscription management
+│   └── VideoModal.tsx           # Video playback modal
 convex/
-├── schema.ts             # Database schema definitions
-├── init.ts              # Database initialization with seed data
-├── videos.ts            # Video generation logic & Replicate integration
-├── users.ts             # User management & credit system
-├── stripe.ts            # Payment processing & webhooks
-├── models.ts            # Dynamic AI model management
-└── configurations.ts    # Business configuration system
+├── schema.ts              # Database schema definitions
+├── seed.ts                # Database initialization with seed data
+├── videos.ts              # Video generation logic & Replicate integration
+├── users.ts & userProfiles.ts  # User management & credit system
+├── stripe.ts              # Payment processing & webhooks
+├── models.ts              # Dynamic AI model management
+├── configurations.ts      # Business configuration system
+├── pricing.ts             # Centralized pricing calculations
+└── lib/                   # Utilities (validation, Replicate client)
 ```
 
 ### Business Logic
@@ -105,9 +117,21 @@ Located at `/admin/`, provides:
 - Real-time video status updates use Convex subscriptions
 - Stripe webhooks handled in `convex/stripe.ts`
 - Model configurations are stored in database, not hardcoded
+- Uses Jest for testing with watch mode and coverage reporting
+- Mode switching available for dev/prod environments via scripts
 
-### Testing
+### Key Development Patterns
+- **Authentication**: All user data linked via Clerk ID, not internal user IDs
+- **Real-time Updates**: Convex subscriptions provide live status updates across all components
+- **Parameter Management**: Dynamic model parameters stored in `modelParameters` table
+- **File Storage**: Videos stored externally (Replicate) with R2 CDN fallback
+- **Error Handling**: Comprehensive error states in video generation pipeline
+- **Analytics**: Built-in view tracking, download counts, and engagement metrics
+
+### Testing & Debugging
 - Use Stripe test mode for payment testing
 - Test video generation with Luma Ray Flash 2-540p (cheapest model)
 - Credit calculations can be tested via pricing API functions
-- Admin interface requires proper user permissions
+- Database can be cleared and reseeded for testing
+- Jest provides unit testing with coverage reports
+- Mode toggle script helps switch between dev/prod configurations

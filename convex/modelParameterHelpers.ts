@@ -294,14 +294,8 @@ export function validateParametersForModel(
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Validate duration (basic validation only for backward compatibility)
-  if (model.fixedDuration) {
-    if (parseInt(frontendParams.duration) !== model.fixedDuration) {
-      errors.push(`Model only supports ${model.fixedDuration}s duration`);
-    }
-  }
-  // Note: For variable duration models, validation should now use the
-  // validateModelCapabilities function with modelParameters data
+  // Note: Duration validation should now use the validateModelCapabilities 
+  // function with modelParameters data for proper validation
 
   return {
     isValid: errors.length === 0,
