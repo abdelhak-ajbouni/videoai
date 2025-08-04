@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, QueryCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
@@ -9,7 +9,6 @@ import {
 } from "./modelParameterHelpers";
 import {
   validateVideoGeneration,
-  validateUserCredits,
   validateModelCapabilities,
   throwValidationError,
   logValidationWarnings,
@@ -18,13 +17,17 @@ import {
 } from "./lib/validation";
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
+import { Doc } from "./_generated/dataModel";
 
 const r2 = new R2(components.r2);
 
 // Helper function to generate dynamic R2 URL for a video
-async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
+async function generateDynamicVideoUrl(
+  ctx: QueryCtx,
+  video: Doc<"videos">
+): Promise<string | undefined> {
   let videoUrl = video.videoUrl; // Default fallback
-  
+
   // Generate fresh R2 URL if video is stored in R2
   if (video.r2FileKey) {
     try {
@@ -37,7 +40,7 @@ async function generateDynamicVideoUrl(ctx: any, video: any): Promise<string> {
       videoUrl = video.videoUrl;
     }
   }
-  
+
   return videoUrl;
 }
 
@@ -57,13 +60,15 @@ export const getUserVideos = query({
       .collect();
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(videos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      videos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -119,13 +124,15 @@ export const getVideosByStatus = query({
       .collect();
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(videos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      videos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -156,18 +163,20 @@ export const getLatestVideosFromOthers = query({
       .slice(0, args.limit || 12);
 
     // Return videos with dynamically generated R2 URLs
-    return Promise.all(otherUsersVideos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    return Promise.all(
+      otherUsersVideos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
   },
 });
 
 // Mutation to create a new video generation request
-export const createVideo = mutation({
+export const createVideoRequest: any = mutation({
   args: {
     prompt: v.string(),
     model: v.string(), // Accept any model ID string
@@ -497,7 +506,7 @@ export const deleteVideo = mutation({
     // Delete R2 file if it exists
     if (video.r2FileKey) {
       try {
-        await r2.deleteByKey(ctx, video.r2FileKey);
+        await r2.deleteObject(ctx, video.r2FileKey);
       } catch (error) {
         console.error("Failed to delete R2 file:", error);
         // Continue with video deletion even if R2 deletion fails
@@ -871,13 +880,6 @@ export const downloadAndStoreVideo = action({
       // Store the video file in R2 storage
       const key = await r2.store(ctx, blob, {
         key: fileKey,
-        metadata: {
-          videoId: args.videoId,
-          clerkId: video?.clerkId || "",
-          originalUrl: args.videoUrl,
-          uploadedAt: timestamp.toString(),
-          fileSize: fileSize.toString(),
-        },
       });
 
       const downloadTime = Date.now() - startTime;
@@ -1019,7 +1021,6 @@ export const searchVideos = query({
       ? sanitizeString(args.searchQuery, 200)
       : undefined;
 
-
     // Validate date range
     if (args.dateFrom && args.dateTo && args.dateFrom > args.dateTo) {
       throw new Error("Invalid date range: start date must be before end date");
@@ -1054,14 +1055,11 @@ export const searchVideos = query({
     const videos = await query.collect();
 
     // Filter videos based on search criteria
-    let filteredVideos = videos.filter((video) => {
+    const filteredVideos = videos.filter((video) => {
       // Text search in title, prompt, description, and tags
       if (args.searchQuery) {
         const searchLower = args.searchQuery.toLowerCase();
-        const searchableText = [
-          video.prompt,
-          video.description || "",
-        ]
+        const searchableText = [video.prompt, video.description || ""]
           .join(" ")
           .toLowerCase();
 
@@ -1079,7 +1077,6 @@ export const searchVideos = query({
       if (args.quality && video.quality !== args.quality) {
         return false;
       }
-
 
       // Date range filter
       if (args.dateFrom && video.createdAt < args.dateFrom) {
@@ -1146,13 +1143,15 @@ export const searchVideos = query({
     const paginatedVideos = filteredVideos.slice(offset, offset + limit);
 
     // Return videos with dynamically generated R2 URLs
-    const videosWithUrls = await Promise.all(paginatedVideos.map(async (video) => {
-      const videoUrl = await generateDynamicVideoUrl(ctx, video);
-      return {
-        ...video,
-        videoUrl,
-      };
-    }));
+    const videosWithUrls = await Promise.all(
+      paginatedVideos.map(async (video) => {
+        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        return {
+          ...video,
+          videoUrl,
+        };
+      })
+    );
 
     return {
       videos: videosWithUrls,
@@ -1416,7 +1415,6 @@ export const updateVideoInfo = mutation({
   },
 });
 
-
 // Cleanup failed videos older than specified days
 export const cleanupFailedVideos = mutation({
   args: {
@@ -1608,7 +1606,6 @@ function calculateMockGenerationTime(
 
   return Math.floor(baseTime * durationNum * randomFactor);
 }
-
 
 // Helper function to generate realistic mock video URLs and metadata
 function generateMockVideoUrls(quality: string, duration: string) {

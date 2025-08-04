@@ -66,7 +66,7 @@ function GeneratePageContent() {
 
   // Find the video we're tracking (if any)
   const currentVideo = trackingVideoId ?
-    [...(pendingVideos || []), ...(processingVideos || []), ...(completedVideos || [])].find(v => v._id === trackingVideoId) :
+    [...(pendingVideos || []), ...(processingVideos || []), ...(completedVideos || [])].find(v => v._id === trackingVideoId) || null :
     null;
 
   // Handle video creation callback

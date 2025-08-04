@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 
 /**
@@ -165,7 +165,7 @@ function applyParameterMappings(
  * Maps frontend form values to API parameters using database-driven capabilities
  */
 export async function mapParametersForModel(
-  ctx: { db: { query: (table: string) => any } },
+  ctx: QueryCtx,
   modelId: string,
   frontendParams: FrontendParameters
 ): Promise<ParameterMapping> {
