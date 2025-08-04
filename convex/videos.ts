@@ -3,10 +3,7 @@ import { mutation, query, action, QueryCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
-import {
-  mapParametersForModel,
-  validateParametersForModel,
-} from "./modelParameterHelpers";
+import { mapParametersForModel } from "./modelParameterHelpers";
 import {
   validateVideoGeneration,
   validateModelCapabilities,
@@ -17,13 +14,12 @@ import {
 } from "./lib/validation";
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 const r2 = new R2(components.r2);
 
 // Helper function to generate dynamic R2 URL for a video
-async function generateDynamicVideoUrl(
-  ctx: QueryCtx,
+async function getR2VideoUrl(
   video: Doc<"videos">
 ): Promise<string | undefined> {
   let videoUrl = video.videoUrl; // Default fallback
@@ -62,39 +58,13 @@ export const getUserVideos = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       videos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
         };
       })
     );
-  },
-});
-
-// Query to get a specific video with file URL
-export const getVideo = query({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const video = await ctx.db.get(args.videoId);
-    if (!video) {
-      throw new Error("Video not found");
-    }
-
-    if (video.clerkId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
-
-    const videoUrl = await generateDynamicVideoUrl(ctx, video);
-    return {
-      ...video,
-      videoUrl,
-    };
   },
 });
 
@@ -126,7 +96,7 @@ export const getVideosByStatus = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       videos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -165,7 +135,7 @@ export const getLatestVideosFromOthers = query({
     // Return videos with dynamically generated R2 URLs
     return Promise.all(
       otherUsersVideos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,
@@ -176,7 +146,7 @@ export const getLatestVideosFromOthers = query({
 });
 
 // Mutation to create a new video generation request
-export const createVideoRequest: any = mutation({
+export const createVideo = mutation({
   args: {
     prompt: v.string(),
     model: v.string(), // Accept any model ID string
@@ -304,8 +274,9 @@ export const createVideoRequest: any = mutation({
     };
 
     // Validate model capabilities using helper function
-    const parameterValidation = validateParametersForModel(
+    const parameterValidation = validateModelCapabilities(
       model,
+      modelCapabilities,
       frontendParams
     );
     if (!parameterValidation.isValid) {
@@ -368,7 +339,7 @@ export const createVideoRequest: any = mutation({
     }
 
     // Create video record
-    const videoId = await ctx.db.insert("videos", {
+    const videoId: Id<"videos"> = await ctx.db.insert("videos", {
       clerkId: identity.subject,
       prompt: args.prompt,
       model: args.model,
@@ -729,34 +700,6 @@ export const getVideoByReplicateJobId = query({
         q.eq("replicateJobId", args.replicateJobId)
       )
       .first();
-  },
-});
-
-// Query to get video file URL - generates fresh R2 URL
-export const getVideoFileUrl = query({
-  args: { videoId: v.id("videos") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const video = await ctx.db.get(args.videoId);
-    if (!video) {
-      throw new Error("Video not found");
-    }
-
-    if (video.clerkId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
-
-    // Try to generate dynamic R2 URL first
-    if (video.r2FileKey) {
-      return await generateDynamicVideoUrl(ctx, video);
-    }
-
-    // Final fallback to original video URL
-    return video.videoUrl;
   },
 });
 
@@ -1145,7 +1088,7 @@ export const searchVideos = query({
     // Return videos with dynamically generated R2 URLs
     const videosWithUrls = await Promise.all(
       paginatedVideos.map(async (video) => {
-        const videoUrl = await generateDynamicVideoUrl(ctx, video);
+        const videoUrl = await getR2VideoUrl(video);
         return {
           ...video,
           videoUrl,

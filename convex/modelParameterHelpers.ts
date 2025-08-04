@@ -214,14 +214,6 @@ export async function mapParametersForModel(
       apiParameters,
       mappingLog
     );
-  } else if (model.parameterMappings) {
-    // Fallback to model.parameterMappings if modelParameters not found
-    applyParameterMappings(
-      model.parameterMappings,
-      frontendParams,
-      apiParameters,
-      mappingLog
-    );
   }
 
   // Add model-specific defaults based on model type
@@ -282,23 +274,3 @@ export const getModelParameterStats = query({
     };
   },
 });
-
-/**
- * Validate parameters against model capabilities
- * Note: This function is deprecated in favor of the database-driven validation
- * in convex/lib/validation.ts. Consider using validateModelCapabilities instead.
- */
-export function validateParametersForModel(
-  model: Doc<"models">,
-  frontendParams: FrontendParameters
-): { isValid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  // Note: Duration validation should now use the validateModelCapabilities 
-  // function with modelParameters data for proper validation
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
