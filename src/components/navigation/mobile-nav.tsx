@@ -96,7 +96,7 @@ export function MobileNav({ className }: MobileNavProps) {
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-white/90">VideoAI</h1>
+                  <h1 className="text-xl font-semibold text-white/90">Veymo.ai</h1>
                   <p className="text-xs text-gray-400">AI Video Platform</p>
                 </div>
               </div>

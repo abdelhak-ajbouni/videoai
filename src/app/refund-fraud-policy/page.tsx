@@ -124,7 +124,7 @@ export default function RefundFraudPolicyPage() {
                   <h3 className="text-lg font-semibold text-white">9. Reporting Fraud</h3>
                   <p className="text-gray-300">
                     If you suspect fraudulent activity on your account or unauthorized charges,
-                    please contact us immediately at fraud@videoai.com or through our priority
+                    please contact us immediately at fraud@veymo.ai or through our priority
                     support channel.
                   </p>
                 </section>

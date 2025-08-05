@@ -91,7 +91,7 @@ export default function PrivacyPolicyPage() {
                   <h2 className="text-xl font-semibold text-white">9. Contact Us</h2>
                   <p className="text-gray-300">
                     If you have any questions about this privacy policy, please contact us at
-                    privacy@videoai.com or through our support channels.
+                    privacy@veymo.ai or through our support channels.
                   </p>
                 </section>
               </div>

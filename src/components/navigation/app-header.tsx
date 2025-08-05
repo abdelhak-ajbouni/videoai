@@ -49,7 +49,7 @@ export function AppHeader({ className }: AppHeaderProps) {
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-semibold text-white/90 group-hover:text-white transition-colors">VideoAI</span>
+          <span className="text-lg font-semibold text-white/90 group-hover:text-white transition-colors">Veymo.ai</span>
         </Link>
 
         {/* Right Section */}
@@ -139,7 +139,7 @@ export function AppHeader({ className }: AppHeaderProps) {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <a href="mailto:support@videoai.com?subject=Support Request&body=Hello VideoAI Support Team,%0D%0A%0D%0A" className="cursor-pointer">
+                  <a href="mailto:support@veymo.ai?subject=Support Request&body=Hello Veymo.ai Support Team,%0D%0A%0D%0A" className="cursor-pointer">
                     <Mail className="mr-2 h-4 w-4" />
                     <span>Contact Us</span>
                   </a>

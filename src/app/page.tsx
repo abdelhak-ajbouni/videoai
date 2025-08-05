@@ -68,7 +68,7 @@ export default function Home() {
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <Sparkles className="h-3 w-3 text-white" />
                 </div>
-                <span className="text-lg font-semibold text-white">VideoAI</span>
+                <span className="text-lg font-semibold text-white">Veymo.ai</span>
               </div>
               <div className="flex items-center space-x-4">
                 <SignUpButton mode="redirect" forceRedirectUrl="/generate">
@@ -238,7 +238,7 @@ export default function Home() {
               <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                 <Sparkles className="h-3 w-3 text-white" />
               </div>
-              <span className="text-gray-400">VideoAI</span>
+              <span className="text-gray-400">Veymo.ai</span>
             </div>
 
             <div className="flex flex-wrap items-center justify-center space-x-6 text-sm text-gray-500">
@@ -254,7 +254,7 @@ export default function Home() {
             </div>
 
             <p className="text-gray-500 text-sm">
-              &copy; 2024 VideoAI. Transform your ideas into videos.
+              &copy; 2024 Veymo.ai. Transform your ideas into videos.
             </p>
           </div>
         </div>

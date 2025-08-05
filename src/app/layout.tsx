@@ -18,10 +18,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VideoAI - AI-Powered Video Generation",
+  title: "Veymo.ai - AI-Powered Video Generation",
   description: "Create stunning videos from text using advanced AI technology",
   keywords: ["AI", "video generation", "artificial intelligence", "content creation"],
-  authors: [{ name: "VideoAI Team" }],
+  authors: [{ name: "Veymo.ai Team" }],
 };
 
 export const viewport: Viewport = {

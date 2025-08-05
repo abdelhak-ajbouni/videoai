@@ -17,7 +17,7 @@ export default function TermsConditionsPage() {
                 <section className="space-y-4">
                   <h2 className="text-xl font-semibold text-white">1. Acceptance of Terms</h2>
                   <p className="text-gray-300">
-                    By accessing and using VideoAI services, you accept and agree to be bound by the
+                    By accessing and using Veymo.ai services, you accept and agree to be bound by the
                     terms and provision of this agreement. If you do not agree to abide by these terms,
                     please do not use this service.
                   </p>
@@ -26,7 +26,7 @@ export default function TermsConditionsPage() {
                 <section className="space-y-4">
                   <h2 className="text-xl font-semibold text-white">2. Service Description</h2>
                   <p className="text-gray-300">
-                    VideoAI provides AI-powered video generation services. We reserve the right to
+                    Veymo.ai provides AI-powered video generation services. We reserve the right to
                     modify, suspend, or discontinue the service at any time without notice.
                   </p>
                 </section>
@@ -81,7 +81,7 @@ export default function TermsConditionsPage() {
                 <section className="space-y-4">
                   <h2 className="text-xl font-semibold text-white">8. Limitation of Liability</h2>
                   <p className="text-gray-300">
-                    VideoAI shall not be liable for any indirect, incidental, special, consequential,
+                    Veymo.ai shall not be liable for any indirect, incidental, special, consequential,
                     or punitive damages resulting from your use of our services. Our total liability
                     shall not exceed the amount paid by you in the 12 months preceding the claim.
                   </p>
@@ -115,7 +115,7 @@ export default function TermsConditionsPage() {
                 <section className="space-y-4">
                   <h2 className="text-xl font-semibold text-white">12. Contact Information</h2>
                   <p className="text-gray-300">
-                    For questions about these terms, please contact us at legal@videoai.com or
+                    For questions about these terms, please contact us at legal@veymo.ai or
                     through our support channels.
                   </p>
                 </section>

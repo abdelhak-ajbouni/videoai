@@ -1,6 +1,6 @@
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/abdelhak-ajbouni/videoai?utm_source=oss&utm_medium=github&utm_campaign=abdelhak-ajbouni%2Fvideoai&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/abdelhak-ajbouni/veymo.ai?utm_source=oss&utm_medium=github&utm_campaign=abdelhak-ajbouni%2Fveymo.ai&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
-# VideoAI - AI Video Generation Platform
+# Veymo.ai - AI Video Generation Platform
 
 A complete SaaS platform that enables users to generate high-quality videos from text prompts using multiple AI models. Features a comprehensive credit-based pricing system, subscription management, and real-time video processing.
 
@@ -101,7 +101,7 @@ videoParameters: Actual parameters used for each video generation
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd videoai
+cd veymo.ai
 ```
 
 2. **Install dependencies**
@@ -144,7 +144,7 @@ Open [http://localhost:3001](http://localhost:3001) (development server runs on 
 ## 📁 Project Structure
 
 ```
-videoai/
+veymo.ai/
 ├── convex/                 # Backend functions and schema
 │   ├── schema.ts          # Database schema
 │   ├── seed.ts            # Database initialization
@@ -307,4 +307,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**🎉 VideoAI is a complete, production-ready SaaS platform ready to generate revenue!**
+**🎉 Veymo.ai is a complete, production-ready SaaS platform ready to generate revenue!**

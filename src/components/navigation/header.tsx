@@ -63,7 +63,7 @@ export function Header({
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gradient-ai">VideoAI</h1>
+              <h1 className="text-lg font-bold text-gradient-ai">Veymo.ai</h1>
             </div>
           </Link>
 
