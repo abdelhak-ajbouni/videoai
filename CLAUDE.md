@@ -145,7 +145,7 @@ Located at `/admin/`, provides:
 - **Authentication**: All user data linked via Clerk ID, not internal user IDs
 - **Real-time Updates**: Convex subscriptions provide live status updates across all components
 - **Parameter Management**: Dynamic model parameters stored in `modelParameters` table
-- **File Storage**: Videos stored externally (Replicate) with R2 CDN fallback for private access
+- **File Storage**: Videos stored in R2 CDN
 - **Error Handling**: Comprehensive error states in video generation pipeline with validation utilities
 - **Analytics**: Built-in view tracking, download counts, and engagement metrics
 - **Configuration-Driven**: Business rules, pricing, and model parameters stored in database tables

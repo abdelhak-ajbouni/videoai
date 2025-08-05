@@ -1,57 +1,54 @@
 /**
  * DATABASE SEED SCRIPT
- * 
+ *
  * This file is responsible for seeding the database with initial data.
  * It should ONLY be used for:
- * - Populating empty tables with default/sample data
- * - Development environment setup
+ * - Populating lookup tables with default data
  * - Fresh database initialization
- * 
+ *
  * This is NOT for migrations or data transformations.
- * For production data changes, use proper migration scripts.
- * For clearing data, use dbUtils.ts
  */
 
+import { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 import { MutationCtx } from "./_generated/server";
 
 // Default AI models data
 const defaultModels = [
   {
-    modelId: "luma/ray-flash-2-540p",
+    modelId: "hailuo_02",
     name: "Budget Model",
-    description: "Ultra-budget model for testing and basic video generation",
-    replicateModelId:
-      "luma/ray-flash-2-540p:f8e75d44d8d24c8faf7c8b5beb10eb1e8e5b5c01a2da88ee4be8c2e5b80a9b5",
-    costPerSecond: 0.12,
+    description: "Affordable AI video generation with good quality",
     modelType: "hailuo",
+    replicateModelId: "minimax/hailuo-02",
+    costPerSecond: 0.08,
     isActive: true,
+    isPremium: false,
     isDefault: true,
-    isPremium: false,
   },
   {
-    modelId: "luma/ray-2-720p",
-    name: "Standard Model",
-    description: "Budget-friendly model for regular video generation",
-    replicateModelId:
-      "luma/ray-2-720p:89b7cc7ed5cb8c36b8d43b5b81ee65a1b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5",
-    costPerSecond: 0.18,
+    modelId: "seedance_pro",
+    name: "Advanced Model",
+    description:
+      "High-quality AI video generation with advanced features",
     modelType: "seedance",
+    replicateModelId: "bytedance/seedance-1-pro",
+    costPerSecond: 0.15,
     isActive: true,
+    isPremium: true,
     isDefault: false,
-    isPremium: false,
   },
   {
-    modelId: "google/veo-3",
+    modelId: "veo_3",
     name: "Flagship Model",
-    description: "Premium videos with audio support",
-    replicateModelId:
-      "google/veo-3:838c69a013a666f41312ba018c1ae55a2807f27c109a9cb93b22a45f207ad918",
-    costPerSecond: 0.75,
+    description:
+      "Premium AI videos generation with Audio support",
     modelType: "google_veo",
+    replicateModelId: "google/veo-3",
+    costPerSecond: 0.75,
     isActive: true,
-    isDefault: false,
     isPremium: true,
+    isDefault: false,
   },
 ];
 
@@ -189,20 +186,6 @@ const defaultConfigurations = [
   },
 ];
 
-// Helper function to get supported durations for a model type
-function getModelSupportedDurations(modelType: string): number[] {
-  switch (modelType) {
-    case "google_veo":
-      return [8];
-    case "hailuo":
-      return [6, 10];
-    case "seedance":
-      return [5, 10];
-    default:
-      return [5];
-  }
-}
-
 // Helper function to get parameter definitions for a model
 function getModelParameterDefinitions(model: { modelType: string }) {
   const baseDef = {
@@ -212,39 +195,63 @@ function getModelParameterDefinitions(model: { modelType: string }) {
       minLength: 1,
       maxLength: 1000,
     },
-    duration: {
-      type: "number",
-      required: true,
-      allowedValues: getModelSupportedDurations(model.modelType),
-      defaultValue: Math.min(...getModelSupportedDurations(model.modelType)),
-    },
   };
 
   if (model.modelType === "hailuo") {
+    // Hailuo-02 parameters
     return {
       ...baseDef,
+      duration: {
+        type: "number",
+        required: true,
+        allowedValues: [6, 10],
+        defaultValue: 6,
+      },
       resolution: {
         type: "string",
-        allowedValues: ["720p"],
-        defaultValue: "720p",
+        allowedValues: ["512p", "768p", "1080p"],
+        defaultValue: "512p",
       },
     };
   }
 
   if (model.modelType === "seedance") {
+    // Seedance-1-Pro parameters
     return {
       ...baseDef,
+      duration: {
+        type: "number",
+        required: true,
+        allowedValues: [5, 10],
+        defaultValue: 5,
+      },
+      resolution: {
+        type: "string",
+        allowedValues: ["480p", "1080p"],
+        defaultValue: "480p",
+      },
       aspectRatio: {
         type: "string",
-        allowedValues: ["16:9", "9:16", "1:1"],
+        allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
         defaultValue: "16:9",
+      },
+      cameraFixed: {
+        type: "boolean",
+        defaultValue: false,
       },
     };
   }
 
   if (model.modelType === "google_veo") {
+    // Google Veo-3 parameters (fixed 8s duration)
     return {
       ...baseDef,
+      duration: {
+        type: "number",
+        required: true,
+        allowedValues: [8],
+        defaultValue: 8,
+      },
       resolution: {
         type: "string",
         allowedValues: ["720p", "1080p"],
@@ -260,29 +267,34 @@ function getModelParameterDefinitions(model: { modelType: string }) {
 function getModelMappingRules(model: { modelType: string }) {
   const baseMappings = {
     prompt: "prompt",
-    duration: "duration_seconds",
   };
 
-  // Default mappings based on model type
   if (model.modelType === "hailuo") {
+    // Hailuo-02 API mappings
     return {
       ...baseMappings,
+      duration: "duration",
       resolution: "resolution",
     };
   }
 
   if (model.modelType === "seedance") {
+    // Seedance-1-Pro API mappings
     return {
       ...baseMappings,
+      duration: "duration",
+      resolution: "resolution",
       aspectRatio: "aspect_ratio",
+      cameraFixed: "camera_fixed",
     };
   }
 
   if (model.modelType === "google_veo") {
+    // Google Veo-3 API mappings (no duration parameter - fixed at 8s)
     return {
       ...baseMappings,
+      duration: "duration",
       resolution: "resolution",
-      startImageUrl: "image",
     };
   }
 
@@ -291,22 +303,38 @@ function getModelMappingRules(model: { modelType: string }) {
 
 // Helper function to get constraints for a model
 function getModelConstraints(model: { modelType: string }) {
-  const constraints: any = {
-    duration: {
-      allowedValues: getModelSupportedDurations(model.modelType).map(String),
-    },
-  };
+  const constraints: Doc<"modelParameters">["constraints"] = {};
 
-  // Add model-specific constraints based on model type
   if (model.modelType === "hailuo") {
+    // Hailuo-02 constraints
+    constraints.duration = {
+      allowedValues: ["6", "10"],
+      note: "10 seconds is only available for 768p resolution",
+    };
     constraints.resolution = {
-      allowedValues: ["720p"],
+      allowedValues: ["512p", "768p", "1080p"],
     };
   } else if (model.modelType === "seedance") {
+    // Seedance-1-Pro constraints
+    constraints.duration = {
+      allowedValues: ["5", "10"],
+    };
+    constraints.resolution = {
+      allowedValues: ["480p", "1080p"],
+    };
     constraints.aspectRatio = {
-      allowedValues: ["16:9", "9:16", "1:1"],
+      allowedValues: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21"],
+      note: "Ignored if an image is provided",
+    };
+    constraints.fps = {
+      allowedValues: ["24"],
     };
   } else if (model.modelType === "google_veo") {
+    // Google Veo-3 constraints
+    constraints.duration = {
+      allowedValues: ["8"],
+      note: "Fixed duration for Veo-3",
+    };
     constraints.resolution = {
       allowedValues: ["720p", "1080p"],
     };
@@ -315,76 +343,100 @@ function getModelConstraints(model: { modelType: string }) {
   return constraints;
 }
 
-// Main seed function
+// Helper function to check and insert data idempotently
+async function seedTable<T extends Record<string, any>>(
+  ctx: MutationCtx,
+  tableName: string,
+  data: T[],
+  uniqueKey: keyof T,
+  entityName: string
+) {
+  const now = Date.now();
+  let insertedCount = 0;
+  let skippedCount = 0;
+
+  for (const item of data) {
+    // Check if item already exists
+    const existing = await ctx.db
+      .query(tableName as any)
+      .filter((q) => q.eq(uniqueKey as string, item[uniqueKey]))
+      .first();
+
+    if (!existing) {
+      await ctx.db.insert(tableName as any, {
+        ...item,
+        createdAt: now,
+        updatedAt: now,
+      });
+      insertedCount++;
+    } else {
+      skippedCount++;
+    }
+  }
+
+  console.log(
+    `✅ ${entityName}: ${insertedCount} inserted, ${skippedCount} already existed`
+  );
+  return { inserted: insertedCount, skipped: skippedCount };
+}
+
+// Main seed function (idempotent - safe to run multiple times)
 export default internalMutation({
   handler: async (ctx: MutationCtx) => {
-    const now = Date.now();
-    console.log("🌱 Starting database seeding...");
+    console.log("🌱 Starting idempotent database seeding...");
 
     // 1. Seed Models
     console.log("📊 Seeding models...");
-    for (const modelData of defaultModels) {
-      await ctx.db.insert("models", {
-        ...modelData,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    console.log(`✅ Seeded ${defaultModels.length} models`);
+    await seedTable(ctx, "models", defaultModels, "modelId", "Models");
 
     // 2. Seed Model Parameters
     console.log("⚙️ Seeding model parameters...");
-    for (const model of defaultModels) {
-      const parameterDefinitions = getModelParameterDefinitions(model);
-      const mappingRules = getModelMappingRules(model);
-      const constraints = getModelConstraints(model);
-
-      await ctx.db.insert("modelParameters", {
-        modelId: model.modelId,
-        parameterDefinitions,
-        mappingRules,
-        constraints,
-        parameterCategories: ["basic", "advanced"],
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    console.log(`✅ Seeded ${defaultModels.length} model parameters`);
+    const modelParametersData = defaultModels.map((model) => ({
+      modelId: model.modelId,
+      parameterDefinitions: getModelParameterDefinitions(model),
+      mappingRules: getModelMappingRules(model),
+      constraints: getModelConstraints(model),
+      parameterCategories: ["basic", "advanced"],
+    }));
+    await seedTable(
+      ctx,
+      "modelParameters",
+      modelParametersData,
+      "modelId",
+      "Model Parameters"
+    );
 
     // 3. Seed Credit Packages
     console.log("💳 Seeding credit packages...");
-    for (const packageData of defaultPackages) {
-      await ctx.db.insert("creditPackages", {
-        ...packageData,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    console.log(`✅ Seeded ${defaultPackages.length} credit packages`);
+    await seedTable(
+      ctx,
+      "creditPackages",
+      defaultPackages,
+      "packageId",
+      "Credit Packages"
+    );
 
     // 4. Seed Subscription Plans
     console.log("📋 Seeding subscription plans...");
-    for (const planData of defaultPlans) {
-      await ctx.db.insert("subscriptionPlans", {
-        ...planData,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    console.log(`✅ Seeded ${defaultPlans.length} subscription plans`);
+    await seedTable(
+      ctx,
+      "subscriptionPlans",
+      defaultPlans,
+      "planId",
+      "Subscription Plans"
+    );
 
     // 5. Seed Configurations
     console.log("⚙️ Seeding configurations...");
-    for (const configData of defaultConfigurations) {
-      await ctx.db.insert("configurations", {
-        ...configData,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-    console.log(`✅ Seeded ${defaultConfigurations.length} configurations`);
+    await seedTable(
+      ctx,
+      "configurations",
+      defaultConfigurations,
+      "key",
+      "Configurations"
+    );
 
-    console.log("🎉 Database seeding completed successfully!");
-    return "Database seeded successfully";
+    console.log("🎉 Idempotent database seeding completed successfully!");
+    return "Database seeded successfully (idempotent)";
   },
 });

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, action, QueryCtx } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
@@ -307,7 +307,6 @@ export const createVideo = mutation({
     const creditsCost = await calculateCreditCost(
       ctx,
       args.model,
-      args.quality,
       parseInt(args.duration)
     );
 
@@ -1433,19 +1432,7 @@ export const mockGenerationProgress = action({
     replicateJobId: v.string(),
     progress: v.number(),
   },
-  handler: async (ctx, args) => {
-    const progressMessages = {
-      20: "🎨 Analyzing prompt and style...",
-      40: "🎬 Generating video frames...",
-      60: "🎞️ Rendering video sequence...",
-      80: "✨ Applying final effects and cleanup...",
-    };
-
-    try {
-    } catch (error) {
-      // Silent error handling for mock generation
-    }
-  },
+  handler: async () => {},
 });
 
 // Mock generation completion
