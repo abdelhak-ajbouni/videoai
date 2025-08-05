@@ -304,10 +304,12 @@ export const createVideo = mutation({
     }
 
     // Calculate credit cost based on model, quality and duration
+    const resolution = args.generationSettings?.resolution;
     const creditsCost = await calculateCreditCost(
       ctx,
       args.model,
-      parseInt(args.duration)
+      parseInt(args.duration),
+      resolution
     );
 
     // Check if user has enough credits

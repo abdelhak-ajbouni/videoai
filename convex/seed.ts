@@ -29,8 +29,7 @@ const defaultModels = [
   {
     modelId: "seedance_pro",
     name: "Advanced Model",
-    description:
-      "High-quality AI video generation with advanced features",
+    description: "High-quality AI video generation with advanced features",
     modelType: "seedance",
     replicateModelId: "bytedance/seedance-1-pro",
     costPerSecond: 0.15,
@@ -41,8 +40,7 @@ const defaultModels = [
   {
     modelId: "veo_3",
     name: "Flagship Model",
-    description:
-      "Premium AI videos generation with Audio support",
+    description: "Premium AI videos generation with Audio support",
     modelType: "google_veo",
     replicateModelId: "google/veo-3",
     costPerSecond: 0.75,
@@ -183,6 +181,64 @@ const defaultConfigurations = [
     isEditable: true,
     minValue: 5,
     maxValue: 120,
+  },
+];
+
+// Default model resolution costs data
+const defaultModelCosts = [
+  // Hailuo-02 model costs
+  {
+    modelId: "hailuo_02",
+    resolution: "512p",
+    costPerSecond: 0.015,
+    isActive: true,
+    notes: "Base resolution for Hailuo-02",
+  },
+  {
+    modelId: "hailuo_02",
+    resolution: "768p",
+    costPerSecond: 0.045,
+    isActive: true,
+    notes: "Higher quality resolution for Hailuo-02",
+  },
+  {
+    modelId: "hailuo_02",
+    resolution: "1080p",
+    costPerSecond: 0.048,
+    isActive: true,
+    notes: "Premium resolution for Hailuo-02",
+  },
+
+  // Seedance-1-Pro model costs
+  {
+    modelId: "seedance_pro",
+    resolution: "480p",
+    costPerSecond: 0.03,
+    isActive: true,
+    notes: "Base resolution for Seedance-1-Pro",
+  },
+  {
+    modelId: "seedance_pro",
+    resolution: "1080p",
+    costPerSecond: 0.15,
+    isActive: true,
+    notes: "High quality resolution for Seedance-1-Pro",
+  },
+
+  // Google Veo-3 model costs
+  {
+    modelId: "veo_3",
+    resolution: "720p",
+    costPerSecond: 0.75,
+    isActive: true,
+    notes: "Base resolution for Google Veo-3",
+  },
+  {
+    modelId: "veo_3",
+    resolution: "1080p",
+    costPerSecond: 0.85,
+    isActive: true,
+    notes: "Premium resolution for Google Veo-3",
   },
 ];
 
@@ -434,6 +490,16 @@ export default internalMutation({
       defaultConfigurations,
       "key",
       "Configurations"
+    );
+
+    // 6. Seed Model Resolution Costs
+    console.log("💰 Seeding model resolution costs...");
+    await seedTable(
+      ctx,
+      "modelCosts",
+      defaultModelCosts,
+      "modelId",
+      "Model Resolution Costs"
     );
 
     console.log("🎉 Idempotent database seeding completed successfully!");

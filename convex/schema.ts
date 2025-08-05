@@ -303,8 +303,28 @@ export default defineSchema({
 
     // Timestamps
     createdAt: v.number(),
+  }).index("by_model_id", ["modelId"]),
+
+  // Model resolution costs - actual cost per second for each resolution per model
+  modelCosts: defineTable({
+    // Link to model
+    modelId: v.string(), // e.g., "hailuo_02", "seedance_pro", "veo_3"
+
+    // Resolution-specific costs
+    resolution: v.string(), // e.g., "480p", "512p", "720p", "768p", "1080p"
+    costPerSecond: v.number(), // Actual cost in USD per second for this resolution
+
+    // Metadata
+    isActive: v.boolean(), // Whether this resolution cost is active
+    notes: v.optional(v.string()), // Optional notes about this resolution cost
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
-    .index("by_model_id", ["modelId"]),
+    .index("by_model_id", ["modelId"])
+    .index("by_model_and_resolution", ["modelId", "resolution"])
+    .index("by_active", ["isActive"]),
 
   // Video parameters - stores the actual parameters used for each video generation
   videoParameters: defineTable({

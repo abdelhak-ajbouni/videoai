@@ -58,7 +58,8 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
 
   const creditCost = useQuery(api.pricing.getCreditCost, {
     modelId: modelId || "",
-    duration
+    duration,
+    resolution: resolution || undefined
   });
 
   const creditsCost = creditCost || 0;
