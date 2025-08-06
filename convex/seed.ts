@@ -404,7 +404,7 @@ async function seedTable<T extends Record<string, any>>(
   ctx: MutationCtx,
   tableName: string,
   data: T[],
-  uniqueKey: keyof T,
+  uniqueKey: keyof T | (keyof T)[],
   entityName: string
 ) {
   const now = Date.now();
@@ -412,11 +412,91 @@ async function seedTable<T extends Record<string, any>>(
   let skippedCount = 0;
 
   for (const item of data) {
-    // Check if item already exists
-    const existing = await ctx.db
-      .query(tableName as any)
-      .filter((q) => q.eq(uniqueKey as string, item[uniqueKey]))
-      .first();
+    let existing = null;
+
+    // Handle composite unique keys
+    if (Array.isArray(uniqueKey)) {
+      // Build filter for composite key
+      const filter = uniqueKey.reduce(
+        (acc, key) => {
+          acc[key as string] = item[key];
+          return acc;
+        },
+        {} as Record<string, unknown>
+      );
+
+      // Check if item already exists using composite key
+      if (
+        tableName === "modelCosts" &&
+        uniqueKey.length === 2 &&
+        uniqueKey.includes("modelId" as keyof T) &&
+        uniqueKey.includes("resolution" as keyof T)
+      ) {
+        // Use the by_model_and_resolution index for modelCosts table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_model_and_resolution", (q: any) =>
+            q.eq("modelId", item.modelId).eq("resolution", item.resolution)
+          )
+          .first();
+      } else {
+        // Generic composite key query
+        const query = ctx.db.query(tableName as any);
+        let filteredQuery = query;
+
+        // Apply filters for composite key
+        for (const [key, value] of Object.entries(filter)) {
+          filteredQuery = filteredQuery.filter((q: any) => q.eq(key, value));
+        }
+
+        existing = await filteredQuery.first();
+      }
+    } else {
+      // Single unique key - use index if available
+      if (tableName === "models" && uniqueKey === "modelId") {
+        // Use the by_model_id index for models table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_model_id", (q: any) =>
+            q.eq("modelId", item[uniqueKey])
+          )
+          .first();
+      } else if (tableName === "modelParameters" && uniqueKey === "modelId") {
+        // Use the by_model_id index for modelParameters table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_model_id", (q: any) =>
+            q.eq("modelId", item[uniqueKey])
+          )
+          .first();
+      } else if (tableName === "creditPackages" && uniqueKey === "packageId") {
+        // Use the by_package_id index for creditPackages table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_package_id", (q: any) =>
+            q.eq("packageId", item[uniqueKey])
+          )
+          .first();
+      } else if (tableName === "subscriptionPlans" && uniqueKey === "planId") {
+        // Use the by_plan_id index for subscriptionPlans table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_plan_id", (q: any) => q.eq("planId", item[uniqueKey]))
+          .first();
+      } else if (tableName === "configurations" && uniqueKey === "key") {
+        // Use the by_key index for configurations table
+        existing = await ctx.db
+          .query(tableName as any)
+          .withIndex("by_key", (q: any) => q.eq("key", item[uniqueKey]))
+          .first();
+      } else {
+        // Generic query for other tables
+        existing = await ctx.db
+          .query(tableName as any)
+          .filter((q: any) => q.eq(uniqueKey as string, item[uniqueKey]))
+          .first();
+      }
+    }
 
     if (!existing) {
       await ctx.db.insert(tableName as any, {
@@ -440,6 +520,9 @@ async function seedTable<T extends Record<string, any>>(
 export default internalMutation({
   handler: async (ctx: MutationCtx) => {
     console.log("🌱 Starting idempotent database seeding...");
+    console.log(
+      "ℹ️  This function is safe to run multiple times - existing data will be skipped"
+    );
 
     // 1. Seed Models
     console.log("📊 Seeding models...");
@@ -498,7 +581,7 @@ export default internalMutation({
       ctx,
       "modelCosts",
       defaultModelCosts,
-      "modelId",
+      ["modelId", "resolution"],
       "Model Resolution Costs"
     );
 

@@ -179,30 +179,51 @@ export default defineSchema({
     // User relationship
     clerkId: v.string(),
 
-    // Stripe data
+    // Stripe data - core identifiers
     stripeSubscriptionId: v.string(),
     stripeCustomerId: v.string(),
-    stripePriceId: v.string(),
-
+    
     // Subscription details
-    tier: v.string(), // Now references planId from subscriptionPlans
+    tier: v.string(), // References planId from subscriptionPlans
     status: v.union(
-      v.literal("active"),
-      v.literal("canceled"),
-      v.literal("past_due"),
-      v.literal("trialing"),
       v.literal("incomplete"),
       v.literal("incomplete_expired"),
-      v.literal("unpaid")
+      v.literal("trialing"),
+      v.literal("active"),
+      v.literal("past_due"),
+      v.literal("canceled"),
+      v.literal("unpaid"),
+      v.literal("paused")
     ),
 
-    // Billing cycle
-    currentPeriodStart: v.number(),
-    currentPeriodEnd: v.number(),
+    // Cancellation details
     cancelAtPeriodEnd: v.boolean(),
     canceledAt: v.optional(v.number()),
+    cancelAt: v.optional(v.number()), // When subscription will be canceled (if scheduled)
+    
+    // Trial information
+    trialStart: v.optional(v.number()),
+    trialEnd: v.optional(v.number()),
+    
+    // Collection method
+    collectionMethod: v.optional(v.union(
+      v.literal("charge_automatically"),
+      v.literal("send_invoice")
+    )),
+    
+    // Latest invoice reference
+    latestInvoice: v.optional(v.string()),
+    
+    // Application and metadata
+    application: v.optional(v.string()),
+    description: v.optional(v.string()),
+    metadata: v.optional(v.any()), // Stripe metadata as key-value pairs
+    
+    // Billing details
+    billingCycleAnchor: v.optional(v.number()),
+    daysUntilDue: v.optional(v.number()),
 
-    // Credits
+    // Credits - app-specific fields
     monthlyCredits: v.number(),
     creditsGrantedAt: v.optional(v.number()),
 
@@ -214,6 +235,46 @@ export default defineSchema({
     .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
     .index("by_stripe_customer_id", ["stripeCustomerId"])
     .index("by_status", ["status"])
+    .index("by_cancel_at", ["cancelAt"])
+    .index("by_trial_end", ["trialEnd"]),
+
+  // Subscription items - now tracks billing periods per item (Stripe API 2025+)
+  subscriptionItems: defineTable({
+    // Link to subscription
+    subscriptionId: v.id("subscriptions"),
+    stripeSubscriptionId: v.string(),
+    
+    // Stripe item data
+    stripeSubscriptionItemId: v.string(),
+    stripePriceId: v.string(),
+    
+    // Item details
+    quantity: v.number(),
+    
+    // Billing periods - moved from subscription level in Stripe API 2025+
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    
+    // Price details for reference
+    priceData: v.optional(v.object({
+      unitAmount: v.number(),
+      currency: v.string(),
+      recurring: v.optional(v.object({
+        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
+        intervalCount: v.number()
+      }))
+    })),
+    
+    // Metadata
+    metadata: v.optional(v.any()),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_subscription_id", ["subscriptionId"])
+    .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
+    .index("by_stripe_item_id", ["stripeSubscriptionItemId"])
     .index("by_current_period_end", ["currentPeriodEnd"]),
 
   configurations: defineTable({

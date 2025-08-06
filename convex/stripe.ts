@@ -1,9 +1,8 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action } from "./_generated/server";
 import { api } from "./_generated/api";
 import Stripe from "stripe";
 import { ActionCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
@@ -260,7 +259,6 @@ async function handleCheckoutSessionCompleted(
         }
       );
     } catch (error) {
-      console.error("Error adding credits:", error);
       throw error;
     }
   } else if (type === "subscription" && clerkId && planId) {
@@ -270,26 +268,39 @@ async function handleCheckoutSessionCompleted(
         session.subscription as string
       );
 
-      // Create subscription in database
+      // Create subscription in database with new API structure
       await ctx.runMutation(api.subscriptions.createSubscription, {
         clerkId,
         stripeSubscriptionId: session.subscription as string,
         planId: planId as "starter" | "pro" | "max",
         stripeCustomerId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
         subscriptionStatus: subscription.status,
-        currentPeriodStart: (subscription as any).current_period_start * 1000,
-        currentPeriodEnd: (subscription as any).current_period_end * 1000,
-        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+        trialStart: subscription.trial_start || undefined,
+        trialEnd: subscription.trial_end || undefined,
+        collectionMethod: subscription.collection_method,
+        billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
+        latestInvoice: subscription.latest_invoice as string || undefined,
+        metadata: subscription.metadata || undefined,
+        // Pass subscription items for creating subscription items records
+        subscriptionItems: subscription.items.data.map(item => ({
+          stripeSubscriptionItemId: item.id,
+          stripePriceId: item.price.id,
+          quantity: item.quantity || 1,
+          currentPeriodStart: item.current_period_start,
+          currentPeriodEnd: item.current_period_end,
+          priceData: {
+            unitAmount: item.price.unit_amount || 0,
+            currency: item.price.currency,
+            recurring: item.price.recurring ? {
+              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
+              intervalCount: item.price.recurring.interval_count
+            } : undefined
+          },
+          metadata: item.metadata || undefined
+        }))
       });
     } catch (error) {
-      console.error("Error creating subscription:", {
-        error: error instanceof Error ? error.message : String(error),
-        clerkId,
-        planId,
-        sessionId: session.id,
-        stripeSubscriptionId: session.subscription,
-      });
       throw error;
     }
   } else if (type === "plan_change" && clerkId && newPlanId) {
@@ -299,20 +310,39 @@ async function handleCheckoutSessionCompleted(
         session.subscription as string
       );
 
-      // Handle plan change in database
+      // Handle plan change in database with new API structure
       await ctx.runMutation(api.subscriptions.changeSubscriptionPlan, {
         clerkId: clerkId,
         newPlanId: newPlanId as "starter" | "pro" | "max",
         stripeSubscriptionId: session.subscription as string,
         stripeCustomerId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
         subscriptionStatus: subscription.status,
-        currentPeriodStart: (subscription as any).current_period_start * 1000,
-        currentPeriodEnd: (subscription as any).current_period_end * 1000,
-        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+        trialStart: subscription.trial_start || undefined,
+        trialEnd: subscription.trial_end || undefined,
+        collectionMethod: subscription.collection_method,
+        billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
+        latestInvoice: subscription.latest_invoice as string || undefined,
+        metadata: subscription.metadata || undefined,
+        // Pass subscription items for creating subscription items records
+        subscriptionItems: subscription.items.data.map(item => ({
+          stripeSubscriptionItemId: item.id,
+          stripePriceId: item.price.id,
+          quantity: item.quantity || 1,
+          currentPeriodStart: item.current_period_start,
+          currentPeriodEnd: item.current_period_end,
+          priceData: {
+            unitAmount: item.price.unit_amount || 0,
+            currency: item.price.currency,
+            recurring: item.price.recurring ? {
+              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
+              intervalCount: item.price.recurring.interval_count
+            } : undefined
+          },
+          metadata: item.metadata || undefined
+        }))
       });
     } catch (error) {
-      console.error("Error processing plan change:", error);
       throw error;
     }
   } else {
@@ -419,17 +449,37 @@ export const handlePlanChange = action({
       const subscription =
         await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-      // Handle plan change in database
+      // Handle plan change in database with new API structure
       await ctx.runMutation(api.subscriptions.changeSubscriptionPlan, {
         clerkId,
         newPlanId,
         stripeSubscriptionId,
         stripeCustomerId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
         subscriptionStatus: subscription.status,
-        currentPeriodStart: (subscription as any).current_period_start * 1000,
-        currentPeriodEnd: (subscription as any).current_period_end * 1000,
-        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+        trialStart: subscription.trial_start || undefined,
+        trialEnd: subscription.trial_end || undefined,
+        collectionMethod: subscription.collection_method,
+        billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
+        latestInvoice: subscription.latest_invoice as string || undefined,
+        metadata: subscription.metadata || undefined,
+        // Pass subscription items for creating subscription items records
+        subscriptionItems: subscription.items.data.map(item => ({
+          stripeSubscriptionItemId: item.id,
+          stripePriceId: item.price.id,
+          quantity: item.quantity || 1,
+          currentPeriodStart: item.current_period_start,
+          currentPeriodEnd: item.current_period_end,
+          priceData: {
+            unitAmount: item.price.unit_amount || 0,
+            currency: item.price.currency,
+            recurring: item.price.recurring ? {
+              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
+              intervalCount: item.price.recurring.interval_count
+            } : undefined
+          },
+          metadata: item.metadata || undefined
+        }))
       });
 
       return { success: true };

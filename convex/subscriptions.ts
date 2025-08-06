@@ -53,11 +53,30 @@ export const createSubscription = mutation({
     stripeSubscriptionId: v.string(),
     planId: v.union(v.literal("starter"), v.literal("pro"), v.literal("max")),
     stripeCustomerId: v.string(),
-    stripePriceId: v.string(),
     subscriptionStatus: v.string(),
-    currentPeriodStart: v.number(),
-    currentPeriodEnd: v.number(),
     cancelAtPeriodEnd: v.boolean(),
+    trialStart: v.optional(v.number()),
+    trialEnd: v.optional(v.number()),
+    collectionMethod: v.optional(v.union(v.literal("charge_automatically"), v.literal("send_invoice"))),
+    billingCycleAnchor: v.optional(v.number()),
+    latestInvoice: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    subscriptionItems: v.array(v.object({
+      stripeSubscriptionItemId: v.string(),
+      stripePriceId: v.string(),
+      quantity: v.number(),
+      currentPeriodStart: v.number(),
+      currentPeriodEnd: v.number(),
+      priceData: v.object({
+        unitAmount: v.number(),
+        currency: v.string(),
+        recurring: v.optional(v.object({
+          interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
+          intervalCount: v.number()
+        }))
+      }),
+      metadata: v.optional(v.any())
+    })),
   },
   handler: async (
     ctx,
@@ -66,11 +85,15 @@ export const createSubscription = mutation({
       stripeSubscriptionId,
       planId,
       stripeCustomerId,
-      stripePriceId,
       subscriptionStatus,
-      currentPeriodStart,
-      currentPeriodEnd,
       cancelAtPeriodEnd,
+      trialStart,
+      trialEnd,
+      collectionMethod,
+      billingCycleAnchor,
+      latestInvoice,
+      metadata,
+      subscriptionItems,
     }
   ) => {
     // ============================================================================
@@ -93,20 +116,23 @@ export const createSubscription = mutation({
     // Log warnings if any
     logValidationWarnings(validation.warnings || [], "Subscription creation");
 
-    // Validate date ranges
-    if (currentPeriodStart >= currentPeriodEnd) {
-      throw new Error("Invalid period: start must be before end");
+    // Validate subscription items have valid date ranges
+    for (const item of subscriptionItems) {
+      if (item.currentPeriodStart >= item.currentPeriodEnd) {
+        throw new Error("Invalid period: start must be before end");
+      }
     }
 
     // Validate subscription status
     const validStatuses = [
-      "active",
-      "canceled",
-      "past_due",
-      "trialing",
       "incomplete",
       "incomplete_expired",
+      "trialing",
+      "active",
+      "past_due",
+      "canceled",
       "unpaid",
+      "paused",
     ];
     if (!validStatuses.includes(subscriptionStatus)) {
       throw new Error(`Invalid subscription status: ${subscriptionStatus}`);
@@ -126,29 +152,54 @@ export const createSubscription = mutation({
       throw new Error(`Subscription plan not found: ${planId}`);
     }
 
-    // Create subscription record
+    // Create subscription record with new schema
     const subscriptionId = await ctx.db.insert("subscriptions", {
       clerkId,
       stripeSubscriptionId,
       stripeCustomerId,
-      stripePriceId,
       tier: planId,
       status: subscriptionStatus as
-        | "active"
-        | "canceled"
-        | "past_due"
-        | "trialing"
         | "incomplete"
         | "incomplete_expired"
-        | "unpaid",
-      currentPeriodStart,
-      currentPeriodEnd,
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
+        | "paused",
       cancelAtPeriodEnd,
+      cancelAt: undefined,
+      trialStart,
+      trialEnd,
+      collectionMethod,
+      latestInvoice,
+      application: undefined,
+      description: undefined,
+      metadata,
+      billingCycleAnchor,
+      daysUntilDue: undefined,
       monthlyCredits: plan.monthlyCredits,
       creditsGrantedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+
+    // Create subscription items records
+    for (const item of subscriptionItems) {
+      await ctx.db.insert("subscriptionItems", {
+        subscriptionId,
+        stripeSubscriptionId,
+        stripeSubscriptionItemId: item.stripeSubscriptionItemId,
+        stripePriceId: item.stripePriceId,
+        quantity: item.quantity,
+        currentPeriodStart: item.currentPeriodStart,
+        currentPeriodEnd: item.currentPeriodEnd,
+        priceData: item.priceData,
+        metadata: item.metadata,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
 
     // Map Stripe status to user schema status
     let userStatus:
@@ -219,13 +270,14 @@ export const updateSubscription = mutation({
     clerkId: v.string(),
     stripeSubscriptionId: v.string(),
     status: v.union(
-      v.literal("active"),
-      v.literal("canceled"),
-      v.literal("past_due"),
-      v.literal("trialing"),
       v.literal("incomplete"),
       v.literal("incomplete_expired"),
-      v.literal("unpaid")
+      v.literal("trialing"),
+      v.literal("active"),
+      v.literal("past_due"),
+      v.literal("canceled"),
+      v.literal("unpaid"),
+      v.literal("paused")
     ),
     cancelAtPeriodEnd: v.boolean(),
   },
@@ -386,6 +438,37 @@ export const reactivateSubscription = mutation({
   },
 });
 
+// Get subscription items for a subscription  
+export const getSubscriptionItems = query({
+  args: { stripeSubscriptionId: v.string() },
+  handler: async (ctx, { stripeSubscriptionId }) => {
+    return await ctx.db
+      .query("subscriptionItems")
+      .withIndex("by_stripe_subscription_id", (q) => q.eq("stripeSubscriptionId", stripeSubscriptionId))
+      .collect();
+  },
+});
+
+// Get current billing period from subscription items
+export const getCurrentBillingPeriod = query({
+  args: { stripeSubscriptionId: v.string() },
+  handler: async (ctx, { stripeSubscriptionId }) => {
+    const items = await ctx.db
+      .query("subscriptionItems")
+      .withIndex("by_stripe_subscription_id", (q) => q.eq("stripeSubscriptionId", stripeSubscriptionId))
+      .first();
+    
+    if (!items) {
+      return null;
+    }
+
+    return {
+      currentPeriodStart: items.currentPeriodStart,
+      currentPeriodEnd: items.currentPeriodEnd,
+    };
+  },
+});
+
 // Allocate monthly credits for subscription
 export const allocateMonthlyCredits = mutation({
   args: {
@@ -404,11 +487,20 @@ export const allocateMonthlyCredits = mutation({
       throw new Error("No active subscription found");
     }
 
+    // Get current billing period from subscription items
+    const billingPeriod = await ctx.runQuery(api.subscriptions.getCurrentBillingPeriod, {
+      stripeSubscriptionId,
+    });
+
+    if (!billingPeriod) {
+      throw new Error("No billing period found for subscription");
+    }
+
     // Check if credits were already granted this period
     const now = Date.now();
     if (
       subscription.creditsGrantedAt &&
-      subscription.creditsGrantedAt > subscription.currentPeriodStart
+      subscription.creditsGrantedAt > billingPeriod.currentPeriodStart
     ) {
       return;
     }
@@ -468,11 +560,30 @@ export const changeSubscriptionPlan = mutation({
     ),
     stripeSubscriptionId: v.string(),
     stripeCustomerId: v.string(),
-    stripePriceId: v.string(),
     subscriptionStatus: v.string(),
-    currentPeriodStart: v.number(),
-    currentPeriodEnd: v.number(),
     cancelAtPeriodEnd: v.boolean(),
+    trialStart: v.optional(v.number()),
+    trialEnd: v.optional(v.number()),
+    collectionMethod: v.optional(v.union(v.literal("charge_automatically"), v.literal("send_invoice"))),
+    billingCycleAnchor: v.optional(v.number()),
+    latestInvoice: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    subscriptionItems: v.array(v.object({
+      stripeSubscriptionItemId: v.string(),
+      stripePriceId: v.string(),
+      quantity: v.number(),
+      currentPeriodStart: v.number(),
+      currentPeriodEnd: v.number(),
+      priceData: v.object({
+        unitAmount: v.number(),
+        currency: v.string(),
+        recurring: v.optional(v.object({
+          interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
+          intervalCount: v.number()
+        }))
+      }),
+      metadata: v.optional(v.any())
+    })),
   },
   handler: async (
     ctx,
@@ -481,11 +592,15 @@ export const changeSubscriptionPlan = mutation({
       newPlanId,
       stripeSubscriptionId,
       stripeCustomerId,
-      stripePriceId,
       subscriptionStatus,
-      currentPeriodStart,
-      currentPeriodEnd,
       cancelAtPeriodEnd,
+      trialStart,
+      trialEnd,
+      collectionMethod,
+      billingCycleAnchor,
+      latestInvoice,
+      metadata,
+      subscriptionItems,
     }
   ) => {
     // Get new plan from database - inline to avoid circular dependency
@@ -519,29 +634,54 @@ export const changeSubscriptionPlan = mutation({
       });
     }
 
-    // Create new subscription record
+    // Create new subscription record with new schema
     const newSubscriptionId = await ctx.db.insert("subscriptions", {
       clerkId,
       stripeSubscriptionId,
       stripeCustomerId,
-      stripePriceId,
       tier: newPlanId,
       status: subscriptionStatus as
-        | "active"
-        | "canceled"
-        | "past_due"
-        | "trialing"
         | "incomplete"
         | "incomplete_expired"
-        | "unpaid",
-      currentPeriodStart,
-      currentPeriodEnd,
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
+        | "paused",
       cancelAtPeriodEnd,
+      cancelAt: undefined,
+      trialStart,
+      trialEnd,
+      collectionMethod,
+      latestInvoice,
+      application: undefined,
+      description: undefined,
+      metadata,
+      billingCycleAnchor,
+      daysUntilDue: undefined,
       monthlyCredits: newPlan.monthlyCredits,
       creditsGrantedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+
+    // Create subscription items records for new subscription
+    for (const item of subscriptionItems) {
+      await ctx.db.insert("subscriptionItems", {
+        subscriptionId: newSubscriptionId,
+        stripeSubscriptionId,
+        stripeSubscriptionItemId: item.stripeSubscriptionItemId,
+        stripePriceId: item.stripePriceId,
+        quantity: item.quantity,
+        currentPeriodStart: item.currentPeriodStart,
+        currentPeriodEnd: item.currentPeriodEnd,
+        priceData: item.priceData,
+        metadata: item.metadata,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
 
     // Map Stripe status to user schema status
     let userStatus:

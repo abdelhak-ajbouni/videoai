@@ -17,19 +17,33 @@ import {
   Eye,
   EyeOff,
   Check,
-  X
+  X,
+  CreditCard,
+  Calendar,
+  Crown,
+  AlertTriangle
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useMutation } from "convex/react";
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
+  const subscription = useQuery(
+    api.subscriptions.getCurrentSubscription,
+    user ? { clerkId: user.id } : "skip"
+  );
+
+  // Mutations
+  const cancelSubscriptionMutation = useMutation(api.subscriptions.cancelSubscriptionAtPeriodEnd);
+  const reactivateSubscriptionMutation = useMutation(api.subscriptions.reactivateSubscription);
 
   // Form states
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -154,6 +168,48 @@ export default function ProfilePage() {
       newPassword: "",
       confirmPassword: "",
     });
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!subscription?.stripeSubscriptionId || !user?.id) {
+      toast.error("No active subscription found");
+      return;
+    }
+
+    setIsCancellingSubscription(true);
+    try {
+      await cancelSubscriptionMutation({
+        clerkId: user.id,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      });
+      toast.success("Subscription will be canceled at the end of your billing period");
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      toast.error("Failed to cancel subscription");
+    } finally {
+      setIsCancellingSubscription(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    if (!subscription?.stripeSubscriptionId || !user?.id) {
+      toast.error("No subscription found");
+      return;
+    }
+
+    setIsCancellingSubscription(true);
+    try {
+      await reactivateSubscriptionMutation({
+        clerkId: user.id,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      });
+      toast.success("Subscription reactivated successfully");
+    } catch (error) {
+      console.error("Error reactivating subscription:", error);
+      toast.error("Failed to reactivate subscription");
+    } finally {
+      setIsCancellingSubscription(false);
+    }
   };
 
   return (
@@ -446,6 +502,124 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Subscription Management */}
+          <Card className="bg-gray-900 border-gray-800/50">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center space-x-2">
+                <CreditCard className="h-5 w-5 text-purple-400" />
+                <span>Subscription Plan</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscription ? (
+                <div className="space-y-4">
+                  {/* Simple Plan Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <p className="text-gray-400 text-sm">Current Plan</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-white text-lg font-medium capitalize">{subscription.tier} Plan</p>
+                        {subscription.cancelAtPeriodEnd && (
+                          <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Canceling
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-gray-400 text-sm">Price</p>
+                      <p className="text-white text-lg font-medium">
+                        {subscription.planDetails ? 
+                          `$${(subscription.planDetails.price / 100).toFixed(2)}/month` : 
+                          'Loading...'
+                        }
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-gray-400 text-sm">Next Billing</p>
+                      <p className="text-white text-lg font-medium">
+                        {subscription.currentPeriodEnd ? 
+                          new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          }) : 
+                          'Not set'
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cancellation Status */}
+                  {subscription.cancelAtPeriodEnd ? (
+                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-2">
+                          <p className="text-orange-400 font-medium">Subscription Cancellation Scheduled</p>
+                          <p className="text-sm text-gray-300">
+                            Your subscription will end on{' '}
+                            <strong>
+                              {subscription.currentPeriodEnd ? 
+                                new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                }) : 
+                                'the end of your current billing period'
+                              }
+                            </strong>
+                            . You'll keep full access until then.
+                          </p>
+                          <Button
+                            onClick={handleReactivateSubscription}
+                            disabled={isCancellingSubscription}
+                            className="bg-green-500 hover:bg-green-600 text-white"
+                            size="sm"
+                          >
+                            Reactivate Subscription
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-t border-gray-800 pt-4">
+                      <Button
+                        onClick={handleCancelSubscription}
+                        disabled={isCancellingSubscription}
+                        variant="outline"
+                        className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
+                        size="sm"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel Subscription
+                      </Button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Canceling will stop future billing but you'll keep access until your current period ends.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">No active subscription</p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Upgrade to a subscription plan to get monthly credits and premium features.
+                  </p>
+                  <Button
+                    onClick={() => window.location.href = "/pricing"}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    View Plans
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
         </div>
       </div>
