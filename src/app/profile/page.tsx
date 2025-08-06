@@ -19,8 +19,6 @@ import {
   Check,
   X,
   CreditCard,
-  Calendar,
-  Crown,
   AlertTriangle
 } from "lucide-react";
 import { useState } from "react";
@@ -541,13 +539,13 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <p className="text-gray-400 text-sm">Next Billing</p>
                       <p className="text-white text-lg font-medium">
-                        {subscription.currentPeriodEnd ? 
-                          new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                        {subscription.billingCycleAnchor ? 
+                          new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
                           }) : 
-                          'Not set'
+                          'Not available'
                         }
                       </p>
                     </div>
@@ -563,8 +561,8 @@ export default function ProfilePage() {
                           <p className="text-sm text-gray-300">
                             Your subscription will end on{' '}
                             <strong>
-                              {subscription.currentPeriodEnd ? 
-                                new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                              {subscription.billingCycleAnchor ? 
+                                new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
                                   month: 'long',
                                   day: 'numeric',
                                   year: 'numeric'
@@ -572,7 +570,7 @@ export default function ProfilePage() {
                                 'the end of your current billing period'
                               }
                             </strong>
-                            . You'll keep full access until then.
+                            . You&apos;ll keep full access until then.
                           </p>
                           <Button
                             onClick={handleReactivateSubscription}
@@ -598,7 +596,7 @@ export default function ProfilePage() {
                         Cancel Subscription
                       </Button>
                       <p className="text-xs text-gray-500 mt-2">
-                        Canceling will stop future billing but you'll keep access until your current period ends.
+                        Canceling will stop future billing but you&apos;ll keep access until your current period ends.
                       </p>
                     </div>
                   )}
