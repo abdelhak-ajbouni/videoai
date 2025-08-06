@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
@@ -33,9 +33,9 @@ export default function ProfilePage() {
     user ? { clerkId: user.id } : "skip"
   );
 
-  // Mutations
-  const cancelSubscriptionMutation = useMutation(api.subscriptions.cancelSubscriptionAtPeriodEnd);
-  const reactivateSubscriptionMutation = useMutation(api.subscriptions.reactivateSubscription);
+  // Actions
+  const cancelSubscriptionAction = useAction(api.stripe.cancelSubscriptionAtPeriodEnd);
+  const reactivateSubscriptionAction = useAction(api.stripe.reactivateSubscription);
 
   // Form states
   const [isEditing, setIsEditing] = useState(false);
@@ -176,7 +176,7 @@ export default function ProfilePage() {
 
     setIsCancellingSubscription(true);
     try {
-      await cancelSubscriptionMutation({
+      await cancelSubscriptionAction({
         clerkId: user.id,
         stripeSubscriptionId: subscription.stripeSubscriptionId,
       });
@@ -197,7 +197,7 @@ export default function ProfilePage() {
 
     setIsCancellingSubscription(true);
     try {
-      await reactivateSubscriptionMutation({
+      await reactivateSubscriptionAction({
         clerkId: user.id,
         stripeSubscriptionId: subscription.stripeSubscriptionId,
       });
