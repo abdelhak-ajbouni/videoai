@@ -2,13 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
-import {
-  validateCreditTransaction,
-  validateUserCredits,
-  throwValidationError,
-  logValidationWarnings,
-  sanitizeString,
-} from "./lib/validation";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -83,43 +76,12 @@ export const updateCredits = mutation({
   },
   handler: async (ctx, { clerkId, creditAmount, operation }) => {
     // ============================================================================
-    // INPUT VALIDATION
-    // ============================================================================
-
-    // Validate creditAmount is a positive finite number
-    if (
-      !Number.isFinite(creditAmount) ||
-      creditAmount <= 0 ||
-      Number.isNaN(creditAmount)
-    ) {
-      throw new Error("Credit amount must be a positive finite number");
-    }
-
-    const sanitizedArgs = {
-      clerkId: sanitizeString(clerkId, 100),
-      amount: creditAmount,
-      operation,
-    };
-
-    // Validate credit transaction parameters
-    const validation = validateCreditTransaction(sanitizedArgs);
-    if (!validation.isValid) {
-      throwValidationError(
-        validation.errors,
-        "Credit transaction validation failed"
-      );
-    }
-
-    // Log warnings if any
-    logValidationWarnings(validation.warnings || [], "Credit transaction");
-
-    // ============================================================================
-    // USER PROFILE VALIDATION
+    // USER PROFILE CHECK
     // ============================================================================
 
     const profile = await ctx.db
       .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", sanitizedArgs.clerkId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .first();
 
     if (!profile) {
@@ -127,21 +89,12 @@ export const updateCredits = mutation({
     }
 
     // ============================================================================
-    // CREDIT VALIDATION
+    // CREDIT CHECK
     // ============================================================================
 
     // Validate user has sufficient credits for subtraction
-    if (operation === "subtract") {
-      const creditValidation = validateUserCredits(
-        profile.credits,
-        creditAmount
-      );
-      if (!creditValidation.isValid) {
-        throwValidationError(
-          creditValidation.errors,
-          "Credit validation failed"
-        );
-      }
+    if (operation === "subtract" && profile.credits < creditAmount) {
+      throw new Error("Insufficient credits for this operation");
     }
 
     const newCredits =

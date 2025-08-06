@@ -37,10 +37,10 @@ async function calculateCreditCost(
     creditsPerDollar: (creditsPerDollar?.value as number) || 50,
   };
 
-  // Get resolution-specific cost if resolution is specified
-  let costPerSecond = model.costPerSecond; // Default to model's base cost
+  let costPerSecond = 0;
 
   if (resolution) {
+    // First try to get the specific resolution cost
     const resolutionCost = await ctx.db
       .query("modelCosts")
       .withIndex("by_model_and_resolution", (q) =>
@@ -51,28 +51,29 @@ async function calculateCreditCost(
     if (resolutionCost && resolutionCost.isActive) {
       costPerSecond = resolutionCost.costPerSecond;
     } else {
-      // Fallback to resolution multipliers if no specific cost found
+      // Fallback: get any available cost for this model and apply resolution multiplier
+      const defaultCost = await ctx.db
+        .query("modelCosts")
+        .withIndex("by_model_and_resolution", (q) => q.eq("modelId", modelId))
+        .filter((q) => q.eq(q.field("isActive"), true))
+        .first();
+
+      if (!defaultCost) {
+        throw new Error(
+          `No pricing information found for model "${modelId}". Please contact support.`
+        );
+      }
+
+      // Apply resolution multipliers if no specific cost found
       const resolutionMultipliers = await ctx.db
         .query("configurations")
         .withIndex("by_key", (q) => q.eq("key", "resolution_multipliers"))
         .first();
 
-      const defaultResolutionMultipliers = {
-        "480p": 1.0,
-        "512p": 1.0,
-        "720p": 1.2,
-        "768p": 1.3,
-        "1080p": 1.5,
-      };
+      const resolutionMultipliersConfig = resolutionMultipliers?.value;
 
-      const resolutionMultipliersConfig =
-        (resolutionMultipliers?.value as Record<string, number>) ||
-        defaultResolutionMultipliers;
-
-      if (resolutionMultipliersConfig[resolution]) {
-        costPerSecond =
-          model.costPerSecond * resolutionMultipliersConfig[resolution];
-      }
+      const multiplier = resolutionMultipliersConfig[resolution];
+      costPerSecond = defaultCost.costPerSecond * multiplier;
     }
   }
 

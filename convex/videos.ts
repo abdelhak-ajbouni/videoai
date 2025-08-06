@@ -4,17 +4,11 @@ import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
-import {
-  validateVideoGeneration,
-  validateModelCapabilities,
-  throwValidationError,
-  logValidationWarnings,
-  sanitizeString,
-  validatePagination,
-} from "./lib/validation";
+
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
+import { toast } from "sonner";
 
 const r2 = new R2(components.r2);
 
@@ -165,31 +159,6 @@ export const createVideo = mutation({
     }
 
     // ============================================================================
-    // INPUT VALIDATION
-    // ============================================================================
-
-    // Sanitize and validate input parameters
-    const sanitizedArgs = {
-      prompt: sanitizeString(args.prompt, 1000),
-      model: sanitizeString(args.model, 100),
-      quality: args.quality,
-      duration: sanitizeString(args.duration, 50),
-      generationSettings: args.generationSettings,
-    };
-
-    // Validate video generation parameters
-    const validation = validateVideoGeneration(sanitizedArgs);
-    if (!validation.isValid) {
-      throwValidationError(
-        validation.errors,
-        "Video generation validation failed"
-      );
-    }
-
-    // Log warnings if any
-    logValidationWarnings(validation.warnings || [], "Video generation");
-
-    // ============================================================================
     // USER AND SUBSCRIPTION VALIDATION
     // ============================================================================
 
@@ -216,72 +185,26 @@ export const createVideo = mutation({
     // Validate model exists and is active
     const model = await ctx.db
       .query("models")
-      .withIndex("by_model_id", (q) => q.eq("modelId", sanitizedArgs.model))
+      .withIndex("by_model_id", (q) => q.eq("modelId", args.model))
       .first();
 
     if (!model) {
+      toast.error("Selected model not found");
       throw new Error("Selected model not found");
     }
 
     if (!model.isActive) {
+      toast.error("Selected model is not currently available");
       throw new Error("Selected model is not currently available");
-    }
-
-    // Fetch model parameters for validation
-    const modelParams = await ctx.db
-      .query("modelParameters")
-      .withIndex("by_model_id", (q) => q.eq("modelId", sanitizedArgs.model))
-      .first();
-
-    // Transform model parameters to the format expected by validation
-    let modelCapabilities = null;
-    if (modelParams && modelParams.parameterDefinitions) {
-      const params = modelParams.parameterDefinitions;
-      modelCapabilities = {
-        supportedDurations: params.duration?.allowedValues || [],
-        supportedResolutions: params.resolution?.allowedValues || [],
-        supportedAspectRatios: params.aspectRatio?.allowedValues || [],
-        supportedCameraConcepts: params.cameraConcept?.allowedValues || [],
-        supportsLoop: !!params.loop,
-      };
-    }
-
-    // Validate model capabilities against generation parameters
-    const modelValidation = validateModelCapabilities(
-      model,
-      modelCapabilities,
-      {
-        duration: sanitizedArgs.duration,
-        ...(sanitizedArgs.generationSettings || {}),
-      }
-    );
-
-    if (!modelValidation.isValid) {
-      throwValidationError(
-        modelValidation.errors,
-        "Model capability validation failed"
-      );
     }
 
     // Prepare frontend parameters for validation
     const frontendParams = {
-      prompt: sanitizedArgs.prompt,
-      duration: sanitizedArgs.duration,
-      quality: sanitizedArgs.quality,
-      ...(sanitizedArgs.generationSettings || {}),
+      prompt: args.prompt,
+      duration: args.duration,
+      quality: args.quality,
+      ...(args.generationSettings || {}),
     };
-
-    // Validate model capabilities using helper function
-    const parameterValidation = validateModelCapabilities(
-      model,
-      modelCapabilities,
-      frontendParams
-    );
-    if (!parameterValidation.isValid) {
-      throw new Error(
-        `Parameter validation failed: ${parameterValidation.errors.join(", ")}`
-      );
-    }
 
     // Quality validation removed - all models support all quality levels
     // Pricing is handled via quality multipliers in the pricing system
@@ -939,55 +862,6 @@ export const searchVideos = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
-    }
-
-    // ============================================================================
-    // INPUT VALIDATION
-    // ============================================================================
-
-    // Validate pagination parameters
-    const paginationValidation = validatePagination(
-      args.limit,
-      args.offset,
-      100
-    );
-    if (!paginationValidation.isValid) {
-      throwValidationError(
-        paginationValidation.errors,
-        "Pagination validation failed"
-      );
-    }
-
-    // Sanitize search query
-    const sanitizedSearchQuery = args.searchQuery
-      ? sanitizeString(args.searchQuery, 200)
-      : undefined;
-
-    // Validate date range
-    if (args.dateFrom && args.dateTo && args.dateFrom > args.dateTo) {
-      throw new Error("Invalid date range: start date must be before end date");
-    }
-
-    // Validate credit range
-    if (
-      args.minCredits &&
-      args.maxCredits &&
-      args.minCredits > args.maxCredits
-    ) {
-      throw new Error(
-        "Invalid credit range: minimum must be less than maximum"
-      );
-    }
-
-    // Validate file size range
-    if (
-      args.minFileSize &&
-      args.maxFileSize &&
-      args.minFileSize > args.maxFileSize
-    ) {
-      throw new Error(
-        "Invalid file size range: minimum must be less than maximum"
-      );
     }
 
     const query = ctx.db

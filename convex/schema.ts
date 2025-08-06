@@ -323,8 +323,6 @@ export default defineSchema({
     // Replicate integration
     replicateModelId: v.string(), // Full Replicate model identifier with version
 
-    // Pricing and basic capabilities
-    costPerSecond: v.number(), // Cost in USD per second
 
     // Model type/category for grouping (replaces hardcoded string matching)
     modelType: v.string(), // "google_veo", "luma_ray", "stability_ai", etc.

@@ -55,9 +55,7 @@ export const createModel = mutation({
     name: v.string(),
     description: v.string(),
     replicateModelId: v.string(),
-    costPerSecond: v.number(),
     modelType: v.string(),
-
     isActive: v.boolean(),
     isDefault: v.boolean(),
     isPremium: v.boolean(),
@@ -95,9 +93,7 @@ export const updateModel = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     replicateModelId: v.optional(v.string()),
-    costPerSecond: v.optional(v.number()),
     modelType: v.optional(v.string()),
-
     isActive: v.optional(v.boolean()),
     isDefault: v.optional(v.boolean()),
     isPremium: v.optional(v.boolean()),
