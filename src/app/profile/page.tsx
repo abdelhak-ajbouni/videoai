@@ -539,8 +539,8 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <p className="text-gray-400 text-sm">Next Billing</p>
                       <p className="text-white text-lg font-medium">
-                        {subscription.billingCycleAnchor ?
-                          new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
+                        {subscription.currentPeriodEnd ?
+                          new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
