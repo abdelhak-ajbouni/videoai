@@ -113,21 +113,6 @@ export const getCreditCost = query({
 
 export { calculateCreditCost };
 
-// Query to get all resolution costs for a specific model
-export const getmodelCosts = query({
-  args: {
-    modelId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const resolutionCosts = await ctx.db
-      .query("modelCosts")
-      .withIndex("by_model_id", (q) => q.eq("modelId", args.modelId))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
-
-    return resolutionCosts;
-  },
-});
 
 // Mutation to add or update resolution cost for a model
 export const updateModelResolutionCost = mutation({

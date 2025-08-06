@@ -182,7 +182,7 @@ export default defineSchema({
     // Stripe data - core identifiers
     stripeSubscriptionId: v.string(),
     stripeCustomerId: v.string(),
-    
+
     // Subscription details
     tier: v.string(), // References planId from subscriptionPlans
     status: v.union(
@@ -196,34 +196,34 @@ export default defineSchema({
       v.literal("paused")
     ),
 
-    // Cancellation details
+    // Cancellation details (from Stripe)
     cancelAtPeriodEnd: v.boolean(),
-    canceledAt: v.optional(v.number()),
-    cancelAt: v.optional(v.number()), // When subscription will be canceled (if scheduled)
-    
-    // Trial information
+    canceledAt: v.optional(v.number()), // Timestamp when subscription was canceled (from Stripe)
+    cancelAt: v.optional(v.number()), // Scheduled cancellation timestamp (from Stripe)
+
+    // Subscription lifecycle (from Stripe)
+    startDate: v.optional(v.number()), // When subscription started
+    endedAt: v.optional(v.number()), // When subscription ended
+
+    // Trial information (from Stripe)
     trialStart: v.optional(v.number()),
     trialEnd: v.optional(v.number()),
-    
-    // Collection method
-    collectionMethod: v.optional(v.union(
-      v.literal("charge_automatically"),
-      v.literal("send_invoice")
-    )),
-    
-    // Latest invoice reference
+
+    // Collection method (from Stripe)
+    collectionMethod: v.optional(
+      v.union(v.literal("charge_automatically"), v.literal("send_invoice"))
+    ),
+
+    // Latest invoice reference (from Stripe)
     latestInvoice: v.optional(v.string()),
-    
-    // Application and metadata
-    application: v.optional(v.string()),
-    description: v.optional(v.string()),
-    metadata: v.optional(v.any()), // Stripe metadata as key-value pairs
-    
-    // Billing details
+
+    // Stripe metadata as record
+    metadata: v.optional(v.record(v.string(), v.string())),
+
+    // Billing details (from Stripe)
     billingCycleAnchor: v.optional(v.number()),
-    daysUntilDue: v.optional(v.number()),
-    
-    // Billing period
+
+    // Billing period (from Stripe subscription items)
     currentPeriodStart: v.number(),
     currentPeriodEnd: v.number(),
 
@@ -248,19 +248,26 @@ export default defineSchema({
     subscriptionId: v.id("subscriptions"),
     stripeSubscriptionId: v.string(),
     stripeSubscriptionItemId: v.string(),
-    
+
     // Stripe subscription item data
     stripePriceId: v.string(),
     quantity: v.number(),
-    
+
     // Price details for reference
     priceData: v.object({
       unitAmount: v.number(),
       currency: v.string(),
-      recurring: v.optional(v.object({
-        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
-        intervalCount: v.number()
-      }))
+      recurring: v.optional(
+        v.object({
+          interval: v.union(
+            v.literal("day"),
+            v.literal("week"),
+            v.literal("month"),
+            v.literal("year")
+          ),
+          intervalCount: v.number(),
+        })
+      ),
     }),
 
     // Timestamps
@@ -270,7 +277,6 @@ export default defineSchema({
     .index("by_subscription_id", ["subscriptionId"])
     .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
     .index("by_stripe_subscription_item_id", ["stripeSubscriptionItemId"]),
-
 
   configurations: defineTable({
     // Configuration identification
@@ -322,7 +328,6 @@ export default defineSchema({
 
     // Replicate integration
     replicateModelId: v.string(), // Full Replicate model identifier with version
-
 
     // Model type/category for grouping (replaces hardcoded string matching)
     modelType: v.string(), // "google_veo", "luma_ray", "stability_ai", etc.

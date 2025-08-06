@@ -4,6 +4,11 @@ import { api } from "./_generated/api";
 import Stripe from "stripe";
 import { ActionCtx } from "./_generated/server";
 
+// Extended Invoice interface to include subscription property
+interface InvoiceWithSubscription extends Stripe.Invoice {
+  subscription?: string;
+}
+
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
   apiVersion: "2025-06-30.basil",
@@ -249,15 +254,12 @@ async function handleCheckoutSessionCompleted(
   if (type === "credit_purchase" && clerkId && credits) {
     try {
       // Add credits to user account
-      const newBalance = await ctx.runMutation(
-        api.userProfiles.addCreditsWithTransaction,
-        {
-          clerkId: clerkId,
-          amount: parseInt(credits),
-          description: `Credit purchase - ${packageId} package`,
-          stripePaymentIntentId: session.payment_intent as string,
-        }
-      );
+      await ctx.runMutation(api.userProfiles.addCreditsWithTransaction, {
+        clerkId: clerkId,
+        amount: parseInt(credits),
+        description: `Credit purchase - ${packageId} package`,
+        stripePaymentIntentId: session.payment_intent as string,
+      });
     } catch (error) {
       throw error;
     }
@@ -280,22 +282,30 @@ async function handleCheckoutSessionCompleted(
         trialEnd: subscription.trial_end || undefined,
         collectionMethod: subscription.collection_method,
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
-        latestInvoice: subscription.latest_invoice as string || undefined,
+        latestInvoice: (subscription.latest_invoice as string) || undefined,
         metadata: subscription.metadata || undefined,
+        startDate: subscription.start_date || undefined,
+        endedAt: subscription.ended_at || undefined,
         // Pass first subscription item data directly (merged schema)
         stripeSubscriptionItemId: subscription.items.data[0]?.id,
         stripePriceId: subscription.items.data[0]?.price.id,
         quantity: subscription.items.data[0]?.quantity || 1,
-        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
-        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
-        priceData: subscription.items.data[0] ? {
-          unitAmount: subscription.items.data[0].price.unit_amount || 0,
-          currency: subscription.items.data[0].price.currency,
-          recurring: subscription.items.data[0].price.recurring ? {
-            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
-            intervalCount: subscription.items.data[0].price.recurring.interval_count
-          } : undefined
-        } : undefined
+        currentPeriodStart: subscription.items.data[0]?.current_period_start,
+        currentPeriodEnd: subscription.items.data[0]?.current_period_end,
+        priceData: subscription.items.data[0]
+          ? {
+              unitAmount: subscription.items.data[0].price.unit_amount || 0,
+              currency: subscription.items.data[0].price.currency,
+              recurring: subscription.items.data[0].price.recurring
+                ? {
+                    interval:
+                      subscription.items.data[0].price.recurring.interval,
+                    intervalCount:
+                      subscription.items.data[0].price.recurring.interval_count,
+                  }
+                : undefined,
+            }
+          : undefined,
       });
     } catch (error) {
       throw error;
@@ -319,22 +329,32 @@ async function handleCheckoutSessionCompleted(
         trialEnd: subscription.trial_end || undefined,
         collectionMethod: subscription.collection_method,
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
-        latestInvoice: subscription.latest_invoice as string || undefined,
+        latestInvoice: (subscription.latest_invoice as string) || undefined,
         metadata: subscription.metadata || undefined,
+        startDate: subscription.start_date || undefined,
+        endedAt: subscription.ended_at || undefined,
         // Pass first subscription item data directly (merged schema)
         stripeSubscriptionItemId: subscription.items.data[0]?.id,
         stripePriceId: subscription.items.data[0]?.price.id,
         quantity: subscription.items.data[0]?.quantity || 1,
-        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
-        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
-        priceData: subscription.items.data[0] ? {
-          unitAmount: subscription.items.data[0].price.unit_amount || 0,
-          currency: subscription.items.data[0].price.currency,
-          recurring: subscription.items.data[0].price.recurring ? {
-            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
-            intervalCount: subscription.items.data[0].price.recurring.interval_count
-          } : undefined
-        } : undefined
+        currentPeriodStart:
+          subscription.items.data[0]?.current_period_start || Date.now() / 1000,
+        currentPeriodEnd:
+          subscription.items.data[0]?.current_period_end || Date.now() / 1000,
+        priceData: subscription.items.data[0]
+          ? {
+              unitAmount: subscription.items.data[0].price.unit_amount || 0,
+              currency: subscription.items.data[0].price.currency,
+              recurring: subscription.items.data[0].price.recurring
+                ? {
+                    interval: subscription.items.data[0].price.recurring
+                      .interval as "day" | "week" | "month" | "year",
+                    intervalCount:
+                      subscription.items.data[0].price.recurring.interval_count,
+                  }
+                : undefined,
+            }
+          : undefined,
       });
     } catch (error) {
       throw error;
@@ -349,7 +369,7 @@ async function handleInvoicePaymentSucceeded(
   invoice: Stripe.Invoice
 ) {
   // Check if this invoice is for a subscription and has a customer
-  const subscriptionId = (invoice as any).subscription;
+  const subscriptionId = (invoice as InvoiceWithSubscription).subscription;
   if (subscriptionId && invoice.customer) {
     // Find subscription by Stripe customer ID
     const subscription = await ctx.runQuery(
@@ -391,7 +411,6 @@ async function handleSubscriptionUpdated(
 
   if (existingSubscription) {
     await ctx.runMutation(api.subscriptions.updateSubscription, {
-      clerkId: existingSubscription.clerkId,
       stripeSubscriptionId: subscription.id,
       status: subscription.status as
         | "active"
@@ -420,7 +439,6 @@ async function handleSubscriptionDeleted(
 
   if (existingSubscription) {
     await ctx.runMutation(api.subscriptions.cancelSubscription, {
-      clerkId: existingSubscription.clerkId,
       stripeSubscriptionId: subscription.id,
     });
   }
@@ -455,22 +473,32 @@ export const handlePlanChange = action({
         trialEnd: subscription.trial_end || undefined,
         collectionMethod: subscription.collection_method,
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
-        latestInvoice: subscription.latest_invoice as string || undefined,
+        latestInvoice: (subscription.latest_invoice as string) || undefined,
         metadata: subscription.metadata || undefined,
+        startDate: subscription.start_date || undefined,
+        endedAt: subscription.ended_at || undefined,
         // Pass first subscription item data directly (merged schema)
         stripeSubscriptionItemId: subscription.items.data[0]?.id,
         stripePriceId: subscription.items.data[0]?.price.id,
         quantity: subscription.items.data[0]?.quantity || 1,
-        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
-        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
-        priceData: subscription.items.data[0] ? {
-          unitAmount: subscription.items.data[0].price.unit_amount || 0,
-          currency: subscription.items.data[0].price.currency,
-          recurring: subscription.items.data[0].price.recurring ? {
-            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
-            intervalCount: subscription.items.data[0].price.recurring.interval_count
-          } : undefined
-        } : undefined
+        currentPeriodStart:
+          subscription.items.data[0]?.current_period_start || Date.now() / 1000,
+        currentPeriodEnd:
+          subscription.items.data[0]?.current_period_end || Date.now() / 1000,
+        priceData: subscription.items.data[0]
+          ? {
+              unitAmount: subscription.items.data[0].price.unit_amount || 0,
+              currency: subscription.items.data[0].price.currency,
+              recurring: subscription.items.data[0].price.recurring
+                ? {
+                    interval:
+                      subscription.items.data[0].price.recurring.interval,
+                    intervalCount:
+                      subscription.items.data[0].price.recurring.interval_count,
+                  }
+                : undefined,
+            }
+          : undefined,
       });
 
       return { success: true };
@@ -504,7 +532,6 @@ export const cancelSubscriptionAtPeriodEnd = action({
 
       // Update our database to reflect the cancellation
       await ctx.runMutation(api.subscriptions.cancelSubscriptionAtPeriodEnd, {
-        clerkId,
         stripeSubscriptionId,
       });
 
@@ -542,7 +569,6 @@ export const reactivateSubscription = action({
 
       // Update our database to reflect the reactivation
       await ctx.runMutation(api.subscriptions.reactivateSubscription, {
-        clerkId,
         stripeSubscriptionId,
       });
 

@@ -561,8 +561,8 @@ export default function ProfilePage() {
                           <p className="text-sm text-gray-300">
                             Your subscription will end on{' '}
                             <strong>
-                              {subscription.billingCycleAnchor ?
-                                new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
+                              {subscription.currentPeriodEnd ?
+                                new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                                   month: 'long',
                                   day: 'numeric',
                                   year: 'numeric'

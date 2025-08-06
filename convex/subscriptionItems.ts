@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import Stripe from "stripe";
 
 // Get subscription items for a subscription
 export const getSubscriptionItems = query({
@@ -7,7 +8,9 @@ export const getSubscriptionItems = query({
   handler: async (ctx, { subscriptionId }) => {
     return await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_subscription_id", (q) => q.eq("subscriptionId", subscriptionId))
+      .withIndex("by_subscription_id", (q) =>
+        q.eq("subscriptionId", subscriptionId)
+      )
       .collect();
   },
 });
@@ -18,7 +21,9 @@ export const getSubscriptionItemsByStripeId = query({
   handler: async (ctx, { stripeSubscriptionId }) => {
     return await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_stripe_subscription_id", (q) => q.eq("stripeSubscriptionId", stripeSubscriptionId))
+      .withIndex("by_stripe_subscription_id", (q) =>
+        q.eq("stripeSubscriptionId", stripeSubscriptionId)
+      )
       .collect();
   },
 });
@@ -29,7 +34,9 @@ export const getSubscriptionItemByStripeItemId = query({
   handler: async (ctx, { stripeSubscriptionItemId }) => {
     return await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_stripe_subscription_item_id", (q) => q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId))
+      .withIndex("by_stripe_subscription_item_id", (q) =>
+        q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId)
+      )
       .first();
   },
 });
@@ -45,10 +52,17 @@ export const createSubscriptionItem = mutation({
     priceData: v.object({
       unitAmount: v.number(),
       currency: v.string(),
-      recurring: v.optional(v.object({
-        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
-        intervalCount: v.number()
-      }))
+      recurring: v.optional(
+        v.object({
+          interval: v.union(
+            v.literal("day"),
+            v.literal("week"),
+            v.literal("month"),
+            v.literal("year")
+          ),
+          intervalCount: v.number(),
+        })
+      ),
     }),
   },
   handler: async (ctx, args) => {
@@ -66,26 +80,52 @@ export const updateSubscriptionItem = mutation({
     stripeSubscriptionItemId: v.string(),
     quantity: v.optional(v.number()),
     stripePriceId: v.optional(v.string()),
-    priceData: v.optional(v.object({
-      unitAmount: v.number(),
-      currency: v.string(),
-      recurring: v.optional(v.object({
-        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
-        intervalCount: v.number()
-      }))
-    })),
+    priceData: v.optional(
+      v.object({
+        unitAmount: v.number(),
+        currency: v.string(),
+        recurring: v.optional(
+          v.object({
+            interval: v.union(
+              v.literal("day"),
+              v.literal("week"),
+              v.literal("month"),
+              v.literal("year")
+            ),
+            intervalCount: v.number(),
+          })
+        ),
+      })
+    ),
   },
-  handler: async (ctx, { stripeSubscriptionItemId, quantity, stripePriceId, priceData }) => {
+  handler: async (
+    ctx,
+    { stripeSubscriptionItemId, quantity, stripePriceId, priceData }
+  ) => {
     const item = await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_stripe_subscription_item_id", (q) => q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId))
+      .withIndex("by_stripe_subscription_item_id", (q) =>
+        q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId)
+      )
       .first();
 
     if (!item) {
       throw new Error("Subscription item not found");
     }
 
-    const updates: any = { updatedAt: Date.now() };
+    const updates: {
+      updatedAt: number;
+      quantity?: number;
+      stripePriceId?: string;
+      priceData?: {
+        unitAmount: number;
+        currency: string;
+        recurring?: {
+          interval: Stripe.Price.Recurring.Interval;
+          intervalCount: number;
+        };
+      };
+    } = { updatedAt: Date.now() };
     if (quantity !== undefined) updates.quantity = quantity;
     if (stripePriceId !== undefined) updates.stripePriceId = stripePriceId;
     if (priceData !== undefined) updates.priceData = priceData;
@@ -101,7 +141,9 @@ export const deleteSubscriptionItems = mutation({
   handler: async (ctx, { subscriptionId }) => {
     const items = await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_subscription_id", (q) => q.eq("subscriptionId", subscriptionId))
+      .withIndex("by_subscription_id", (q) =>
+        q.eq("subscriptionId", subscriptionId)
+      )
       .collect();
 
     for (const item of items) {
@@ -118,7 +160,9 @@ export const deleteSubscriptionItem = mutation({
   handler: async (ctx, { stripeSubscriptionItemId }) => {
     const item = await ctx.db
       .query("subscriptionItems")
-      .withIndex("by_stripe_subscription_item_id", (q) => q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId))
+      .withIndex("by_stripe_subscription_item_id", (q) =>
+        q.eq("stripeSubscriptionItemId", stripeSubscriptionItemId)
+      )
       .first();
 
     if (item) {
