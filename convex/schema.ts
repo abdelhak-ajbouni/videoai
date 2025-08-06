@@ -222,6 +222,10 @@ export default defineSchema({
     // Billing details
     billingCycleAnchor: v.optional(v.number()),
     daysUntilDue: v.optional(v.number()),
+    
+    // Billing period
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
 
     // Credits - app-specific fields
     monthlyCredits: v.number(),
@@ -236,46 +240,37 @@ export default defineSchema({
     .index("by_stripe_customer_id", ["stripeCustomerId"])
     .index("by_status", ["status"])
     .index("by_cancel_at", ["cancelAt"])
-    .index("by_trial_end", ["trialEnd"]),
+    .index("by_trial_end", ["trialEnd"])
+    .index("by_current_period_end", ["currentPeriodEnd"]),
 
-  // Subscription items - now tracks billing periods per item (Stripe API 2025+)
   subscriptionItems: defineTable({
-    // Link to subscription
+    // Links
     subscriptionId: v.id("subscriptions"),
     stripeSubscriptionId: v.string(),
-    
-    // Stripe item data
     stripeSubscriptionItemId: v.string(),
-    stripePriceId: v.string(),
     
-    // Item details
+    // Stripe subscription item data
+    stripePriceId: v.string(),
     quantity: v.number(),
     
-    // Billing periods - moved from subscription level in Stripe API 2025+
-    currentPeriodStart: v.number(),
-    currentPeriodEnd: v.number(),
-    
     // Price details for reference
-    priceData: v.optional(v.object({
+    priceData: v.object({
       unitAmount: v.number(),
       currency: v.string(),
       recurring: v.optional(v.object({
         interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
         intervalCount: v.number()
       }))
-    })),
-    
-    // Metadata
-    metadata: v.optional(v.any()),
-    
+    }),
+
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_subscription_id", ["subscriptionId"])
     .index("by_stripe_subscription_id", ["stripeSubscriptionId"])
-    .index("by_stripe_item_id", ["stripeSubscriptionItemId"])
-    .index("by_current_period_end", ["currentPeriodEnd"]),
+    .index("by_stripe_subscription_item_id", ["stripeSubscriptionItemId"]),
+
 
   configurations: defineTable({
     // Configuration identification

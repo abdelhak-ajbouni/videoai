@@ -47,11 +47,11 @@ function GeneratePageContent() {
     const canceled = searchParams.get('canceled');
 
     if (success === 'true' && credits) {
-      toast.success(`Successfully purchased ${credits} credits! You can now generate videos.`);
+      toast.success(`Successfully purchased ${credits} credits!`);
     } else if (subscription === 'success' && plan) {
-      toast.success(`Successfully subscribed to ${plan} plan! You now have access to more features.`);
+      toast.success(`Successfully subscribed to ${plan} plan!`);
     } else if (planChange === 'success' && plan) {
-      toast.success(`Successfully upgraded to ${plan} plan! You now have access to more features.`);
+      toast.success(`Successfully upgraded to ${plan} plan!`);
     } else if (canceled === 'true') {
       toast.error('Payment was canceled');
     }

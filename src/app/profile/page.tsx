@@ -525,26 +525,26 @@ export default function ProfilePage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <p className="text-gray-400 text-sm">Price</p>
                       <p className="text-white text-lg font-medium">
-                        {subscription.planDetails ? 
-                          `$${(subscription.planDetails.price / 100).toFixed(2)}/month` : 
+                        {subscription.planDetails ?
+                          `$${(subscription.planDetails.price / 100).toFixed(2)}/month` :
                           'Loading...'
                         }
                       </p>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <p className="text-gray-400 text-sm">Next Billing</p>
                       <p className="text-white text-lg font-medium">
-                        {subscription.billingCycleAnchor ? 
+                        {subscription.billingCycleAnchor ?
                           new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
-                          }) : 
+                          }) :
                           'Not available'
                         }
                       </p>
@@ -561,12 +561,12 @@ export default function ProfilePage() {
                           <p className="text-sm text-gray-300">
                             Your subscription will end on{' '}
                             <strong>
-                              {subscription.billingCycleAnchor ? 
+                              {subscription.billingCycleAnchor ?
                                 new Date(subscription.billingCycleAnchor).toLocaleDateString('en-US', {
                                   month: 'long',
                                   day: 'numeric',
                                   year: 'numeric'
-                                }) : 
+                                }) :
                                 'the end of your current billing period'
                               }
                             </strong>
@@ -584,7 +584,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-t border-gray-800 pt-4">
+                    <div className="pt-4">
                       <Button
                         onClick={handleCancelSubscription}
                         disabled={isCancellingSubscription}
@@ -602,18 +602,38 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <CreditCard className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 mb-4">No active subscription</p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Upgrade to a subscription plan to get monthly credits and premium features.
-                  </p>
-                  <Button
-                    onClick={() => window.location.href = "/pricing"}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
-                  >
-                    View Plans
-                  </Button>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <p className="text-gray-400 text-sm">Current Plan</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-white text-lg font-medium">Free Plan</p>
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                          Active
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-gray-400 text-sm">Price</p>
+                      <p className="text-white text-lg font-medium">
+                        $0.00/month
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4">
+                    <Button
+                      onClick={() => window.location.href = "/pricing"}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Subscribe Now
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Get monthly credits and access to premium features with a subscription plan.
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>

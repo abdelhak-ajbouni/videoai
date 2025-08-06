@@ -54,9 +54,9 @@ const defaultModels = [
 const defaultPackages = [
   {
     packageId: "small",
-    name: "Small Boost",
-    description: "Extra credits for subscribers",
-    price: 1499, // $14.99
+    name: "Small",
+    description: "Quick credit top-up",
+    price: 699, // $6.99
     currency: "usd",
     credits: 500,
     isActive: true,
@@ -64,31 +64,21 @@ const defaultPackages = [
   },
   {
     packageId: "medium",
-    name: "Medium Boost",
-    description: "Popular choice for subscribers",
+    name: "Medium",
+    description: "Great value package",
     price: 2999, // $29.99
     currency: "usd",
-    credits: 1000,
+    credits: 2500,
     isActive: true,
     isPopular: true,
   },
   {
     packageId: "large",
-    name: "Large Boost",
-    description: "Great value for heavy users",
-    price: 4999, // $49.99
+    name: "Large",
+    description: "Maximum value package",
+    price: 9499, // $94.99
     currency: "usd",
-    credits: 1750,
-    isActive: true,
-    isPopular: false,
-  },
-  {
-    packageId: "xlarge",
-    name: "X-Large Boost",
-    description: "Maximum credits package",
-    price: 7999, // $79.99
-    currency: "usd",
-    credits: 3000,
+    credits: 8000,
     isActive: true,
     isPopular: false,
   },
@@ -99,11 +89,15 @@ const defaultPlans = [
   {
     planId: "starter",
     name: "Starter",
-    description: "Perfect for individuals getting started",
+    description: "Perfect for getting started",
     price: 999, // $9.99
     currency: "usd",
-    monthlyCredits: 100,
-    features: ["HD video quality", "Standard models", "Email support"],
+    monthlyCredits: 1000,
+    features: [
+      "HD video quality",
+      "Standard models",
+      "Email support",
+    ],
     isActive: true,
     isPopular: false,
   },
@@ -111,9 +105,9 @@ const defaultPlans = [
     planId: "pro",
     name: "Pro",
     description: "Ideal for content creators and professionals",
-    price: 2999, // $29.99
+    price: 2499, // $24.99
     currency: "usd",
-    monthlyCredits: 500,
+    monthlyCredits: 3000,
     features: [
       "Ultra HD quality",
       "All AI models",
@@ -127,10 +121,10 @@ const defaultPlans = [
   {
     planId: "max",
     name: "Max",
-    description: "For teams and power users",
-    price: 9999, // $99.99
+    description: "For maximum value",
+    price: 6999, // $69.99
     currency: "usd",
-    monthlyCredits: 2000,
+    monthlyCredits: 9000,
     features: [
       "Everything in Pro",
       "Private videos",
@@ -163,7 +157,7 @@ const defaultConfigurations = [
     category: "business",
     name: "Free Tier Credits",
     description: "Number of credits given to new users",
-    value: 10,
+    value: 100,
     dataType: "number" as const,
     isActive: true,
     isEditable: true,

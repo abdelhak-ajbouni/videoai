@@ -282,23 +282,20 @@ async function handleCheckoutSessionCompleted(
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
         latestInvoice: subscription.latest_invoice as string || undefined,
         metadata: subscription.metadata || undefined,
-        // Pass subscription items for creating subscription items records
-        subscriptionItems: subscription.items.data.map(item => ({
-          stripeSubscriptionItemId: item.id,
-          stripePriceId: item.price.id,
-          quantity: item.quantity || 1,
-          currentPeriodStart: item.current_period_start,
-          currentPeriodEnd: item.current_period_end,
-          priceData: {
-            unitAmount: item.price.unit_amount || 0,
-            currency: item.price.currency,
-            recurring: item.price.recurring ? {
-              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
-              intervalCount: item.price.recurring.interval_count
-            } : undefined
-          },
-          metadata: item.metadata || undefined
-        }))
+        // Pass first subscription item data directly (merged schema)
+        stripeSubscriptionItemId: subscription.items.data[0]?.id,
+        stripePriceId: subscription.items.data[0]?.price.id,
+        quantity: subscription.items.data[0]?.quantity || 1,
+        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
+        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
+        priceData: subscription.items.data[0] ? {
+          unitAmount: subscription.items.data[0].price.unit_amount || 0,
+          currency: subscription.items.data[0].price.currency,
+          recurring: subscription.items.data[0].price.recurring ? {
+            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
+            intervalCount: subscription.items.data[0].price.recurring.interval_count
+          } : undefined
+        } : undefined
       });
     } catch (error) {
       throw error;
@@ -324,23 +321,20 @@ async function handleCheckoutSessionCompleted(
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
         latestInvoice: subscription.latest_invoice as string || undefined,
         metadata: subscription.metadata || undefined,
-        // Pass subscription items for creating subscription items records
-        subscriptionItems: subscription.items.data.map(item => ({
-          stripeSubscriptionItemId: item.id,
-          stripePriceId: item.price.id,
-          quantity: item.quantity || 1,
-          currentPeriodStart: item.current_period_start,
-          currentPeriodEnd: item.current_period_end,
-          priceData: {
-            unitAmount: item.price.unit_amount || 0,
-            currency: item.price.currency,
-            recurring: item.price.recurring ? {
-              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
-              intervalCount: item.price.recurring.interval_count
-            } : undefined
-          },
-          metadata: item.metadata || undefined
-        }))
+        // Pass first subscription item data directly (merged schema)
+        stripeSubscriptionItemId: subscription.items.data[0]?.id,
+        stripePriceId: subscription.items.data[0]?.price.id,
+        quantity: subscription.items.data[0]?.quantity || 1,
+        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
+        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
+        priceData: subscription.items.data[0] ? {
+          unitAmount: subscription.items.data[0].price.unit_amount || 0,
+          currency: subscription.items.data[0].price.currency,
+          recurring: subscription.items.data[0].price.recurring ? {
+            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
+            intervalCount: subscription.items.data[0].price.recurring.interval_count
+          } : undefined
+        } : undefined
       });
     } catch (error) {
       throw error;
@@ -463,23 +457,20 @@ export const handlePlanChange = action({
         billingCycleAnchor: subscription.billing_cycle_anchor || undefined,
         latestInvoice: subscription.latest_invoice as string || undefined,
         metadata: subscription.metadata || undefined,
-        // Pass subscription items for creating subscription items records
-        subscriptionItems: subscription.items.data.map(item => ({
-          stripeSubscriptionItemId: item.id,
-          stripePriceId: item.price.id,
-          quantity: item.quantity || 1,
-          currentPeriodStart: item.current_period_start,
-          currentPeriodEnd: item.current_period_end,
-          priceData: {
-            unitAmount: item.price.unit_amount || 0,
-            currency: item.price.currency,
-            recurring: item.price.recurring ? {
-              interval: item.price.recurring.interval as "day" | "week" | "month" | "year",
-              intervalCount: item.price.recurring.interval_count
-            } : undefined
-          },
-          metadata: item.metadata || undefined
-        }))
+        // Pass first subscription item data directly (merged schema)
+        stripeSubscriptionItemId: subscription.items.data[0]?.id,
+        stripePriceId: subscription.items.data[0]?.price.id,
+        quantity: subscription.items.data[0]?.quantity || 1,
+        currentPeriodStart: subscription.items.data[0]?.current_period_start || subscription.current_period_start || Date.now() / 1000,
+        currentPeriodEnd: subscription.items.data[0]?.current_period_end || subscription.current_period_end || Date.now() / 1000,
+        priceData: subscription.items.data[0] ? {
+          unitAmount: subscription.items.data[0].price.unit_amount || 0,
+          currency: subscription.items.data[0].price.currency,
+          recurring: subscription.items.data[0].price.recurring ? {
+            interval: subscription.items.data[0].price.recurring.interval as "day" | "week" | "month" | "year",
+            intervalCount: subscription.items.data[0].price.recurring.interval_count
+          } : undefined
+        } : undefined
       });
 
       return { success: true };

@@ -61,21 +61,19 @@ export const createSubscription = mutation({
     billingCycleAnchor: v.optional(v.number()),
     latestInvoice: v.optional(v.string()),
     metadata: v.optional(v.any()),
-    subscriptionItems: v.array(v.object({
-      stripeSubscriptionItemId: v.string(),
-      stripePriceId: v.string(),
-      quantity: v.number(),
-      currentPeriodStart: v.number(),
-      currentPeriodEnd: v.number(),
-      priceData: v.object({
-        unitAmount: v.number(),
-        currency: v.string(),
-        recurring: v.optional(v.object({
-          interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
-          intervalCount: v.number()
-        }))
-      }),
-      metadata: v.optional(v.any())
+    // Subscription item data (first/primary item)
+    stripeSubscriptionItemId: v.optional(v.string()),
+    stripePriceId: v.optional(v.string()),
+    quantity: v.optional(v.number()),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    priceData: v.optional(v.object({
+      unitAmount: v.number(),
+      currency: v.string(),
+      recurring: v.optional(v.object({
+        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
+        intervalCount: v.number()
+      }))
     })),
   },
   handler: async (
@@ -93,7 +91,12 @@ export const createSubscription = mutation({
       billingCycleAnchor,
       latestInvoice,
       metadata,
-      subscriptionItems,
+      stripeSubscriptionItemId,
+      stripePriceId,
+      quantity,
+      currentPeriodStart,
+      currentPeriodEnd,
+      priceData,
     }
   ) => {
     // ============================================================================
@@ -116,11 +119,9 @@ export const createSubscription = mutation({
     // Log warnings if any
     logValidationWarnings(validation.warnings || [], "Subscription creation");
 
-    // Validate subscription items have valid date ranges
-    for (const item of subscriptionItems) {
-      if (item.currentPeriodStart >= item.currentPeriodEnd) {
-        throw new Error("Invalid period: start must be before end");
-      }
+    // Validate period range
+    if (currentPeriodStart >= currentPeriodEnd) {
+      throw new Error("Invalid period: start must be before end");
     }
 
     // Validate subscription status
@@ -152,7 +153,7 @@ export const createSubscription = mutation({
       throw new Error(`Subscription plan not found: ${planId}`);
     }
 
-    // Create subscription record with new schema
+    // Create subscription record
     const subscriptionId = await ctx.db.insert("subscriptions", {
       clerkId,
       stripeSubscriptionId,
@@ -178,24 +179,24 @@ export const createSubscription = mutation({
       metadata,
       billingCycleAnchor,
       daysUntilDue: undefined,
+      currentPeriodStart,
+      currentPeriodEnd,
+      // Credits
       monthlyCredits: plan.monthlyCredits,
       creditsGrantedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
-    // Create subscription items records
-    for (const item of subscriptionItems) {
+    // Create subscription item if provided
+    if (stripeSubscriptionItemId && stripePriceId && quantity && priceData) {
       await ctx.db.insert("subscriptionItems", {
         subscriptionId,
         stripeSubscriptionId,
-        stripeSubscriptionItemId: item.stripeSubscriptionItemId,
-        stripePriceId: item.stripePriceId,
-        quantity: item.quantity,
-        currentPeriodStart: item.currentPeriodStart,
-        currentPeriodEnd: item.currentPeriodEnd,
-        priceData: item.priceData,
-        metadata: item.metadata,
+        stripeSubscriptionItemId,
+        stripePriceId,
+        quantity,
+        priceData,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -438,33 +439,22 @@ export const reactivateSubscription = mutation({
   },
 });
 
-// Get subscription items for a subscription  
-export const getSubscriptionItems = query({
-  args: { stripeSubscriptionId: v.string() },
-  handler: async (ctx, { stripeSubscriptionId }) => {
-    return await ctx.db
-      .query("subscriptionItems")
-      .withIndex("by_stripe_subscription_id", (q) => q.eq("stripeSubscriptionId", stripeSubscriptionId))
-      .collect();
-  },
-});
-
-// Get current billing period from subscription items
+// Get current billing period from subscription
 export const getCurrentBillingPeriod = query({
   args: { stripeSubscriptionId: v.string() },
   handler: async (ctx, { stripeSubscriptionId }) => {
-    const items = await ctx.db
-      .query("subscriptionItems")
+    const subscription = await ctx.db
+      .query("subscriptions")
       .withIndex("by_stripe_subscription_id", (q) => q.eq("stripeSubscriptionId", stripeSubscriptionId))
       .first();
     
-    if (!items) {
+    if (!subscription) {
       return null;
     }
 
     return {
-      currentPeriodStart: items.currentPeriodStart,
-      currentPeriodEnd: items.currentPeriodEnd,
+      currentPeriodStart: subscription.currentPeriodStart,
+      currentPeriodEnd: subscription.currentPeriodEnd,
     };
   },
 });
@@ -568,21 +558,19 @@ export const changeSubscriptionPlan = mutation({
     billingCycleAnchor: v.optional(v.number()),
     latestInvoice: v.optional(v.string()),
     metadata: v.optional(v.any()),
-    subscriptionItems: v.array(v.object({
-      stripeSubscriptionItemId: v.string(),
-      stripePriceId: v.string(),
-      quantity: v.number(),
-      currentPeriodStart: v.number(),
-      currentPeriodEnd: v.number(),
-      priceData: v.object({
-        unitAmount: v.number(),
-        currency: v.string(),
-        recurring: v.optional(v.object({
-          interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
-          intervalCount: v.number()
-        }))
-      }),
-      metadata: v.optional(v.any())
+    // Subscription item data (first/primary item)
+    stripeSubscriptionItemId: v.optional(v.string()),
+    stripePriceId: v.optional(v.string()),
+    quantity: v.optional(v.number()),
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),
+    priceData: v.optional(v.object({
+      unitAmount: v.number(),
+      currency: v.string(),
+      recurring: v.optional(v.object({
+        interval: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("year")),
+        intervalCount: v.number()
+      }))
     })),
   },
   handler: async (
@@ -600,7 +588,12 @@ export const changeSubscriptionPlan = mutation({
       billingCycleAnchor,
       latestInvoice,
       metadata,
-      subscriptionItems,
+      stripeSubscriptionItemId,
+      stripePriceId,
+      quantity,
+      currentPeriodStart,
+      currentPeriodEnd,
+      priceData,
     }
   ) => {
     // Get new plan from database - inline to avoid circular dependency
@@ -634,7 +627,7 @@ export const changeSubscriptionPlan = mutation({
       });
     }
 
-    // Create new subscription record with new schema
+    // Create new subscription record
     const newSubscriptionId = await ctx.db.insert("subscriptions", {
       clerkId,
       stripeSubscriptionId,
@@ -660,24 +653,24 @@ export const changeSubscriptionPlan = mutation({
       metadata,
       billingCycleAnchor,
       daysUntilDue: undefined,
+      currentPeriodStart,
+      currentPeriodEnd,
+      // Credits
       monthlyCredits: newPlan.monthlyCredits,
       creditsGrantedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
-    // Create subscription items records for new subscription
-    for (const item of subscriptionItems) {
+    // Create subscription item if provided
+    if (stripeSubscriptionItemId && stripePriceId && quantity && priceData) {
       await ctx.db.insert("subscriptionItems", {
         subscriptionId: newSubscriptionId,
         stripeSubscriptionId,
-        stripeSubscriptionItemId: item.stripeSubscriptionItemId,
-        stripePriceId: item.stripePriceId,
-        quantity: item.quantity,
-        currentPeriodStart: item.currentPeriodStart,
-        currentPeriodEnd: item.currentPeriodEnd,
-        priceData: item.priceData,
-        metadata: item.metadata,
+        stripeSubscriptionItemId,
+        stripePriceId,
+        quantity,
+        priceData,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

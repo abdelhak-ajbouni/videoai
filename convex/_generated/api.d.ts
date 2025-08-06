@@ -21,6 +21,7 @@ import type * as r2 from "../r2.js";
 import type * as seed from "../seed.js";
 import type * as simpleModelHelpers from "../simpleModelHelpers.js";
 import type * as stripe from "../stripe.js";
+import type * as subscriptionItems from "../subscriptionItems.js";
 import type * as subscriptionPlans from "../subscriptionPlans.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as userProfiles from "../userProfiles.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   simpleModelHelpers: typeof simpleModelHelpers;
   stripe: typeof stripe;
+  subscriptionItems: typeof subscriptionItems;
   subscriptionPlans: typeof subscriptionPlans;
   subscriptions: typeof subscriptions;
   userProfiles: typeof userProfiles;
