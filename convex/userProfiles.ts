@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import { 
+  createAuthError, 
+  createNotFoundError, 
+  createValidationError,
+  createInsufficientCreditsError,
+  handleError 
+} from "./lib/errors";
 
 // Create or get user profile
 export const createUserProfile = mutation({
@@ -133,27 +140,27 @@ export const addCredits = mutation({
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
-    if (amount <= 0) {
-      throw new Error("Amount must be positive");
-    }
-
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .first();
-
-    if (!profile) {
-      throw new Error("User profile not found");
-    }
-
-    const newCredits = profile.credits + amount;
-
-    // Prevent integer overflow
-    if (newCredits > Number.MAX_SAFE_INTEGER) {
-      throw new Error("Credit amount too large");
-    }
-
     try {
+      if (amount <= 0) {
+        throw createValidationError("Amount must be positive", "amount");
+      }
+
+      const profile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+        .first();
+
+      if (!profile) {
+        throw createNotFoundError("User profile", clerkId);
+      }
+
+      const newCredits = profile.credits + amount;
+
+      // Prevent integer overflow
+      if (newCredits > Number.MAX_SAFE_INTEGER) {
+        throw createValidationError("Credit amount too large", "amount");
+      }
+
       await ctx.db.patch(profile._id, {
         credits: newCredits,
         updatedAt: Date.now(),
@@ -162,8 +169,7 @@ export const addCredits = mutation({
       console.log(`Credits added for ${clerkId}: ${amount} credits (balance: ${newCredits})`);
       return newCredits;
     } catch (error) {
-      console.error(`Failed to add credits for ${clerkId}:`, error);
-      throw new Error("Failed to add credits");
+      return handleError(error, { function: 'addCredits', clerkId, amount });
     }
   },
 });
@@ -175,28 +181,28 @@ export const subtractCredits = mutation({
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
-    if (amount <= 0) {
-      throw new Error("Amount must be positive");
-    }
-
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
-      .first();
-
-    if (!profile) {
-      throw new Error("User profile not found");
-    }
-
-    // Validate sufficient credits BEFORE deduction
-    if (profile.credits < amount) {
-      throw new Error(`Insufficient credits: need ${amount}, have ${profile.credits}`);
-    }
-
-    const newCredits = profile.credits - amount;
-    const newTotalCreditsUsed = profile.totalCreditsUsed + amount;
-
     try {
+      if (amount <= 0) {
+        throw createValidationError("Amount must be positive", "amount");
+      }
+
+      const profile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+        .first();
+
+      if (!profile) {
+        throw createNotFoundError("User profile", clerkId);
+      }
+
+      // Validate sufficient credits BEFORE deduction
+      if (profile.credits < amount) {
+        throw createInsufficientCreditsError(amount, profile.credits);
+      }
+
+      const newCredits = profile.credits - amount;
+      const newTotalCreditsUsed = profile.totalCreditsUsed + amount;
+
       // Atomic update with validation
       await ctx.db.patch(profile._id, {
         credits: newCredits,
@@ -207,8 +213,7 @@ export const subtractCredits = mutation({
       console.log(`Credits deducted for ${clerkId}: ${amount} credits (balance: ${newCredits})`);
       return newCredits;
     } catch (error) {
-      console.error(`Failed to deduct credits for ${clerkId}:`, error);
-      throw new Error("Failed to deduct credits");
+      return handleError(error, { function: 'subtractCredits', clerkId, amount });
     }
   },
 });

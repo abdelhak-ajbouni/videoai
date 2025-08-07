@@ -6,6 +6,14 @@ import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
 import { createVideoSchema, formatValidationError } from "./lib/validation";
 import { isDevelopment, getSecureConfig } from "../lib/env";
+import { 
+  createAuthError, 
+  createNotFoundError, 
+  createInsufficientCreditsError,
+  createForbiddenError,
+  handleError,
+  ExternalServiceError 
+} from "./lib/errors";
 
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
@@ -155,10 +163,11 @@ export const createVideo = mutation({
     isPublic: v.optional(v.boolean()), // Video visibility setting
   },
   handler: async (ctx, args): Promise<string> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw createAuthError("video creation");
+      }
 
     // Validate all input parameters using Zod schemas
     const validationResult = createVideoSchema.safeParse(args);
@@ -201,13 +210,13 @@ export const createVideo = mutation({
       .withIndex("by_model_id", (q) => q.eq("modelId", validatedArgs.model))
       .first();
 
-    if (!model) {
-      throw new Error("Selected model not found");
-    }
+      if (!model) {
+        throw createNotFoundError("Model", validatedArgs.model);
+      }
 
-    if (!model.isActive) {
-      throw new Error("Selected model is not currently available");
-    }
+      if (!model.isActive) {
+        throw createForbiddenError("use this model", "active model status");
+      }
 
     // Prepare frontend parameters for validation
     const frontendParams = {
@@ -246,10 +255,10 @@ export const createVideo = mutation({
       resolution
     );
 
-    // Check if user has enough credits
-    if (userProfile.credits < creditsCost) {
-      throw new Error("Insufficient credits");
-    }
+      // Check if user has enough credits
+      if (userProfile.credits < creditsCost) {
+        throw createInsufficientCreditsError(creditsCost, userProfile.credits);
+      }
 
     const now = Date.now();
 
@@ -331,17 +340,20 @@ export const createVideo = mutation({
       // Schedule the video generation action
       await ctx.scheduler.runAfter(0, api.videos.generateVideo, { videoId });
 
-      return videoId;
+        return videoId;
+      } catch (creditError) {
+        // If credit deduction fails, mark video as failed and cleanup
+        if (videoId) {
+          await ctx.db.patch(videoId, {
+            status: "failed",
+            errorMessage: creditError instanceof Error ? creditError.message : "Failed to deduct credits",
+            updatedAt: Date.now(),
+          });
+        }
+        throw creditError;
+      }
     } catch (error) {
-      // If credit deduction fails, mark video as failed and cleanup
-      await ctx.db.patch(videoId, {
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : "Failed to deduct credits",
-        updatedAt: Date.now(),
-      });
-      
-      console.error(`Failed to create video ${videoId} for user ${identity.subject}:`, error);
-      throw error;
+      return handleError(error, { function: 'createVideo' });
     }
   },
 });
