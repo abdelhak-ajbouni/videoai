@@ -119,7 +119,7 @@ function GeneratePageContent() {
   return (
     <AppLayout>
       <div className=" bg-gray-950">
-        <div className="px-4 sm:px-6 py-6 sm:py-8">
+        <div className="px-4 sm:px-6 py-2 sm:py-8">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
             <h1 className="text-xl sm:text-2xl font-semibold text-white/95 mb-1">

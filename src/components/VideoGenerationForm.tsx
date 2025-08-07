@@ -231,7 +231,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
     <TooltipProvider>
       <div className="space-y-4">
         <Card className="bg-gray-900 backdrop-blur-sm border-gray-800/50">
-          <CardHeader className="pb-6">
+          <CardHeader className="pb-6 hidden sm:block">
             <CardTitle className="text-lg font-medium text-white/95">
               Create New Video
             </CardTitle>
@@ -240,7 +240,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-2 mt-4 sm:mt-0">
               {/* Prompt */}
               <div className="space-y-3">
                 <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
@@ -291,7 +291,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
 
               {/* Model-Specific Options */}
               {currentModel && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {/* Duration */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Duration</Label>
@@ -520,14 +520,8 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                   <div className="flex items-center justify-center w-full relative">
                     <div className="flex items-center">
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Video
+                      Generate Video  ({creditsCost} credits)
                     </div>
-                    {creditsCost > 0 && (
-                      <div className="absolute right-0 flex items-center space-x-1 text-sm opacity-80">
-                        <span>{creditsCost}</span>
-                        <span>credits</span>
-                      </div>
-                    )}
                   </div>
                 )}
               </Button>

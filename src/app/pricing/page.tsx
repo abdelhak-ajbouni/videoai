@@ -191,7 +191,7 @@ export default function PricingPage() {
                       <Button
                         onClick={() => handleSubscribe(plan.planId)}
                         disabled={isCurrentPlan(plan.planId) || isLoading}
-                        className={`w-full mt-auto ${plan.isPopular
+                        className={`w-full lg:mt-8 ${plan.isPopular
                           ? 'bg-blue-500 hover:bg-blue-600 text-white'
                           : 'bg-white hover:bg-gray-100 text-gray-900'
                           } disabled:opacity-50`}
