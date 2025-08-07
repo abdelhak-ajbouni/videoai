@@ -231,8 +231,8 @@ export function VideoLibrary() {
       {/* Header and Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">My Videos</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">My Videos</h2>
+          <p className="text-gray-400 mt-1 text-sm hidden sm:block">
             {filteredAndSortedVideos.length} of {videos.length} {videos.length === 1 ? 'video' : 'videos'}
           </p>
         </div>
@@ -351,9 +351,9 @@ export function VideoLibrary() {
                     </span>
                   </div>
 
-                  {/* Video Analytics */}
+                  {/* Video Analytics - Hidden on mobile */}
                   {video.status === "completed" && (
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="hidden sm:flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center space-x-3">
                         <span className="flex items-center">
                           <Eye className="h-3 w-3 mr-1" />
@@ -397,7 +397,7 @@ export function VideoLibrary() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className={`${video.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-gray-600'}`}
+                    className={`min-h-[44px] touch-manipulation ${video.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-gray-600'}`}
                     onClick={(e) => handleToggleFavorite(video._id, e)}
                   >
                     <Heart className={`h-4 w-4 ${video.isFavorite ? 'fill-current' : ''}`} />
@@ -406,17 +406,17 @@ export function VideoLibrary() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1"
+                      className="flex-1 min-h-[44px] touch-manipulation"
                       onClick={() => handleDownload(video)}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Download
+                      <span className="hidden sm:inline">Download</span>
                     </Button>
                   )}
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 hover:text-red-700 min-h-[44px] touch-manipulation"
                     onClick={() => handleDelete(video._id, video.prompt)}
                   >
                     <Trash2 className="h-4 w-4" />
