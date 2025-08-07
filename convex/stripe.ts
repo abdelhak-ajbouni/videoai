@@ -195,6 +195,43 @@ export const createCustomerPortalSession = action({
   },
 });
 
+/**
+ * Check if a webhook event has already been processed
+ */
+async function checkWebhookProcessed(ctx: ActionCtx, eventId: string, source: string): Promise<boolean> {
+  const existingEvent = await ctx.runQuery(api.webhooks.getProcessedWebhook, {
+    eventId,
+    source
+  });
+  return existingEvent !== null;
+}
+
+/**
+ * Mark a webhook event as processed
+ */
+async function markWebhookProcessed(
+  ctx: ActionCtx, 
+  eventId: string, 
+  eventType: string, 
+  source: string,
+  success: boolean,
+  errorMessage?: string,
+  metadata?: any
+): Promise<void> {
+  const now = Date.now();
+  
+  await ctx.runMutation(api.webhooks.markWebhookProcessed, {
+    eventId,
+    eventType,
+    source,
+    processed: success,
+    processedAt: now,
+    errorMessage,
+    metadata,
+    createdAt: now
+  });
+}
+
 // Handle Stripe webhook events
 export const handleStripeWebhook = action({
   args: { body: v.string(), signature: v.string() },
@@ -202,6 +239,7 @@ export const handleStripeWebhook = action({
     const endpointSecret = config.stripe.webhookSecret;
     let event: Stripe.Event;
 
+    // Verify webhook signature
     try {
       event = await stripe.webhooks.constructEventAsync(
         body,
@@ -209,39 +247,81 @@ export const handleStripeWebhook = action({
         endpointSecret
       );
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
-      throw new Error(`Webhook signature verification failed: ${err}`);
+      console.error("Stripe webhook signature verification failed:", err);
+      throw new Error(`Webhook signature verification failed`);
     }
 
-    // Handle different event types
-    switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(
-          ctx,
-          event.data.object as Stripe.Checkout.Session
-        );
-        break;
-      case "invoice.payment_succeeded":
-        await handleInvoicePaymentSucceeded(
-          ctx,
-          event.data.object as Stripe.Invoice
-        );
-        break;
-      case "customer.subscription.updated":
-        await handleSubscriptionUpdated(
-          ctx,
-          event.data.object as Stripe.Subscription
-        );
-        break;
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(
-          ctx,
-          event.data.object as Stripe.Subscription
-        );
-        break;
-      default:
-      // Unhandled event type
+    // Check for duplicate webhook processing
+    const isAlreadyProcessed = await checkWebhookProcessed(ctx, event.id, "stripe");
+    if (isAlreadyProcessed) {
+      console.log(`Stripe webhook ${event.id} already processed, skipping`);
+      return { success: true, message: "Already processed" };
     }
+
+    console.log(`Processing Stripe webhook: ${event.type} (${event.id})`);
+    
+    let success = false;
+    let errorMessage: string | undefined;
+    
+    try {
+      // Handle different event types
+      switch (event.type) {
+        case "checkout.session.completed":
+          await handleCheckoutSessionCompleted(
+            ctx,
+            event.data.object as Stripe.Checkout.Session
+          );
+          break;
+        case "invoice.payment_succeeded":
+          await handleInvoicePaymentSucceeded(
+            ctx,
+            event.data.object as Stripe.Invoice
+          );
+          break;
+        case "customer.subscription.updated":
+          await handleSubscriptionUpdated(
+            ctx,
+            event.data.object as Stripe.Subscription
+          );
+          break;
+        case "customer.subscription.deleted":
+          await handleSubscriptionDeleted(
+            ctx,
+            event.data.object as Stripe.Subscription
+          );
+          break;
+        default:
+          console.log(`Unhandled Stripe event type: ${event.type}`);
+      }
+      
+      success = true;
+      console.log(`Successfully processed Stripe webhook: ${event.type} (${event.id})`);
+    } catch (error) {
+      success = false;
+      errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Failed to process Stripe webhook ${event.id}:`, error);
+    }
+
+    // Mark webhook as processed (success or failure)
+    await markWebhookProcessed(
+      ctx,
+      event.id,
+      event.type,
+      "stripe",
+      success,
+      errorMessage,
+      {
+        object_id: event.data.object.id,
+        livemode: event.livemode,
+        request_id: event.request?.id
+      }
+    );
+
+    if (!success) {
+      throw new Error(`Webhook processing failed: ${errorMessage}`);
+    }
+
+    return { success: true, message: "Processed successfully" };
   },
 });
 

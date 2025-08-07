@@ -84,75 +84,146 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
     }
 
-    // Find the video by Replicate job ID using internal query
-    const video = await convex.query(api.videos.getVideoByReplicateJobId, {
-      replicateJobId,
+    // Check for duplicate webhook processing
+    const eventId = `replicate_${replicateJobId}_${status}`;
+    const isAlreadyProcessed = await convex.query(api.webhooks.getProcessedWebhook, {
+      eventId,
+      source: "replicate"
     });
 
-    if (!video) {
-      return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    if (isAlreadyProcessed) {
+      console.log(`Replicate webhook ${eventId} already processed, skipping`);
+      return NextResponse.json({ success: true, message: "Already processed" });
     }
 
-    // Handle different webhook statuses
-    switch (status) {
-      case "starting":
-      case "processing":
-        await convex.mutation(api.videos.updateVideoStatus, {
-          videoId: video._id,
-          status: "processing",
-        });
-        break;
+    console.log(`Processing Replicate webhook: ${status} for job ${replicateJobId}`);
 
-      case "succeeded":
-        if (output) {
-          const videoUrl = Array.isArray(output) ? output[0] : output;
+    let success = false;
+    let errorMessage: string | undefined;
+    let videoId: string | undefined;
 
+    try {
+      // Find the video by Replicate job ID using internal query
+      const video = await convex.query(api.videos.getVideoByReplicateJobId, {
+        replicateJobId,
+      });
+
+      if (!video) {
+        throw new Error("Video not found");
+      }
+
+      videoId = video._id;
+
+      // Handle different webhook statuses
+      switch (status) {
+        case "starting":
+        case "processing":
           await convex.mutation(api.videos.updateVideoStatus, {
             videoId: video._id,
-            status: "completed",
-            videoUrl: videoUrl,
+            status: "processing",
           });
+          break;
 
-          // Trigger file download and storage
-          await convex.action(api.videos.downloadAndStoreVideo, {
+        case "succeeded":
+          if (output) {
+            const videoUrl = Array.isArray(output) ? output[0] : output;
+
+            await convex.mutation(api.videos.updateVideoStatus, {
+              videoId: video._id,
+              status: "completed",
+              videoUrl: videoUrl,
+            });
+
+            // Trigger file download and storage
+            await convex.action(api.videos.downloadAndStoreVideo, {
+              videoId: video._id,
+              videoUrl: videoUrl,
+            });
+          }
+          break;
+
+        case "failed":
+          await convex.mutation(api.videos.updateVideoStatus, {
             videoId: video._id,
-            videoUrl: videoUrl,
+            status: "failed",
+            errorMessage: "Generation failed",
           });
-        }
-        break;
 
-      case "failed":
-        await convex.mutation(api.videos.updateVideoStatus, {
-          videoId: video._id,
-          status: "failed",
-          errorMessage: "Generation failed",
-        });
+          // Refund credits
+          await convex.mutation(api.videos.refundCredits, {
+            videoId: video._id,
+          });
+          break;
 
-        // Refund credits
-        await convex.mutation(api.videos.refundCredits, {
-          videoId: video._id,
-        });
-        break;
+        case "canceled":
+          await convex.mutation(api.videos.updateVideoStatus, {
+            videoId: video._id,
+            status: "canceled",
+          });
 
-      case "canceled":
-        await convex.mutation(api.videos.updateVideoStatus, {
-          videoId: video._id,
-          status: "canceled",
-        });
+          // Refund credits
+          await convex.mutation(api.videos.refundCredits, {
+            videoId: video._id,
+          });
+          break;
 
-        // Refund credits
-        await convex.mutation(api.videos.refundCredits, {
-          videoId: video._id,
-        });
-        break;
+        default:
+          console.log(`Unhandled Replicate webhook status: ${status}`);
+      }
 
-      default:
+      success = true;
+      console.log(`Successfully processed Replicate webhook: ${status} for job ${replicateJobId}`);
+    } catch (processingError) {
+      success = false;
+      errorMessage = processingError instanceof Error ? processingError.message : "Unknown error";
+      console.error(`Failed to process Replicate webhook ${replicateJobId}:`, processingError);
+    }
+
+    // Mark webhook as processed (success or failure)
+    await convex.mutation(api.webhooks.markWebhookProcessed, {
+      eventId,
+      eventType: `replicate.${status}`,
+      source: "replicate",
+      processed: success,
+      processedAt: Date.now(),
+      errorMessage,
+      metadata: {
+        jobId: replicateJobId,
+        videoId,
+        hasOutput: !!output
+      },
+      createdAt: Date.now()
+    });
+
+    if (!success) {
+      return NextResponse.json(
+        { error: "Webhook processing failed" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     // Log the actual error for debugging but don't expose it
     console.error("Replicate webhook processing error:", error);
+    
+    // Try to mark webhook as failed
+    try {
+      const eventId = `replicate_${replicateJobId}_${status}`;
+      await convex.mutation(api.webhooks.markWebhookProcessed, {
+        eventId,
+        eventType: `replicate.${status}`,
+        source: "replicate",
+        processed: false,
+        processedAt: Date.now(),
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        metadata: { jobId: replicateJobId },
+        createdAt: Date.now()
+      });
+    } catch (trackingError) {
+      console.error("Failed to track webhook failure:", trackingError);
+    }
+    
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
