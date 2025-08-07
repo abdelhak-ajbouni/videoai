@@ -72,6 +72,12 @@ async function calculateCreditCost(
 
       const resolutionMultipliersConfig = resolutionMultipliers?.value;
 
+      if (!resolutionMultipliersConfig || !resolutionMultipliersConfig[resolution]) {
+        throw new Error(
+          `No pricing information found for model "${modelId}" with resolution "${resolution}". Please contact support.`
+        );
+      }
+
       const multiplier = resolutionMultipliersConfig[resolution];
       costPerSecond = defaultCost.costPerSecond * multiplier;
     }

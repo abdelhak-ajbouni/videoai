@@ -13,7 +13,6 @@ import type * as creditPackages from "../creditPackages.js";
 import type * as db from "../db.js";
 import type * as http from "../http.js";
 import type * as lib_replicateClient from "../lib/replicateClient.js";
-import type * as lib_validation from "../lib/validation.js";
 import type * as modelParameterHelpers from "../modelParameterHelpers.js";
 import type * as models from "../models.js";
 import type * as pricing from "../pricing.js";
@@ -48,7 +47,6 @@ declare const fullApi: ApiFromModules<{
   db: typeof db;
   http: typeof http;
   "lib/replicateClient": typeof lib_replicateClient;
-  "lib/validation": typeof lib_validation;
   modelParameterHelpers: typeof modelParameterHelpers;
   models: typeof models;
   pricing: typeof pricing;

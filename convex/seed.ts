@@ -90,11 +90,7 @@ const defaultPlans = [
     price: 999, // $9.99
     currency: "usd",
     monthlyCredits: 1000,
-    features: [
-      "HD video quality",
-      "Standard models",
-      "Email support",
-    ],
+    features: ["HD video quality", "Standard models", "Email support"],
     isActive: true,
     isPopular: false,
   },
@@ -180,17 +176,10 @@ const defaultModelCosts = [
   // Hailuo-02 model costs
   {
     modelId: "hailuo_02",
-    resolution: "512p",
-    costPerSecond: 0.015,
-    isActive: true,
-    notes: "Base resolution for Hailuo-02",
-  },
-  {
-    modelId: "hailuo_02",
     resolution: "768p",
     costPerSecond: 0.045,
     isActive: true,
-    notes: "Higher quality resolution for Hailuo-02",
+    notes: "Base resolution for Hailuo-02",
   },
   {
     modelId: "hailuo_02",
@@ -256,8 +245,8 @@ function getModelParameterDefinitions(model: { modelType: string }) {
       },
       resolution: {
         type: "string",
-        allowedValues: ["512p", "768p", "1080p"],
-        defaultValue: "512p",
+        allowedValues: ["768p", "1080p"],
+        defaultValue: "768p",
       },
     };
   }
@@ -359,7 +348,7 @@ function getModelConstraints(model: { modelType: string }) {
       note: "10 seconds is only available for 768p resolution",
     };
     constraints.resolution = {
-      allowedValues: ["512p", "768p", "1080p"],
+      allowedValues: ["768p", "1080p"],
     };
   } else if (model.modelType === "seedance") {
     // Seedance-1-Pro constraints

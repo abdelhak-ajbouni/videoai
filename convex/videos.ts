@@ -450,6 +450,15 @@ export const generateVideo = action({
       // Create Replicate Client
       const replicate = createReplicateClient();
 
+      // Get model information to get the correct Replicate model ID
+      const model = await ctx.runQuery(api.models.getModelById, {
+        modelId: video.model,
+      });
+
+      if (!model) {
+        throw new Error("Model configuration not found");
+      }
+
       // Update status to processing
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -484,7 +493,7 @@ export const generateVideo = action({
         // Create realistic mock prediction response
         prediction = {
           id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          model: video.model,
+          model: model.replicateModelId,
           version: "dev-mock-version",
           input: input,
           status: "starting",
@@ -517,7 +526,7 @@ export const generateVideo = action({
       } else {
         // Production mode: Use real Replicate API
         const createOptions: any = {
-          model: video.model,
+          model: model.replicateModelId,
           input: input,
         };
 

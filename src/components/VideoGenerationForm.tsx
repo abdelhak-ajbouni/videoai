@@ -56,11 +56,14 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
     modelId ? { modelId } : "skip"
   );
 
-  const creditCost = useQuery(api.pricing.getCreditCost, {
-    modelId: modelId || "",
-    duration,
-    resolution: resolution || undefined
-  });
+  const creditCost = useQuery(
+    api.pricing.getCreditCost,
+    modelId && resolution && duration ? {
+      modelId,
+      duration,
+      resolution
+    } : "skip"
+  );
 
   const creditsCost = creditCost || 0;
   const hasEnoughCredits = currentUser ? currentUser.credits >= creditsCost : false;

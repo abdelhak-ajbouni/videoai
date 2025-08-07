@@ -1,12 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
+import crypto from "crypto";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+/**
+ * Verifies the Replicate webhook signature to ensure authenticity
+ */
+function verifyReplicateSignature(payload: string, signature: string | null): boolean {
+  if (!signature) {
+    console.error("Missing Replicate signature header");
+    return false;
+  }
+
+  const webhookSecret = process.env.REPLICATE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("Missing REPLICATE_WEBHOOK_SECRET environment variable");
+    return false;
+  }
+
+  try {
+    // Replicate uses HMAC-SHA256 for webhook signatures
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(payload, 'utf8')
+      .digest('hex');
+    
+    // Remove 'sha256=' prefix if present
+    const cleanSignature = signature.replace(/^sha256=/, '');
+    
+    // Use timing-safe comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(cleanSignature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch (error) {
+    console.error("Error verifying Replicate signature:", error);
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Get the raw body for signature verification
+    const rawBody = await request.text();
+    const signature = request.headers.get('replicate-signature');
+
+    // Verify webhook signature
+    if (!verifyReplicateSignature(rawBody, signature)) {
+      console.error("Invalid Replicate webhook signature");
+      return NextResponse.json(
+        { error: "Unauthorized" }, 
+        { status: 401 }
+      );
+    }
+
+    // Parse the validated payload
+    const body = JSON.parse(rawBody);
 
     // Extract the prediction data from the webhook
     const { id: replicateJobId, status, output } = body;
@@ -81,7 +132,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    // Log the actual error for debugging but don't expose it
+    console.error("Replicate webhook processing error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
