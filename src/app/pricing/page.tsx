@@ -161,12 +161,6 @@ export default function PricingPage() {
                         </Badge>
                       )}
 
-                      {isCurrentPlan(plan.planId) && (
-                        <Badge className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
-                          Current
-                        </Badge>
-                      )}
-
                       <div className="flex items-center space-x-2 mb-4">
                         {getPlanIcon(plan.planId)}
                         <h3 className="text-lg font-semibold text-white capitalize">

@@ -71,11 +71,12 @@ export const getCurrentUser = query({
       return null;
     }
 
-    // Get subscription information
+    // Get subscription information (get the most recent active subscription)
     const subscription = await ctx.db
       .query("subscriptions")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .filter((q) => q.eq(q.field("status"), "active"))
+      .order("desc")
       .first();
 
     // Combine userProfile data with Clerk identity data and subscription info

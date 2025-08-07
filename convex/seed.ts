@@ -90,7 +90,7 @@ const defaultPlans = [
     price: 999, // $9.99
     currency: "usd",
     monthlyCredits: 1000,
-    features: ["HD video quality", "Standard models", "Email support"],
+    features: ["Access to all models", "No watermarks", "Full commercial use"],
     isActive: true,
     isPopular: false,
   },
@@ -101,13 +101,7 @@ const defaultPlans = [
     price: 2499, // $24.99
     currency: "usd",
     monthlyCredits: 3000,
-    features: [
-      "Ultra HD quality",
-      "All AI models",
-      "Priority processing",
-      "Advanced editing",
-      "Priority support",
-    ],
+    features: ["Access to all models", "No watermarks", "Full commercial use", "1080p resolution"],
     isActive: true,
     isPopular: true,
   },
@@ -118,14 +112,7 @@ const defaultPlans = [
     price: 6999, // $69.99
     currency: "usd",
     monthlyCredits: 9000,
-    features: [
-      "Everything in Pro",
-      "Private videos",
-      "Team collaboration",
-      "Custom models",
-      "Dedicated support",
-      "API access",
-    ],
+    features: ["Access to all models", "No watermarks", "Full commercial use", "1080p resolution", "Private videos"],
     isActive: true,
     isPopular: false,
   },
