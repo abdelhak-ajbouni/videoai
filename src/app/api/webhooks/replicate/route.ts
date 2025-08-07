@@ -41,6 +41,9 @@ function verifyReplicateSignature(payload: string, signature: string | null): bo
 }
 
 export async function POST(request: NextRequest) {
+  let replicateJobId: string | undefined;
+  let status: string | undefined;
+  
   try {
     // Get the raw body for signature verification
     const rawBody = await request.text();
@@ -78,7 +81,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract the prediction data from the validated webhook
-    const { id: replicateJobId, status, output } = validationResult.data;
+    const webhookData = validationResult.data;
+    replicateJobId = webhookData.id;
+    status = webhookData.status;
+    const output = webhookData.output;
 
     if (!replicateJobId) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
@@ -207,21 +213,23 @@ export async function POST(request: NextRequest) {
     // Log the actual error for debugging but don't expose it
     console.error("Replicate webhook processing error:", error);
     
-    // Try to mark webhook as failed
-    try {
-      const eventId = `replicate_${replicateJobId}_${status}`;
-      await convex.mutation(api.webhooks.markWebhookProcessed, {
-        eventId,
-        eventType: `replicate.${status}`,
-        source: "replicate",
-        processed: false,
-        processedAt: Date.now(),
-        errorMessage: error instanceof Error ? error.message : "Unknown error",
-        metadata: { jobId: replicateJobId },
-        createdAt: Date.now()
-      });
-    } catch (trackingError) {
-      console.error("Failed to track webhook failure:", trackingError);
+    // Try to mark webhook as failed (only if we have the necessary data)
+    if (replicateJobId && status) {
+      try {
+        const eventId = `replicate_${replicateJobId}_${status}`;
+        await convex.mutation(api.webhooks.markWebhookProcessed, {
+          eventId,
+          eventType: `replicate.${status}`,
+          source: "replicate",
+          processed: false,
+          processedAt: Date.now(),
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+          metadata: { jobId: replicateJobId },
+          createdAt: Date.now()
+        });
+      } catch (trackingError) {
+        console.error("Failed to track webhook failure:", trackingError);
+      }
     }
     
     return NextResponse.json(

@@ -315,7 +315,7 @@ export const handleStripeWebhook = action({
       success,
       errorMessage,
       {
-        object_id: event.data.object.id,
+        object_id: 'id' in event.data.object ? event.data.object.id : undefined,
         livemode: event.livemode,
         request_id: event.request?.id
       }

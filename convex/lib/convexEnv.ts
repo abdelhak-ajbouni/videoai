@@ -44,9 +44,9 @@ const convexEnvSchema = z.object({
   // Development mode (available in Convex environment)
   DEVELOPMENT_MODE: z
     .string()
-    .transform(val => val === "true")
     .optional()
-    .default(false),
+    .default("false")
+    .transform(val => val === "true"),
 
   // Clerk JWT domain (available in Convex environment)
   CLERK_JWT_ISSUER_DOMAIN: z
