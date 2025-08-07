@@ -9,39 +9,58 @@ const r2 = new R2(components.r2);
 const SECURITY_LIMITS = {
   MAX_FILE_SIZE: 500 * 1024 * 1024, // 500MB max file size
   ALLOWED_VIDEO_TYPES: [
-    'video/mp4',
-    'video/webm',
-    'video/quicktime',
-    'video/x-msvideo', // .avi
-    'video/x-ms-wmv'   // .wmv
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-msvideo", // .avi
+    "video/x-ms-wmv", // .wmv
   ],
-  ALLOWED_EXTENSIONS: ['.mp4', '.webm', '.mov', '.avi', '.wmv'],
+  ALLOWED_EXTENSIONS: [".mp4", ".webm", ".mov", ".avi", ".wmv"],
   MAX_FILENAME_LENGTH: 255,
 } as const;
 
 /**
  * Validate file type and size for security
  */
-function validateFileUpload(filename: string, contentType?: string, fileSize?: number) {
+function validateFileUpload(
+  filename: string,
+  contentType?: string,
+  fileSize?: number
+) {
   // Check filename length
   if (filename.length > SECURITY_LIMITS.MAX_FILENAME_LENGTH) {
     throw new Error("Filename too long. Maximum 255 characters allowed.");
   }
 
   // Check file extension
-  const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  const extension = filename
+    .toLowerCase()
+    .substring(
+      filename.lastIndexOf(".")
+    ) as (typeof SECURITY_LIMITS.ALLOWED_EXTENSIONS)[number];
   if (!SECURITY_LIMITS.ALLOWED_EXTENSIONS.includes(extension)) {
-    throw new Error(`Invalid file type. Allowed types: ${SECURITY_LIMITS.ALLOWED_EXTENSIONS.join(', ')}`);
+    throw new Error(
+      `Invalid file type. Allowed types: ${SECURITY_LIMITS.ALLOWED_EXTENSIONS.join(", ")}`
+    );
   }
 
   // Check content type if provided
-  if (contentType && !SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.includes(contentType.toLowerCase())) {
-    throw new Error(`Invalid content type. Allowed types: ${SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.join(', ')}`);
+  if (
+    contentType &&
+    !SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.includes(
+      contentType.toLowerCase() as (typeof SECURITY_LIMITS.ALLOWED_VIDEO_TYPES)[number]
+    )
+  ) {
+    throw new Error(
+      `Invalid content type. Allowed types: ${SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.join(", ")}`
+    );
   }
 
   // Check file size if provided
   if (fileSize && fileSize > SECURITY_LIMITS.MAX_FILE_SIZE) {
-    throw new Error(`File too large. Maximum size: ${SECURITY_LIMITS.MAX_FILE_SIZE / (1024 * 1024)}MB`);
+    throw new Error(
+      `File too large. Maximum size: ${SECURITY_LIMITS.MAX_FILE_SIZE / (1024 * 1024)}MB`
+    );
   }
 
   // Additional security checks
@@ -97,11 +116,11 @@ export const generateUploadUrl = mutation({
     // Generate upload URL using R2 component
     const { url, key } = await r2.generateUploadUrl(fileKey);
 
-    return { 
-      url, 
+    return {
+      url,
       key,
       maxFileSize: SECURITY_LIMITS.MAX_FILE_SIZE,
-      allowedTypes: SECURITY_LIMITS.ALLOWED_VIDEO_TYPES
+      allowedTypes: SECURITY_LIMITS.ALLOWED_VIDEO_TYPES,
     };
   },
 });

@@ -116,7 +116,7 @@ export const createStripeProducts = action({
       error?: string;
     }>
   > => {
-    const { getSecureConfig } = await import("../lib/env");
+    const { getSecureConfig } = await import("./lib/convexEnv");
     const stripe = new (await import("stripe")).default(
       getSecureConfig().stripe.secretKey
     );
@@ -209,7 +209,7 @@ export const createStripeProducts = action({
 export const getOrCreateStripePrice = action({
   args: { planId: v.string() },
   handler: async (ctx, { planId }): Promise<string> => {
-    const { getSecureConfig } = await import("../lib/env");
+    const { getSecureConfig } = await import("./lib/convexEnv");
     const stripe = new (await import("stripe")).default(
       getSecureConfig().stripe.secretKey
     );
