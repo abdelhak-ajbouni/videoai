@@ -12,7 +12,11 @@ import type * as configurations from "../configurations.js";
 import type * as creditPackages from "../creditPackages.js";
 import type * as db from "../db.js";
 import type * as http from "../http.js";
+import type * as lib_convexEnv from "../lib/convexEnv.js";
+import type * as lib_errors from "../lib/errors.js";
+import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_replicateClient from "../lib/replicateClient.js";
+import type * as lib_validation from "../lib/validation.js";
 import type * as modelParameterHelpers from "../modelParameterHelpers.js";
 import type * as models from "../models.js";
 import type * as pricing from "../pricing.js";
@@ -26,6 +30,7 @@ import type * as subscriptions from "../subscriptions.js";
 import type * as userProfiles from "../userProfiles.js";
 import type * as users from "../users.js";
 import type * as videos from "../videos.js";
+import type * as webhooks from "../webhooks.js";
 
 import type {
   ApiFromModules,
@@ -46,7 +51,11 @@ declare const fullApi: ApiFromModules<{
   creditPackages: typeof creditPackages;
   db: typeof db;
   http: typeof http;
+  "lib/convexEnv": typeof lib_convexEnv;
+  "lib/errors": typeof lib_errors;
+  "lib/rateLimit": typeof lib_rateLimit;
   "lib/replicateClient": typeof lib_replicateClient;
+  "lib/validation": typeof lib_validation;
   modelParameterHelpers: typeof modelParameterHelpers;
   models: typeof models;
   pricing: typeof pricing;
@@ -60,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   userProfiles: typeof userProfiles;
   users: typeof users;
   videos: typeof videos;
+  webhooks: typeof webhooks;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

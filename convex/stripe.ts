@@ -3,7 +3,8 @@ import { action } from "./_generated/server";
 import { api } from "./_generated/api";
 import Stripe from "stripe";
 import { ActionCtx } from "./_generated/server";
-import { getSecureConfig } from "../lib/env";
+import { getSecureConfig } from "./lib/convexEnv";
+import { applyCreditPurchaseRateLimit } from "./lib/rateLimit";
 
 // Extended Invoice interface to include subscription property
 interface InvoiceWithSubscription extends Stripe.Invoice {
@@ -72,6 +73,9 @@ export const createCreditCheckoutSession = action({
     ),
   },
   handler: async (ctx: ActionCtx, { clerkId, packageId }): Promise<string> => {
+    // Apply rate limiting for credit purchases
+    await applyCreditPurchaseRateLimit(ctx, clerkId);
+
     // Validate that user has an active subscription
     const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
       clerkId,

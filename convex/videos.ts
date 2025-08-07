@@ -5,7 +5,7 @@ import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
 import { createVideoSchema, formatValidationError } from "./lib/validation";
-import { isDevelopment, getSecureConfig } from "../lib/env";
+import { isDevelopment, getSecureConfig } from "./lib/convexEnv";
 import { 
   createAuthError, 
   createNotFoundError, 
@@ -14,6 +14,7 @@ import {
   handleError,
   ExternalServiceError 
 } from "./lib/errors";
+import { applyVideoGenerationRateLimit } from "./lib/rateLimit";
 
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
@@ -169,6 +170,25 @@ export const createVideo = mutation({
         throw createAuthError("video creation");
       }
 
+      // Get user profile to determine subscription tier for rate limiting
+      const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+        clerkId: identity.subject,
+      });
+
+      if (!userProfile) {
+        throw new Error("User profile not found");
+      }
+
+      // Get subscription to check tier for rate limiting
+      const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
+        clerkId: identity.subject,
+      });
+
+      const subscriptionTier = subscription?.tier || "free";
+
+      // Apply rate limiting based on subscription tier
+      await applyVideoGenerationRateLimit(ctx, identity.subject, subscriptionTier);
+
     // Validate all input parameters using Zod schemas
     const validationResult = createVideoSchema.safeParse(args);
     if (!validationResult.success) {
@@ -183,22 +203,7 @@ export const createVideo = mutation({
     // ============================================================================
     // USER AND SUBSCRIPTION VALIDATION
     // ============================================================================
-
-    // Get user profile to check credits and subscription
-    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
-      clerkId: identity.subject,
-    });
-
-    if (!userProfile) {
-      throw new Error("User profile not found");
-    }
-
-    // Get subscription to check tier
-    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
-      clerkId: identity.subject,
-    });
-
-    const subscriptionTier = subscription?.tier || "free";
+    // (User profile and subscription already retrieved above for rate limiting)
 
     // ============================================================================
     // MODEL VALIDATION

@@ -1,5 +1,5 @@
 import Replicate from "replicate";
-import { getSecureConfig } from "../../lib/env";
+import { getSecureConfig } from "./convexEnv";
 
 /**
  * Create a Replicate client instance

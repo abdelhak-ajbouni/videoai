@@ -1,11 +1,7 @@
-import { getSecureConfig } from "../lib/env";
-
-const config = getSecureConfig();
-
 export default {
   providers: [
     {
-      domain: config.clerk.jwtIssuerDomain,
+      domain: "https://great-gull-20.clerk.accounts.dev",
       applicationID: "convex",
     },
   ],
