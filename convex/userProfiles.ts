@@ -126,13 +126,17 @@ export const updateCredits = mutation({
   },
 });
 
-// Add credits to user account
+// Add credits to user account with validation
 export const addCredits = mutation({
   args: {
     clerkId: v.string(),
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
+    if (amount <= 0) {
+      throw new Error("Amount must be positive");
+    }
+
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
@@ -144,22 +148,37 @@ export const addCredits = mutation({
 
     const newCredits = profile.credits + amount;
 
-    await ctx.db.patch(profile._id, {
-      credits: newCredits,
-      updatedAt: Date.now(),
-    });
+    // Prevent integer overflow
+    if (newCredits > Number.MAX_SAFE_INTEGER) {
+      throw new Error("Credit amount too large");
+    }
 
-    return newCredits;
+    try {
+      await ctx.db.patch(profile._id, {
+        credits: newCredits,
+        updatedAt: Date.now(),
+      });
+
+      console.log(`Credits added for ${clerkId}: ${amount} credits (balance: ${newCredits})`);
+      return newCredits;
+    } catch (error) {
+      console.error(`Failed to add credits for ${clerkId}:`, error);
+      throw new Error("Failed to add credits");
+    }
   },
 });
 
-// Subtract credits from user account
+// Subtract credits from user account with atomic validation
 export const subtractCredits = mutation({
   args: {
     clerkId: v.string(),
     amount: v.number(),
   },
   handler: async (ctx, { clerkId, amount }) => {
+    if (amount <= 0) {
+      throw new Error("Amount must be positive");
+    }
+
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
@@ -169,20 +188,28 @@ export const subtractCredits = mutation({
       throw new Error("User profile not found");
     }
 
+    // Validate sufficient credits BEFORE deduction
+    if (profile.credits < amount) {
+      throw new Error(`Insufficient credits: need ${amount}, have ${profile.credits}`);
+    }
+
     const newCredits = profile.credits - amount;
     const newTotalCreditsUsed = profile.totalCreditsUsed + amount;
 
-    if (newCredits < 0) {
-      throw new Error("Insufficient credits");
+    try {
+      // Atomic update with validation
+      await ctx.db.patch(profile._id, {
+        credits: newCredits,
+        totalCreditsUsed: newTotalCreditsUsed,
+        updatedAt: Date.now(),
+      });
+
+      console.log(`Credits deducted for ${clerkId}: ${amount} credits (balance: ${newCredits})`);
+      return newCredits;
+    } catch (error) {
+      console.error(`Failed to deduct credits for ${clerkId}:`, error);
+      throw new Error("Failed to deduct credits");
     }
-
-    await ctx.db.patch(profile._id, {
-      credits: newCredits,
-      totalCreditsUsed: newTotalCreditsUsed,
-      updatedAt: Date.now(),
-    });
-
-    return newCredits;
   },
 });
 

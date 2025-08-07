@@ -298,28 +298,40 @@ export const createVideo = mutation({
       createdAt: now,
     });
 
-    // Deduct credits immediately using userProfiles
-    await ctx.runMutation(api.userProfiles.subtractCredits, {
-      clerkId: identity.subject,
-      amount: creditsCost,
-    });
+    try {
+      // Deduct credits atomically using userProfiles
+      const newBalance = await ctx.runMutation(api.userProfiles.subtractCredits, {
+        clerkId: identity.subject,
+        amount: creditsCost,
+      });
 
-    // Record credit transaction
-    await ctx.db.insert("creditTransactions", {
-      clerkId: identity.subject,
-      type: "video_generation",
-      amount: -creditsCost,
-      description: `Video generation: ${args.prompt}`,
-      videoId,
-      balanceBefore: userProfile.credits,
-      balanceAfter: userProfile.credits - creditsCost,
-      createdAt: now,
-    });
+      // Record credit transaction with actual balance info
+      await ctx.db.insert("creditTransactions", {
+        clerkId: identity.subject,
+        type: "video_generation",
+        amount: -creditsCost,
+        description: `Video generation: ${args.prompt}`,
+        videoId,
+        balanceBefore: userProfile.credits,
+        balanceAfter: newBalance,
+        createdAt: now,
+      });
 
-    // Schedule the video generation action
-    await ctx.scheduler.runAfter(0, api.videos.generateVideo, { videoId });
+      // Schedule the video generation action
+      await ctx.scheduler.runAfter(0, api.videos.generateVideo, { videoId });
 
-    return videoId;
+      return videoId;
+    } catch (error) {
+      // If credit deduction fails, mark video as failed and cleanup
+      await ctx.db.patch(videoId, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Failed to deduct credits",
+        updatedAt: Date.now(),
+      });
+      
+      console.error(`Failed to create video ${videoId} for user ${identity.subject}:`, error);
+      throw error;
+    }
   },
 });
 
@@ -590,7 +602,24 @@ export const refundCredits = mutation({
       throw new Error("Video not found");
     }
 
-    // Get user profile to refund credits
+    // Check if refund already processed by looking for existing refund transaction
+    const existingRefund = await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", video.clerkId))
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("videoId"), args.videoId),
+          q.eq(q.field("type"), "refund")
+        )
+      )
+      .first();
+
+    if (existingRefund) {
+      console.log(`Refund already processed for video ${args.videoId}`);
+      return; // Refund already processed, prevent duplicate
+    }
+
+    // Get current user profile for accurate balance tracking
     const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
       clerkId: video.clerkId,
     });
@@ -599,24 +628,31 @@ export const refundCredits = mutation({
     }
 
     const now = Date.now();
+    
+    try {
+      // Refund credits atomically
+      await ctx.runMutation(api.userProfiles.addCredits, {
+        clerkId: video.clerkId,
+        amount: video.creditsCost,
+      });
 
-    // Refund credits using userProfiles
-    await ctx.runMutation(api.userProfiles.addCredits, {
-      clerkId: video.clerkId,
-      amount: video.creditsCost,
-    });
+      // Record refund transaction with current balance info
+      await ctx.db.insert("creditTransactions", {
+        clerkId: video.clerkId,
+        type: "refund",
+        amount: video.creditsCost,
+        description: `Refund for failed video generation: ${video.prompt}`,
+        videoId: args.videoId,
+        balanceBefore: userProfile.credits,
+        balanceAfter: userProfile.credits + video.creditsCost,
+        createdAt: now,
+      });
 
-    // Record refund transaction
-    await ctx.db.insert("creditTransactions", {
-      clerkId: video.clerkId,
-      type: "refund",
-      amount: video.creditsCost,
-      description: `Refund for failed video generation: ${video.prompt}`,
-      videoId: args.videoId,
-      balanceBefore: userProfile.credits,
-      balanceAfter: userProfile.credits + video.creditsCost,
-      createdAt: now,
-    });
+      console.log(`Credits refunded for video ${args.videoId}: ${video.creditsCost} credits`);
+    } catch (error) {
+      console.error(`Failed to refund credits for video ${args.videoId}:`, error);
+      throw new Error("Failed to process refund");
+    }
   },
 });
 
