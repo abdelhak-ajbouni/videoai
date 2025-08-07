@@ -4,6 +4,7 @@ import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
+import { createVideoSchema, formatValidationError } from "./lib/validation";
 
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
@@ -158,6 +159,17 @@ export const createVideo = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Validate all input parameters using Zod schemas
+    const validationResult = createVideoSchema.safeParse(args);
+    if (!validationResult.success) {
+      const error = formatValidationError(validationResult.error);
+      console.error(`Validation error for user ${identity.subject}:`, error);
+      throw new Error(`Invalid input: ${error.message}`);
+    }
+
+    // Use validated and sanitized data
+    const validatedArgs = validationResult.data;
+
     // ============================================================================
     // USER AND SUBSCRIPTION VALIDATION
     // ============================================================================
@@ -185,35 +197,33 @@ export const createVideo = mutation({
     // Validate model exists and is active
     const model = await ctx.db
       .query("models")
-      .withIndex("by_model_id", (q) => q.eq("modelId", args.model))
+      .withIndex("by_model_id", (q) => q.eq("modelId", validatedArgs.model))
       .first();
 
     if (!model) {
-      toast.error("Selected model not found");
       throw new Error("Selected model not found");
     }
 
     if (!model.isActive) {
-      toast.error("Selected model is not currently available");
       throw new Error("Selected model is not currently available");
     }
 
     // Prepare frontend parameters for validation
     const frontendParams = {
-      prompt: args.prompt,
-      duration: args.duration,
-      quality: args.quality,
-      ...(args.generationSettings || {}),
+      prompt: validatedArgs.prompt,
+      duration: validatedArgs.duration,
+      quality: validatedArgs.quality,
+      ...(validatedArgs.generationSettings || {}),
     };
 
     // Quality validation removed - all models support all quality levels
     // Pricing is handled via quality multipliers in the pricing system
 
     // Check quality access based on subscription
-    const hasQualityAccess = checkQualityAccess(subscriptionTier, args.quality);
+    const hasQualityAccess = checkQualityAccess(subscriptionTier, validatedArgs.quality);
 
     // Check resolution access based on subscription tier
-    if (args.generationSettings?.resolution === "1080p") {
+    if (validatedArgs.generationSettings?.resolution === "1080p") {
       if (subscriptionTier !== "pro" && subscriptionTier !== "max") {
         throw new Error(
           "1080p resolution is only available for Pro and Max plan subscribers"
@@ -227,11 +237,11 @@ export const createVideo = mutation({
     }
 
     // Calculate credit cost based on model, quality and duration
-    const resolution = args.generationSettings?.resolution;
+    const resolution = validatedArgs.generationSettings?.resolution;
     const creditsCost = await calculateCreditCost(
       ctx,
-      args.model,
-      parseInt(args.duration),
+      validatedArgs.model,
+      parseInt(validatedArgs.duration),
       resolution
     );
 
@@ -245,15 +255,15 @@ export const createVideo = mutation({
     // Determine video privacy based on subscription tier and user preference
     let finalIsPublic = true; // Default to public
 
-    if (args.isPublic !== undefined) {
+    if (validatedArgs.isPublic !== undefined) {
       // User has specified a preference
-      if (!args.isPublic && subscriptionTier !== "max") {
+      if (!validatedArgs.isPublic && subscriptionTier !== "max") {
         // User wants private video but doesn't have Max plan
         throw new Error(
           "Private videos are only available for Max plan subscribers"
         );
       }
-      finalIsPublic = args.isPublic;
+      finalIsPublic = validatedArgs.isPublic;
     } else {
       // No preference specified, use tier-based default
       // Max plan users get private videos by default for premium privacy
@@ -263,14 +273,14 @@ export const createVideo = mutation({
     // Create video record
     const videoId: Id<"videos"> = await ctx.db.insert("videos", {
       clerkId: identity.subject,
-      prompt: args.prompt,
-      model: args.model,
-      quality: args.quality,
-      duration: args.duration,
+      prompt: validatedArgs.prompt,
+      model: validatedArgs.model,
+      quality: validatedArgs.quality,
+      duration: validatedArgs.duration,
       status: "pending",
       creditsCost,
       // Store frontend settings for reference
-      generationSettings: args.generationSettings,
+      generationSettings: validatedArgs.generationSettings,
       // Initialize new metadata fields
       viewCount: 0,
       downloadCount: 0,
@@ -284,12 +294,12 @@ export const createVideo = mutation({
     // Map and store model-specific parameters
     const parameterMapping = await mapParametersForModel(
       ctx,
-      args.model,
+      validatedArgs.model,
       frontendParams
     );
     await ctx.db.insert("videoParameters", {
       videoId,
-      modelId: args.model,
+      modelId: validatedArgs.model,
       parameters: parameterMapping.apiParameters,
       parameterMapping: {
         frontendParameters: parameterMapping.frontendParameters,
@@ -310,7 +320,7 @@ export const createVideo = mutation({
         clerkId: identity.subject,
         type: "video_generation",
         amount: -creditsCost,
-        description: `Video generation: ${args.prompt}`,
+        description: `Video generation: ${validatedArgs.prompt}`,
         videoId,
         balanceBefore: userProfile.credits,
         balanceAfter: newBalance,

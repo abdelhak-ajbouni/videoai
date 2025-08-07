@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 import crypto from "crypto";
+import { replicateWebhookSchema } from "../../../../../convex/lib/validation";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -56,11 +57,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse the validated payload
-    const body = JSON.parse(rawBody);
+    // Parse and validate the payload
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (error) {
+      console.error("Invalid JSON payload:", error);
+      return NextResponse.json(
+        { error: "Invalid JSON payload" },
+        { status: 400 }
+      );
+    }
 
-    // Extract the prediction data from the webhook
-    const { id: replicateJobId, status, output } = body;
+    // Validate webhook payload structure
+    const validationResult = replicateWebhookSchema.safeParse(body);
+    if (!validationResult.success) {
+      console.error("Invalid webhook payload:", validationResult.error.issues);
+      return NextResponse.json(
+        { error: "Invalid payload structure" },
+        { status: 400 }
+      );
+    }
+
+    // Extract the prediction data from the validated webhook
+    const { id: replicateJobId, status, output } = validationResult.data;
 
     if (!replicateJobId) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
