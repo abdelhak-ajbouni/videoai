@@ -546,7 +546,7 @@ export default function ProfilePage() {
                         <p className="text-gray-400 text-sm font-medium mb-1">Next Billing</p>
                         <p className="text-white">
                           {subscription.currentPeriodEnd ?
-                            new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                            new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString('en-US', {
                               month: 'long',
                               day: 'numeric',
                               year: 'numeric'
@@ -578,7 +578,7 @@ export default function ProfilePage() {
                               Your subscription will end on{' '}
                               <span className="font-semibold text-white">
                                 {subscription.currentPeriodEnd ?
-                                  new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                  new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString('en-US', {
                                     month: 'long',
                                     day: 'numeric',
                                     year: 'numeric'

@@ -118,20 +118,8 @@ const defaultPlans = [
   },
 ];
 
-// Default system configurations
+// Default system configurations - minimal set for business flexibility
 const defaultConfigurations = [
-  {
-    key: "profit_margin",
-    category: "pricing",
-    name: "Profit Margin",
-    description: "Markup percentage applied to model costs",
-    value: 1.32,
-    dataType: "number" as const,
-    isActive: true,
-    isEditable: true,
-    minValue: 1.0,
-    maxValue: 2.0,
-  },
   {
     key: "free_tier_credits",
     category: "business",
@@ -143,18 +131,6 @@ const defaultConfigurations = [
     isEditable: true,
     minValue: 1,
     maxValue: 1000,
-  },
-  {
-    key: "max_video_duration",
-    category: "limits",
-    name: "Maximum Video Duration",
-    description: "Maximum allowed video duration in seconds",
-    value: 120,
-    dataType: "number" as const,
-    isActive: true,
-    isEditable: true,
-    minValue: 5,
-    maxValue: 120,
   },
 ];
 

@@ -8,7 +8,7 @@
  * @module
  */
 
-import type * as configurations from "../configurations.js";
+import type * as cleanupConfigs from "../cleanupConfigs.js";
 import type * as creditPackages from "../creditPackages.js";
 import type * as db from "../db.js";
 import type * as http from "../http.js";
@@ -46,7 +46,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  configurations: typeof configurations;
+  cleanupConfigs: typeof cleanupConfigs;
   creditPackages: typeof creditPackages;
   db: typeof db;
   http: typeof http;

@@ -7,8 +7,11 @@ import {
   Sparkles,
   Video,
   Globe,
-  ChevronRight
+  ChevronRight,
+  ArrowUpRight
 } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 interface NavigationItem {
   id: string;
@@ -49,22 +52,21 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   const isActive = (href: string) => {
     return pathname.startsWith(href.split("?")[0]);
   };
 
+  const showUpgradeButton = currentUser && currentUser.subscriptionTier !== 'max';
+
   return (
     <div className={cn(
-      "flex flex-col h-screen bg-gray-950/95 backdrop-blur-xl border-r border-gray-800/50 w-64",
+      "flex flex-col h-full bg-gray-950/95 backdrop-blur-xl border-r border-gray-800/50 w-64",
       className
     )}>
-      {/* Header */}
-      <div className="border-b border-gray-800/50 p-6">
-      </div>
-
       {/* Navigation Items */}
-      <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-6 lg:py-8 lg:px-6 space-y-2 overflow-y-auto min-h-0">
         {navigationItems.map((item) => {
           const active = isActive(item.href);
           const isGenerateVideo = item.id === "generate";
@@ -77,16 +79,16 @@ export function Sidebar({ className }: SidebarProps) {
                   isGenerateVideo
                     ? "bg-white text-gray-900 shadow-lg"
                     : active
-                    ? "bg-gray-800/50 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800/30"
+                      ? "bg-gray-800/80 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/30"
                 )}>
                   <div className={cn(
                     "flex-shrink-0 transition-all duration-200",
-                    isGenerateVideo 
-                      ? "text-gray-900" 
+                    isGenerateVideo
+                      ? "text-gray-900"
                       : active
-                      ? "text-white"
-                      : "text-gray-400 group-hover:text-white"
+                        ? "text-white"
+                        : "text-gray-400 group-hover:text-white"
                   )}>
                     {item.icon}
                   </div>
@@ -94,11 +96,11 @@ export function Sidebar({ className }: SidebarProps) {
                   <div className="flex-1 min-w-0">
                     <p className={cn(
                       "text-sm font-medium truncate",
-                      isGenerateVideo 
-                        ? "text-gray-900" 
-                        : active 
-                        ? "text-white" 
-                        : "text-gray-400 group-hover:text-white"
+                      isGenerateVideo
+                        ? "text-gray-900"
+                        : active
+                          ? "text-white"
+                          : "text-gray-400 group-hover:text-white"
                     )}>
                       {item.label}
                     </p>
@@ -111,7 +113,7 @@ export function Sidebar({ className }: SidebarProps) {
                   )}
                 </div>
               </Link>
-              
+
               {/* Divider after Generate Video */}
               {isGenerateVideo && (
                 <div className="my-6">
@@ -123,6 +125,17 @@ export function Sidebar({ className }: SidebarProps) {
         })}
       </nav>
 
+      {/* Upgrade Button (at bottom) */}
+      {showUpgradeButton && (
+        <div className="p-4 border-t border-gray-800/50 flex-shrink-0">
+          <Link href="/pricing" className="block">
+            <div className="flex items-center justify-center px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors duration-200">
+              <ArrowUpRight className="h-4 w-4 mr-2" />
+              Upgrade Plan
+            </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

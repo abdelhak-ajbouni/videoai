@@ -29,7 +29,7 @@ export const createUserProfile = mutation({
     // Get free tier credits from configuration
     const freeTierCredits = await ctx.db
       .query("configurations")
-      .withIndex("by_key", (q: any) => q.eq("key", "free_tier_credits"))
+      .withIndex("by_key", (q) => q.eq("key", "free_tier_credits"))
       .first();
 
     const initialCredits = (freeTierCredits?.value as number) || 40; // Default to 40 if not configured
