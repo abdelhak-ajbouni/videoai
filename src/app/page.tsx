@@ -49,14 +49,14 @@ export default function Home() {
   // Show loading state while authentication is loading or redirecting
   if (!isLoaded || isSignedIn) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className=" bg-gray-950 flex items-center justify-center">
         <Loading text={isSignedIn ? "Redirecting to dashboard..." : "Loading..."} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className=" bg-gray-950">
       {/* Hero Section */}
       <section className="relative overflow-hidden h-screen">
         {/* Header - Overlay on top */}

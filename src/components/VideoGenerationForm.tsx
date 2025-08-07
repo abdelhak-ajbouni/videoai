@@ -97,7 +97,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
       const durations = modelParameters.supportedDurations;
       return durations.map((d: number) => ({
         value: d,
-        label: `${d} seconds`,
+        label: `${d}s`,
         badge: d === Math.min(...durations) ? "Base cost" : `${d}s option`
       }));
     } else {
@@ -340,8 +340,8 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                                   <PremiumBadge
                                     size="sm"
                                     className="ml-1"
-                                    tooltipTitle="Pro+ Required"
-                                    tooltipDescription="1080p resolution requires Pro or Max plan subscription."
+                                    label="Pro"
+                                    tooltipTitle="Pro Plan Required"
                                   />
                                 </div>
                               </SelectItem>
@@ -443,10 +443,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
               {/* Public Visibility Option */}
               <div className="space-y-3">
                 <div
-                  className={`group relative py-3 rounded-lg border transition-all duration-200 h-12 flex items-center ${currentUser?.subscriptionTier === "max"
-                    ? "bg-gray-800/30 border-gray-600 hover:bg-gray-800/50 cursor-pointer"
-                    : "bg-gray-800/20 border-gray-700/50 opacity-75"
-                    }`}
+                  className={`group relative h-12 flex items-center bg-gray-800/30 hover:bg-gray-800/50`}
                   onClick={() => {
                     if (currentUser?.subscriptionTier === "max") {
                       setIsPublic(!isPublic);
@@ -454,7 +451,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                   }}
                 >
                   <div className="flex items-center space-x-3 w-full">
-                    <div className="relative">
+                    <div className={`relative ${currentUser?.subscriptionTier !== "max" && "cursor-not-allowed"}`}>
                       <input
                         id="isPublic"
                         type="checkbox"
@@ -491,15 +488,15 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                         <TooltipContent className="max-w-64 text-center">
                           <p className="font-medium mb-1 text-white">Public Videos</p>
                           <p className="text-xs text-gray-300">
-                            Public videos appear in the explore page for all users to discover and view.
+                            Public videos appear in the explore page.
                           </p>
                         </TooltipContent>
                       </Tooltip>
                       {currentUser?.subscriptionTier !== "max" && (
                         <PremiumBadge
+                          label="Max"
                           size="sm"
                           tooltipTitle="Max Plan Required"
-                          tooltipDescription="Upgrade to Max plan to create private videos that won't appear in the explore page."
                         />
                       )}
                     </div>

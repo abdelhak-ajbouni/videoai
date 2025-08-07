@@ -212,7 +212,7 @@ export default function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-950">
+      <div className=" bg-gray-950">
         {/* Header */}
         <div className="px-6 py-8">
           <h1 className="text-2xl font-semibold text-white/95 mb-1">
@@ -540,7 +540,7 @@ export default function ProfilePage() {
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-gray-400 text-sm font-medium mb-1">Next Billing</p>
@@ -647,7 +647,7 @@ export default function ProfilePage() {
                         Active
                       </Badge>
                     </div>
-                    
+
                     <p className="text-gray-400 mb-4">
                       You&apos;re currently on the free plan. Upgrade to get monthly credits and access to premium features.
                     </p>
