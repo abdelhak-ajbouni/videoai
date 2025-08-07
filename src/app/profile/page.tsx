@@ -18,8 +18,8 @@ import {
   EyeOff,
   Check,
   X,
-  CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  Crown
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -214,22 +214,22 @@ export default function ProfilePage() {
     <AppLayout>
       <div className="min-h-screen bg-gray-950">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-6 sm:py-8">
-          <h1 className="text-xl sm:text-2xl font-semibold text-white/95 mb-1">
+        <div className="px-6 py-8">
+          <h1 className="text-2xl font-semibold text-white/95 mb-1">
             Profile Settings
           </h1>
-          <p className="text-gray-400 text-sm hidden sm:block">
+          <p className="text-gray-400 text-sm">
             Manage your account information and preferences
           </p>
         </div>
 
-        <div className="px-4 sm:px-6 pb-6 sm:pb-8 space-y-4 sm:space-y-6">
+        <div className="px-6 pb-8 space-y-6">
           {/* Profile Information */}
           <Card className="bg-gray-900 border-gray-800/50">
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <User className="h-5 w-5 text-blue-400" />
+                  <User className="h-5 w-5 text-white" />
                   <span>Profile Information</span>
                 </div>
                 {!isEditing && (
@@ -239,7 +239,7 @@ export default function ProfilePage() {
                     onClick={handleEditProfile}
                     className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white"
                   >
-                    <Settings className="h-4 w-4 mr-2" />
+                    <Settings className="h-4 w-4 mr-2 text-white" />
                     Edit
                   </Button>
                 )}
@@ -262,9 +262,9 @@ export default function ProfilePage() {
               </div>
 
               {/* Form Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-gray-300">
+                  <Label htmlFor="firstName" className="text-gray-300 font-medium">
                     First Name
                   </Label>
                   {isEditing ? (
@@ -276,14 +276,14 @@ export default function ProfilePage() {
                       placeholder="Enter your first name"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white">
+                    <div className="text-white text-lg">
                       {user.firstName || "Not set"}
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-gray-300">
+                  <Label htmlFor="lastName" className="text-gray-300 font-medium">
                     Last Name
                   </Label>
                   {isEditing ? (
@@ -295,29 +295,26 @@ export default function ProfilePage() {
                       placeholder="Enter your last name"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white">
+                    <div className="text-white text-lg">
                       {user.lastName || "Not set"}
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-300">
+                  <Label className="text-gray-300 font-medium">
                     Email Address
                   </Label>
-                  <div className="px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white flex items-center justify-between">
-                    <span>{user.emailAddresses[0]?.emailAddress}</span>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                      Verified
-                    </Badge>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white text-lg">{user.emailAddresses[0]?.emailAddress}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-300">
+                  <Label className="text-gray-300 font-medium">
                     Member Since
                   </Label>
-                  <div className="px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white">
+                  <div className="text-white text-lg">
                     {formatDate(currentUser.createdAt)}
                   </div>
                 </div>
@@ -325,22 +322,22 @@ export default function ProfilePage() {
 
               {/* Action Buttons */}
               {isEditing && (
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                <div className="flex space-x-3 pt-4">
                   <Button
                     onClick={handleSaveProfile}
                     disabled={isLoading}
-                    className="bg-blue-500 hover:bg-blue-600 text-white min-h-[44px] touch-manipulation"
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
                   >
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="h-4 w-4 mr-2 text-white" />
                     Save Changes
                   </Button>
                   <Button
                     variant="outline"
                     onClick={handleCancelEdit}
                     disabled={isLoading}
-                    className="border-gray-700 hover:bg-gray-800 text-gray-300 min-h-[44px] touch-manipulation"
+                    className="border-gray-700 hover:bg-gray-800 text-gray-300"
                   >
-                    <X className="h-4 w-4 mr-2" />
+                    <X className="h-4 w-4 mr-2 text-white" />
                     Cancel
                   </Button>
                 </div>
@@ -353,7 +350,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="text-white flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5 text-green-400" />
+                  <Shield className="h-5 w-5 text-white" />
                   <span>Security</span>
                 </div>
                 {!isChangingPassword && (
@@ -363,7 +360,7 @@ export default function ProfilePage() {
                     onClick={() => setIsChangingPassword(true)}
                     className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white"
                   >
-                    <Shield className="h-4 w-4 mr-2" />
+                    <Shield className="h-4 w-4 mr-2 text-white" />
                     Change Password
                   </Button>
                 )}
@@ -371,12 +368,14 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!isChangingPassword ? (
-                <div className="space-y-2">
-                  <Label className="text-gray-300">Password</Label>
-                  <div className="px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-md text-white">
-                    ••••••••••••
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-gray-300 font-medium">Password</Label>
+                    <div className="text-white text-lg">
+                      ••••••••••••
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-gray-400">
                     Last updated: {(() => {
                       const date = user.passwordEnabled ? user.updatedAt : user.createdAt;
                       if (!date) return 'Never';
@@ -407,9 +406,9 @@ export default function ProfilePage() {
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                       >
                         {showCurrentPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
+                          <EyeOff className="h-4 w-4 text-white" />
                         ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
+                          <Eye className="h-4 w-4 text-white" />
                         )}
                       </Button>
                     </div>
@@ -436,9 +435,9 @@ export default function ProfilePage() {
                         onClick={() => setShowNewPassword(!showNewPassword)}
                       >
                         {showNewPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
+                          <EyeOff className="h-4 w-4 text-white" />
                         ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
+                          <Eye className="h-4 w-4 text-white" />
                         )}
                       </Button>
                     </div>
@@ -468,9 +467,9 @@ export default function ProfilePage() {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
+                          <EyeOff className="h-4 w-4 text-white" />
                         ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
+                          <Eye className="h-4 w-4 text-white" />
                         )}
                       </Button>
                     </div>
@@ -480,9 +479,9 @@ export default function ProfilePage() {
                     <Button
                       onClick={handleChangePassword}
                       disabled={isLoading}
-                      className="bg-green-500 hover:bg-green-600 text-white"
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
                     >
-                      <Check className="h-4 w-4 mr-2" />
+                      <Check className="h-4 w-4 mr-2 text-white" />
                       Update Password
                     </Button>
                     <Button
@@ -491,7 +490,7 @@ export default function ProfilePage() {
                       disabled={isLoading}
                       className="border-gray-700 hover:bg-gray-800 text-gray-300"
                     >
-                      <X className="h-4 w-4 mr-2" />
+                      <X className="h-4 w-4 mr-2 text-white" />
                       Cancel
                     </Button>
                   </div>
@@ -504,135 +503,173 @@ export default function ProfilePage() {
           <Card className="bg-gray-900 border-gray-800/50">
             <CardHeader>
               <CardTitle className="text-white flex items-center space-x-2">
-                <CreditCard className="h-5 w-5 text-purple-400" />
+                <Crown className="h-5 w-5 text-white" />
                 <span>Subscription Plan</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               {subscription ? (
-                <div className="space-y-4">
-                  {/* Simple Plan Info */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-sm">Current Plan</p>
-                      <div className="flex items-center space-x-2">
-                        <p className="text-white text-lg font-medium capitalize">{subscription.tier} Plan</p>
-                        {subscription.cancelAtPeriodEnd && (
-                          <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Canceling
-                          </Badge>
-                        )}
+                <div className="space-y-6">
+                  {/* Plan Overview */}
+                  <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <Crown className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-white capitalize">
+                            {subscription.tier} Plan
+                          </h3>
+                          <p className="text-blue-400 font-medium">
+                            {subscription.planDetails ?
+                              `$${(subscription.planDetails.price / 100).toFixed(2)}/month` :
+                              'Loading...'
+                            }
+                          </p>
+                        </div>
                       </div>
+                      {subscription.cancelAtPeriodEnd ? (
+                        <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 px-3 py-1">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Ending Soon
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 px-3 py-1">
+                          Active
+                        </Badge>
+                      )}
                     </div>
-
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-sm">Price</p>
-                      <p className="text-white text-lg font-medium">
-                        {subscription.planDetails ?
-                          `$${(subscription.planDetails.price / 100).toFixed(2)}/month` :
-                          'Loading...'
-                        }
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-sm">Next Billing</p>
-                      <p className="text-white text-lg font-medium">
-                        {subscription.currentPeriodEnd ?
-                          new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }) :
-                          'Not available'
-                        }
-                      </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-gray-400 text-sm font-medium mb-1">Next Billing</p>
+                        <p className="text-white">
+                          {subscription.currentPeriodEnd ?
+                            new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric'
+                            }) :
+                            'Not available'
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-sm font-medium mb-1">Status</p>
+                        <p className="text-white">
+                          {subscription.cancelAtPeriodEnd ? 'Canceling' : 'Active'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   {/* Cancellation Status */}
                   {subscription.cancelAtPeriodEnd ? (
-                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
-                      <div className="flex items-start space-x-3">
-                        <AlertTriangle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                        <div className="space-y-2">
-                          <p className="text-orange-400 font-medium">Subscription Cancellation Scheduled</p>
-                          <p className="text-sm text-gray-300">
-                            Your subscription will end on{' '}
-                            <strong>
-                              {subscription.currentPeriodEnd ?
-                                new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
-                                  month: 'long',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                }) :
-                                'the end of your current billing period'
-                              }
-                            </strong>
-                            . You&apos;ll keep full access until then.
-                          </p>
+                    <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-xl p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                          <AlertTriangle className="h-5 w-5 text-orange-400" />
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-orange-400 font-semibold text-lg">Subscription Ending</h4>
+                            <p className="text-gray-300 mt-1">
+                              Your subscription will end on{' '}
+                              <span className="font-semibold text-white">
+                                {subscription.currentPeriodEnd ?
+                                  new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                                    month: 'long',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  }) :
+                                  'the end of your current billing period'
+                                }
+                              </span>
+                              . You&apos;ll keep full access until then.
+                            </p>
+                          </div>
                           <Button
                             onClick={handleReactivateSubscription}
                             disabled={isCancellingSubscription}
                             className="bg-green-500 hover:bg-green-600 text-white"
-                            size="sm"
                           >
+                            <Crown className="h-4 w-4 mr-2 text-white" />
                             Reactivate Subscription
                           </Button>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="pt-4">
-                      <Button
-                        onClick={handleCancelSubscription}
-                        disabled={isCancellingSubscription}
-                        variant="outline"
-                        className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
-                        size="sm"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel Subscription
-                      </Button>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Canceling will stop future billing but you&apos;ll keep access until your current period ends.
-                      </p>
+                    <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-white font-semibold text-lg mb-2">Manage Subscription</h4>
+                          <p className="text-gray-400">
+                            Need to make changes? You can cancel your subscription at any time.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleCancelSubscription}
+                          disabled={isCancellingSubscription}
+                          variant="outline"
+                          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                        >
+                          <X className="h-4 w-4 mr-2 text-red-400" />
+                          Cancel Subscription
+                        </Button>
+                        <p className="text-sm text-gray-500">
+                          You&apos;ll keep access to all features until your current billing period ends.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-sm">Current Plan</p>
-                      <div className="flex items-center space-x-2">
-                        <p className="text-white text-lg font-medium">Free Plan</p>
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                          Active
-                        </Badge>
+                <div className="space-y-6">
+                  {/* Free Plan Overview */}
+                  <div className="bg-gradient-to-r from-gray-700/20 to-gray-600/20 border border-gray-600/30 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center">
+                          <User className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-white">
+                            Free Plan
+                          </h3>
+                          <p className="text-gray-400 font-medium">
+                            $0.00/month
+                          </p>
+                        </div>
                       </div>
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 px-3 py-1">
+                        Active
+                      </Badge>
                     </div>
-
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-sm">Price</p>
-                      <p className="text-white text-lg font-medium">
-                        $0.00/month
-                      </p>
-                    </div>
+                    
+                    <p className="text-gray-400 mb-4">
+                      You&apos;re currently on the free plan. Upgrade to get monthly credits and access to premium features.
+                    </p>
                   </div>
 
-                  <div className="pt-4">
-                    <Button
-                      onClick={() => window.location.href = "/pricing"}
-                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Subscribe Now
-                    </Button>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Get monthly credits and access to premium features with a subscription plan.
-                    </p>
+                  {/* Upgrade Section */}
+                  <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-white font-semibold text-lg mb-2">Upgrade to Premium</h4>
+                        <p className="text-gray-300">
+                          Get monthly credits, priority processing, and access to the latest AI models.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => window.location.href = "/pricing"}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      >
+                        <Crown className="h-4 w-4 mr-2 text-white" />
+                        View Plans
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
