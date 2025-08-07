@@ -19,20 +19,31 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, redirectToSignIn } = await auth();
+  
+  let response: NextResponse;
 
   // Allow public routes
   if (isPublicRoute(req)) {
-    return NextResponse.next();
+    response = NextResponse.next();
   }
-
   // Protect authenticated routes
-  if (isProtectedRoute(req)) {
+  else if (isProtectedRoute(req)) {
     if (!userId) {
       return redirectToSignIn({ returnBackUrl: req.url });
     }
+    response = NextResponse.next();
+  } else {
+    response = NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Add security headers to all responses
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  return response;
 });
 
 export const config = {

@@ -1,6 +1,53 @@
 import { v } from "convex/values";
 import { query, mutation, QueryCtx } from "./_generated/server";
 
+// Security and business limits
+const PRICING_LIMITS = {
+  MAX_CREDITS_PER_VIDEO: 5000, // Maximum credits per single video generation
+  MAX_DURATION_SECONDS: 300, // 5 minutes maximum duration
+  MIN_DURATION_SECONDS: 1, // 1 second minimum duration
+  MAX_COST_PER_SECOND: 5.0, // Maximum USD cost per second
+  MIN_PROFIT_MARGIN: 1.1, // Minimum 10% profit margin
+  MAX_PROFIT_MARGIN: 5.0, // Maximum 400% markup
+  MIN_CREDITS_PER_DOLLAR: 10, // Minimum credits per dollar
+  MAX_CREDITS_PER_DOLLAR: 200, // Maximum credits per dollar
+} as const;
+
+// Validation functions for pricing integrity
+function validatePricingInputs(modelId: string, duration: number, resolution?: string) {
+  if (!modelId || typeof modelId !== 'string' || modelId.trim() === '') {
+    throw new Error("Invalid model ID provided");
+  }
+
+  if (!duration || typeof duration !== 'number' || duration < PRICING_LIMITS.MIN_DURATION_SECONDS) {
+    throw new Error(`Duration must be at least ${PRICING_LIMITS.MIN_DURATION_SECONDS} second(s)`);
+  }
+
+  if (duration > PRICING_LIMITS.MAX_DURATION_SECONDS) {
+    throw new Error(`Duration cannot exceed ${PRICING_LIMITS.MAX_DURATION_SECONDS} seconds`);
+  }
+
+  if (resolution && typeof resolution !== 'string') {
+    throw new Error("Invalid resolution format");
+  }
+}
+
+function validateBusinessConfig(profitMargin: number, creditsPerDollar: number) {
+  if (profitMargin < PRICING_LIMITS.MIN_PROFIT_MARGIN || profitMargin > PRICING_LIMITS.MAX_PROFIT_MARGIN) {
+    throw new Error(`Profit margin must be between ${PRICING_LIMITS.MIN_PROFIT_MARGIN} and ${PRICING_LIMITS.MAX_PROFIT_MARGIN}`);
+  }
+
+  if (creditsPerDollar < PRICING_LIMITS.MIN_CREDITS_PER_DOLLAR || creditsPerDollar > PRICING_LIMITS.MAX_CREDITS_PER_DOLLAR) {
+    throw new Error(`Credits per dollar must be between ${PRICING_LIMITS.MIN_CREDITS_PER_DOLLAR} and ${PRICING_LIMITS.MAX_CREDITS_PER_DOLLAR}`);
+  }
+}
+
+function validateCostPerSecond(costPerSecond: number) {
+  if (costPerSecond < 0 || costPerSecond > PRICING_LIMITS.MAX_COST_PER_SECOND) {
+    throw new Error(`Cost per second must be between $0 and $${PRICING_LIMITS.MAX_COST_PER_SECOND}`);
+  }
+}
+
 // Helper function to calculate credit cost based on model and configuration
 async function calculateCreditCost(
   ctx: QueryCtx,
@@ -8,6 +55,9 @@ async function calculateCreditCost(
   duration: number,
   resolution?: string
 ): Promise<number> {
+  // Validate inputs for security and business constraints
+  validatePricingInputs(modelId, duration, resolution);
+
   // Get business configuration from database
   const profitMargin = await ctx.db
     .query("configurations")
@@ -36,6 +86,9 @@ async function calculateCreditCost(
     profitMargin: (profitMargin?.value as number) || 1.32,
     creditsPerDollar: (creditsPerDollar?.value as number) || 50,
   };
+
+  // Validate business configuration to prevent manipulation
+  validateBusinessConfig(businessConfig.profitMargin, businessConfig.creditsPerDollar);
 
   let costPerSecond = 0;
 
@@ -83,6 +136,9 @@ async function calculateCreditCost(
     }
   }
 
+  // Validate cost per second to prevent pricing manipulation
+  validateCostPerSecond(costPerSecond);
+
   // Calculate base cost
   const baseCostUSD = costPerSecond * duration;
 
@@ -91,6 +147,19 @@ async function calculateCreditCost(
 
   // Convert to credits
   const credits = Math.ceil(totalCostUSD * businessConfig.creditsPerDollar);
+
+  // Final security check: prevent excessive credit costs
+  if (credits > PRICING_LIMITS.MAX_CREDITS_PER_VIDEO) {
+    throw new Error(
+      `Credit cost too high (${credits} credits). Maximum allowed: ${PRICING_LIMITS.MAX_CREDITS_PER_VIDEO} credits per video. ` +
+      `Please reduce duration or choose a different model/resolution.`
+    );
+  }
+
+  // Ensure non-negative result
+  if (credits < 0) {
+    throw new Error("Invalid credit calculation result");
+  }
 
   return credits;
 }
@@ -117,7 +186,7 @@ export const getCreditCost = query({
   },
 });
 
-export { calculateCreditCost };
+export { calculateCreditCost, PRICING_LIMITS };
 
 
 // Mutation to add or update resolution cost for a model
@@ -130,6 +199,22 @@ export const updateModelResolutionCost = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Validate inputs for security
+    if (!args.modelId || args.modelId.trim() === '') {
+      throw new Error("Invalid model ID provided");
+    }
+
+    if (!args.resolution || args.resolution.trim() === '') {
+      throw new Error("Invalid resolution provided");
+    }
+
+    // Validate cost per second
+    validateCostPerSecond(args.costPerSecond);
+
+    // Additional validation for notes length
+    if (args.notes && args.notes.length > 500) {
+      throw new Error("Notes cannot exceed 500 characters");
+    }
     // Check if resolution cost already exists
     const existing = await ctx.db
       .query("modelCosts")

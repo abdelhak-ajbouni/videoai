@@ -131,18 +131,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
     }
 
-    // Check for duplicate webhook processing
-    const eventId = `replicate_${replicateJobId}_${status}`;
-    const isAlreadyProcessed = await convex.query(api.webhooks.getProcessedWebhook, {
-      eventId,
-      source: "replicate"
-    });
-
-    if (isAlreadyProcessed) {
-      console.log(`Replicate webhook ${eventId} already processed, skipping`);
-      return NextResponse.json({ success: true, message: "Already processed" });
-    }
-
     console.log(`Processing Replicate webhook: ${status} for job ${replicateJobId}`);
 
     let success = false;
@@ -226,22 +214,6 @@ export async function POST(request: NextRequest) {
       console.error(`Failed to process Replicate webhook ${replicateJobId}:`, processingError);
     }
 
-    // Mark webhook as processed (success or failure)
-    await convex.mutation(api.webhooks.markWebhookProcessed, {
-      eventId,
-      eventType: `replicate.${status}`,
-      source: "replicate",
-      processed: success,
-      processedAt: Date.now(),
-      errorMessage,
-      metadata: {
-        jobId: replicateJobId,
-        videoId,
-        hasOutput: !!output
-      },
-      createdAt: Date.now()
-    });
-
     if (!success) {
       return NextResponse.json(
         { error: "Webhook processing failed" },
@@ -253,25 +225,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // Log the actual error for debugging but don't expose it
     console.error("Replicate webhook processing error:", error);
-    
-    // Try to mark webhook as failed (only if we have the necessary data)
-    if (replicateJobId && status) {
-      try {
-        const eventId = `replicate_${replicateJobId}_${status}`;
-        await convex.mutation(api.webhooks.markWebhookProcessed, {
-          eventId,
-          eventType: `replicate.${status}`,
-          source: "replicate",
-          processed: false,
-          processedAt: Date.now(),
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-          metadata: { jobId: replicateJobId },
-          createdAt: Date.now()
-        });
-      } catch (trackingError) {
-        console.error("Failed to track webhook failure:", trackingError);
-      }
-    }
     
     return NextResponse.json(
       { error: "Internal server error" },

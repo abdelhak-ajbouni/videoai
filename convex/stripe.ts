@@ -199,42 +199,6 @@ export const createCustomerPortalSession = action({
   },
 });
 
-/**
- * Check if a webhook event has already been processed
- */
-async function checkWebhookProcessed(ctx: ActionCtx, eventId: string, source: string): Promise<boolean> {
-  const existingEvent = await ctx.runQuery(api.webhooks.getProcessedWebhook, {
-    eventId,
-    source
-  });
-  return existingEvent !== null;
-}
-
-/**
- * Mark a webhook event as processed
- */
-async function markWebhookProcessed(
-  ctx: ActionCtx, 
-  eventId: string, 
-  eventType: string, 
-  source: string,
-  success: boolean,
-  errorMessage?: string,
-  metadata?: any
-): Promise<void> {
-  const now = Date.now();
-  
-  await ctx.runMutation(api.webhooks.markWebhookProcessed, {
-    eventId,
-    eventType,
-    source,
-    processed: success,
-    processedAt: now,
-    errorMessage,
-    metadata,
-    createdAt: now
-  });
-}
 
 // Handle Stripe webhook events
 export const handleStripeWebhook = action({
@@ -253,13 +217,6 @@ export const handleStripeWebhook = action({
     } catch (err) {
       console.error("Stripe webhook signature verification failed:", err);
       throw new Error(`Webhook signature verification failed`);
-    }
-
-    // Check for duplicate webhook processing
-    const isAlreadyProcessed = await checkWebhookProcessed(ctx, event.id, "stripe");
-    if (isAlreadyProcessed) {
-      console.log(`Stripe webhook ${event.id} already processed, skipping`);
-      return { success: true, message: "Already processed" };
     }
 
     console.log(`Processing Stripe webhook: ${event.type} (${event.id})`);
@@ -305,21 +262,6 @@ export const handleStripeWebhook = action({
       errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Failed to process Stripe webhook ${event.id}:`, error);
     }
-
-    // Mark webhook as processed (success or failure)
-    await markWebhookProcessed(
-      ctx,
-      event.id,
-      event.type,
-      "stripe",
-      success,
-      errorMessage,
-      {
-        object_id: 'id' in event.data.object ? event.data.object.id : undefined,
-        livemode: event.livemode,
-        request_id: event.request?.id
-      }
-    );
 
     if (!success) {
       throw new Error(`Webhook processing failed: ${errorMessage}`);

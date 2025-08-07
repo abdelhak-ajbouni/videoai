@@ -5,6 +5,59 @@ import { components } from "./_generated/api";
 
 const r2 = new R2(components.r2);
 
+// Security constraints for file uploads
+const SECURITY_LIMITS = {
+  MAX_FILE_SIZE: 500 * 1024 * 1024, // 500MB max file size
+  ALLOWED_VIDEO_TYPES: [
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+    'video/x-msvideo', // .avi
+    'video/x-ms-wmv'   // .wmv
+  ],
+  ALLOWED_EXTENSIONS: ['.mp4', '.webm', '.mov', '.avi', '.wmv'],
+  MAX_FILENAME_LENGTH: 255,
+} as const;
+
+/**
+ * Validate file type and size for security
+ */
+function validateFileUpload(filename: string, contentType?: string, fileSize?: number) {
+  // Check filename length
+  if (filename.length > SECURITY_LIMITS.MAX_FILENAME_LENGTH) {
+    throw new Error("Filename too long. Maximum 255 characters allowed.");
+  }
+
+  // Check file extension
+  const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  if (!SECURITY_LIMITS.ALLOWED_EXTENSIONS.includes(extension)) {
+    throw new Error(`Invalid file type. Allowed types: ${SECURITY_LIMITS.ALLOWED_EXTENSIONS.join(', ')}`);
+  }
+
+  // Check content type if provided
+  if (contentType && !SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.includes(contentType.toLowerCase())) {
+    throw new Error(`Invalid content type. Allowed types: ${SECURITY_LIMITS.ALLOWED_VIDEO_TYPES.join(', ')}`);
+  }
+
+  // Check file size if provided
+  if (fileSize && fileSize > SECURITY_LIMITS.MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size: ${SECURITY_LIMITS.MAX_FILE_SIZE / (1024 * 1024)}MB`);
+  }
+
+  // Additional security checks
+  const suspiciousPatterns = [
+    /\.(exe|bat|cmd|scr|pif|com)$/i, // Executable files
+    /%[0-9a-f]{2}/i, // URL encoded characters
+    /\x00/, // Null bytes
+  ];
+
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(filename)) {
+      throw new Error("Filename contains potentially malicious content");
+    }
+  }
+}
+
 /**
  * Sanitize filename to prevent path traversal attacks
  */
@@ -22,12 +75,16 @@ export const generateUploadUrl = mutation({
   args: {
     filename: v.string(),
     contentType: v.optional(v.string()),
+    fileSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Validate file upload security constraints
+    validateFileUpload(args.filename, args.contentType, args.fileSize);
 
     // Sanitize filename to prevent path traversal attacks
     const sanitizedFilename = sanitizeFilename(args.filename);
@@ -40,7 +97,12 @@ export const generateUploadUrl = mutation({
     // Generate upload URL using R2 component
     const { url, key } = await r2.generateUploadUrl(fileKey);
 
-    return { url, key };
+    return { 
+      url, 
+      key,
+      maxFileSize: SECURITY_LIMITS.MAX_FILE_SIZE,
+      allowedTypes: SECURITY_LIMITS.ALLOWED_VIDEO_TYPES
+    };
   },
 });
 
@@ -50,12 +112,17 @@ export const storeVideoFile = action({
     blob: v.any(), // File blob
     filename: v.string(),
     videoId: v.id("videos"),
+    contentType: v.optional(v.string()),
+    fileSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
+
+    // Validate file upload security constraints
+    validateFileUpload(args.filename, args.contentType, args.fileSize);
 
     // Sanitize filename to prevent path traversal attacks
     const sanitizedFilename = sanitizeFilename(args.filename);

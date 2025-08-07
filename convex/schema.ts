@@ -405,28 +405,4 @@ export default defineSchema({
     .index("by_video_id", ["videoId"])
     .index("by_model_id", ["modelId"]),
 
-  // Webhook event tracking to prevent duplicate processing
-  processedWebhooks: defineTable({
-    // Webhook identification
-    eventId: v.string(), // Stripe/Replicate event ID
-    eventType: v.string(), // Event type (e.g., "checkout.session.completed")
-    source: v.string(), // "stripe" or "replicate"
-
-    // Processing details
-    processed: v.boolean(), // Whether event was successfully processed
-    processedAt: v.number(), // When the event was processed
-    errorMessage: v.optional(v.string()), // Error message if processing failed
-
-    // Event metadata
-    metadata: v.optional(v.any()), // Additional event data for debugging
-
-    // Timestamps
-    createdAt: v.number(),
-  })
-    .index("by_event_id", ["eventId"])
-    .index("by_source_and_type", ["source", "eventType"])
-    .index("by_processed", ["processed"]),
-
-  // Note: Rate limiting is now handled by the @convex-dev/rate-limiter component
-  // The component manages its own storage internally
 });
