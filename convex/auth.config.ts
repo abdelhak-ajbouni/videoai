@@ -1,7 +1,11 @@
+import { getSecureConfig } from "../lib/env";
+
+const config = getSecureConfig();
+
 export default {
   providers: [
     {
-      domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
+      domain: config.clerk.jwtIssuerDomain,
       applicationID: "convex",
     },
   ],

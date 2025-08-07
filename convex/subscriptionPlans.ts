@@ -116,8 +116,9 @@ export const createStripeProducts = action({
       error?: string;
     }>
   > => {
+    const { getSecureConfig } = await import("../lib/env");
     const stripe = new (await import("stripe")).default(
-      process.env.STRIPE_SECRET_KEY!
+      getSecureConfig().stripe.secretKey
     );
 
     // Get all active subscription plans
@@ -208,8 +209,9 @@ export const createStripeProducts = action({
 export const getOrCreateStripePrice = action({
   args: { planId: v.string() },
   handler: async (ctx, { planId }): Promise<string> => {
+    const { getSecureConfig } = await import("../lib/env");
     const stripe = new (await import("stripe")).default(
-      process.env.STRIPE_SECRET_KEY!
+      getSecureConfig().stripe.secretKey
     );
 
     // Get plan from database

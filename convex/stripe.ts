@@ -3,14 +3,16 @@ import { action } from "./_generated/server";
 import { api } from "./_generated/api";
 import Stripe from "stripe";
 import { ActionCtx } from "./_generated/server";
+import { getSecureConfig } from "../lib/env";
 
 // Extended Invoice interface to include subscription property
 interface InvoiceWithSubscription extends Stripe.Invoice {
   subscription?: string;
 }
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
+// Initialize Stripe with validated configuration
+const config = getSecureConfig();
+const stripe = new Stripe(config.stripe.secretKey, {
   apiVersion: "2025-06-30.basil",
 });
 
@@ -116,8 +118,8 @@ export const createCreditCheckoutSession = action({
           },
         ],
         mode: "payment",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?success=true&credits=${packageConfig.credits}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?canceled=true`,
+        success_url: `${config.app.url}/generate?success=true&credits=${packageConfig.credits}`,
+        cancel_url: `${config.app.url}/generate?canceled=true`,
         metadata: {
           clerkId,
           packageId,
@@ -161,8 +163,8 @@ export const createSubscriptionCheckoutSession = action({
           },
         ],
         mode: "subscription",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=success&plan=${planId}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate?subscription=canceled`,
+        success_url: `${config.app.url}/generate?subscription=success&plan=${planId}`,
+        cancel_url: `${config.app.url}/generate?subscription=canceled`,
         metadata: {
           clerkId,
           planId,
@@ -186,7 +188,7 @@ export const createCustomerPortalSession = action({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/generate`,
+      return_url: `${config.app.url}/generate`,
     });
 
     return session.url;
@@ -197,7 +199,7 @@ export const createCustomerPortalSession = action({
 export const handleStripeWebhook = action({
   args: { body: v.string(), signature: v.string() },
   handler: async (ctx, { body, signature }) => {
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    const endpointSecret = config.stripe.webhookSecret;
     let event: Stripe.Event;
 
     try {

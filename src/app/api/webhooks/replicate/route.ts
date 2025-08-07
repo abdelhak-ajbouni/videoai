@@ -3,8 +3,10 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 import crypto from "crypto";
 import { replicateWebhookSchema } from "../../../../../convex/lib/validation";
+import { getSecureConfig } from "../../../../../lib/env";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const config = getSecureConfig();
+const convex = new ConvexHttpClient(config.convex.url);
 
 /**
  * Verifies the Replicate webhook signature to ensure authenticity
@@ -15,11 +17,7 @@ function verifyReplicateSignature(payload: string, signature: string | null): bo
     return false;
   }
 
-  const webhookSecret = process.env.REPLICATE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    console.error("Missing REPLICATE_WEBHOOK_SECRET environment variable");
-    return false;
-  }
+  const webhookSecret = config.replicate.webhookSecret;
 
   try {
     // Replicate uses HMAC-SHA256 for webhook signatures

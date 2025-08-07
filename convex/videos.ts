@@ -5,6 +5,7 @@ import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
 import { createVideoSchema, formatValidationError } from "./lib/validation";
+import { isDevelopment, getSecureConfig } from "../lib/env";
 
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
@@ -507,7 +508,7 @@ export const generateVideo = action({
       }
 
       // Check for development mode
-      const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true";
+      const isDevelopmentMode = isDevelopment();
 
       let prediction: any;
 
@@ -529,7 +530,7 @@ export const generateVideo = action({
           error: null,
           logs: null,
           output: null,
-          webhook: `${process.env.CONVEX_SITE_URL}/api/webhooks/replicate`,
+          webhook: `${getSecureConfig().convex.siteUrl}/api/webhooks/replicate`,
           webhook_events_filter: ["start", "output", "logs", "completed"],
         };
 
@@ -553,7 +554,7 @@ export const generateVideo = action({
         };
 
         // Only set webhook in production environment (not localhost)
-        const siteUrl = process.env.CONVEX_SITE_URL;
+        const siteUrl = getSecureConfig().convex.siteUrl;
         if (siteUrl && !siteUrl.includes("localhost")) {
           createOptions.webhook = `${siteUrl}/api/webhooks/replicate`;
           createOptions.webhook_events_filter = [
