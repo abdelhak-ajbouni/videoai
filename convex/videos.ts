@@ -186,8 +186,8 @@ export const createVideo = mutation({
 
       const subscriptionTier = subscription?.tier || "free";
 
-      // Apply rate limiting based on subscription tier
-      await applyVideoGenerationRateLimit(ctx, identity.subject, subscriptionTier);
+      // Apply rate limiting to prevent abuse
+      await applyVideoGenerationRateLimit(ctx, identity.subject);
 
     // Validate all input parameters using Zod schemas
     const validationResult = createVideoSchema.safeParse(args);

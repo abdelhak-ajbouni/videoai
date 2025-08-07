@@ -9,31 +9,70 @@ const config = getSecureConfig();
 const convex = new ConvexHttpClient(config.convex.url);
 
 /**
- * Verifies the Replicate webhook signature to ensure authenticity
+ * Verifies the Replicate webhook signature according to official documentation
+ * https://replicate.com/docs/topics/webhooks/verify-webhook
  */
-function verifyReplicateSignature(payload: string, signature: string | null): boolean {
-  if (!signature) {
-    console.error("Missing Replicate signature header");
+function verifyReplicateSignature(
+  payload: string, 
+  webhookId: string | null,
+  webhookTimestamp: string | null,
+  webhookSignature: string | null
+): boolean {
+  if (!webhookId || !webhookTimestamp || !webhookSignature) {
+    console.error("Missing required Replicate webhook headers");
+    return false;
+  }
+
+  // Validate timestamp to prevent replay attacks (5 minutes tolerance)
+  const timestampMs = parseInt(webhookTimestamp) * 1000;
+  const currentTime = Date.now();
+  const timeDifference = Math.abs(currentTime - timestampMs);
+  const maxTimeDifference = 5 * 60 * 1000; // 5 minutes
+
+  if (timeDifference > maxTimeDifference) {
+    console.error("Webhook timestamp is too old or too far in the future");
     return false;
   }
 
   const webhookSecret = config.replicate.webhookSecret;
+  
+  // Remove 'whsec_' prefix if present (as per Replicate docs)
+  const cleanSecret = webhookSecret.replace(/^whsec_/, '');
 
   try {
-    // Replicate uses HMAC-SHA256 for webhook signatures
+    // Construct signed content as per Replicate specification
+    const signedContent = `${webhookId}.${webhookTimestamp}.${payload}`;
+    
+    // Generate expected signature using HMAC-SHA256
     const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(payload, 'utf8')
-      .digest('hex');
+      .createHmac('sha256', cleanSecret)
+      .update(signedContent, 'utf8')
+      .digest('base64');
     
-    // Remove 'sha256=' prefix if present
-    const cleanSignature = signature.replace(/^sha256=/, '');
+    // Parse signatures from header (format: "v1,signature1 v1,signature2")
+    const signatures = webhookSignature.split(' ');
     
-    // Use timing-safe comparison to prevent timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(cleanSignature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
+    // Check if any of the provided signatures match
+    for (const sig of signatures) {
+      const [version, signature] = sig.split(',');
+      if (version === 'v1') {
+        try {
+          // Use timing-safe comparison to prevent timing attacks
+          if (crypto.timingSafeEqual(
+            Buffer.from(signature, 'base64'),
+            Buffer.from(expectedSignature, 'base64')
+          )) {
+            return true;
+          }
+        } catch {
+          // Continue to next signature if comparison fails
+          continue;
+        }
+      }
+    }
+    
+    console.error("No valid signatures found in webhook header");
+    return false;
   } catch (error) {
     console.error("Error verifying Replicate signature:", error);
     return false;
@@ -45,12 +84,14 @@ export async function POST(request: NextRequest) {
   let status: string | undefined;
   
   try {
-    // Get the raw body for signature verification
+    // Get the raw body and required headers for signature verification
     const rawBody = await request.text();
-    const signature = request.headers.get('replicate-signature');
+    const webhookId = request.headers.get('webhook-id');
+    const webhookTimestamp = request.headers.get('webhook-timestamp');
+    const webhookSignature = request.headers.get('webhook-signature');
 
-    // Verify webhook signature
-    if (!verifyReplicateSignature(rawBody, signature)) {
+    // Verify webhook signature according to Replicate specification
+    if (!verifyReplicateSignature(rawBody, webhookId, webhookTimestamp, webhookSignature)) {
       console.error("Invalid Replicate webhook signature");
       return NextResponse.json(
         { error: "Unauthorized" }, 

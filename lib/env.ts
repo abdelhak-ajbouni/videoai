@@ -57,10 +57,6 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z
     .string()
     .url("NEXT_PUBLIC_APP_URL must be a valid URL")
-    .refine(
-      (url) => !url.includes("localhost") || process.env.NODE_ENV === "development",
-      "Production environment should not use localhost URLs"
-    )
     .optional()
     .default("http://localhost:3000"),
 
