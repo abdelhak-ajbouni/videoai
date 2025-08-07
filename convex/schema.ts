@@ -427,33 +427,6 @@ export default defineSchema({
     .index("by_source_and_type", ["source", "eventType"])
     .index("by_processed", ["processed"]),
 
-  // Rate limiting tracking
-  rateLimits: defineTable({
-    // Rate limit identification
-    identifier: v.string(), // User ID, IP address, or other identifier
-    identifierType: v.string(), // "user", "ip", "api_key"
-    
-    // Rate limit configuration
-    operation: v.string(), // "video_generation", "credit_purchase", "api_call"
-    windowStart: v.number(), // Start of the rate limit window (timestamp)
-    windowDurationMs: v.number(), // Duration of the rate limit window in milliseconds
-    
-    // Usage tracking
-    requestCount: v.number(), // Number of requests in the current window
-    lastRequestAt: v.number(), // Timestamp of the last request
-    
-    // Rate limit configuration
-    maxRequests: v.number(), // Maximum requests allowed in the window
-    
-    // Metadata
-    metadata: v.optional(v.any()), // Additional context (user agent, endpoint, etc.)
-    
-    // Timestamps
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_identifier_and_operation", ["identifier", "operation"])
-    .index("by_identifier_type", ["identifierType"])
-    .index("by_window_start", ["windowStart"])
-    .index("by_last_request", ["lastRequestAt"]),
+  // Note: Rate limiting is now handled by the @convex-dev/rate-limiter component
+  // The component manages its own storage internally
 });

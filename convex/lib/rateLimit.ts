@@ -1,32 +1,80 @@
-import { v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { MINUTE, HOUR } from "@convex-dev/rate-limiter";
 import { AppError, ErrorCode, ErrorSeverity } from "./errors";
 
 /**
- * Rate limit configurations for different operations
+ * Simple rate limiter using database storage
+ * Stores rate limit data in a temporary collection that gets auto-cleaned
  */
-export const RATE_LIMIT_CONFIGS = {
-  // Video generation limits
-  video_generation: {
-    free_tier: { maxRequests: 3, windowMs: 60 * 60 * 1000 }, // 3 per hour
-    starter_tier: { maxRequests: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
-    pro_tier: { maxRequests: 50, windowMs: 60 * 60 * 1000 }, // 50 per hour
-    max_tier: { maxRequests: 200, windowMs: 60 * 60 * 1000 }, // 200 per hour
-  },
-  // Credit purchase limits (prevent rapid purchases)
-  credit_purchase: {
-    all_tiers: { maxRequests: 5, windowMs: 60 * 1000 }, // 5 per minute
-  },
-  // API call limits (general protection)
-  api_call: {
-    per_ip: { maxRequests: 100, windowMs: 60 * 1000 }, // 100 per minute per IP
-    per_user: { maxRequests: 200, windowMs: 60 * 1000 }, // 200 per minute per user
-  },
-  // Authentication attempts
-  auth_attempt: {
-    per_ip: { maxRequests: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 minutes per IP
+async function checkAndUpdateRateLimit(
+  ctx: any,
+  operation: string,
+  config: { rate: number; period: number },
+  key: string = 'default'
+): Promise<{ ok: boolean; retryAfter?: number }> {
+  const now = Date.now();
+  const windowStart = Math.floor(now / config.period) * config.period;
+  const identifier = `${operation}:${key}`;
+
+  // Try to get existing rate limit for this window
+  const existing = await ctx.db
+    .query("processedWebhooks") // Reusing existing table temporarily
+    .filter((q) => 
+      q.and(
+        q.eq(q.field("eventId"), identifier),
+        q.eq(q.field("source"), "rate_limit"),
+        q.gte(q.field("createdAt"), windowStart)
+      )
+    )
+    .first();
+
+  if (existing) {
+    // Parse the current count from metadata
+    const currentCount = existing.metadata?.count || 0;
+    
+    if (currentCount >= config.rate) {
+      // Rate limit exceeded
+      const resetTime = windowStart + config.period;
+      return {
+        ok: false,
+        retryAfter: resetTime - now
+      };
+    }
+
+    // Update the count
+    await ctx.db.patch(existing._id, {
+      metadata: { ...existing.metadata, count: currentCount + 1 },
+      processedAt: now
+    });
+  } else {
+    // Create new rate limit record
+    await ctx.db.insert("processedWebhooks", {
+      eventId: identifier,
+      eventType: operation,
+      source: "rate_limit",
+      processed: true,
+      processedAt: now,
+      errorMessage: undefined,
+      metadata: { count: 1, windowStart },
+      createdAt: now
+    });
   }
-} as const;
+
+  return { ok: true };
+}
+
+/**
+ * Rate limit configurations
+ */
+const RATE_LIMIT_CONFIGS = {
+  videoGeneration: { rate: 3, period: HOUR },
+  videoGenerationStarter: { rate: 10, period: HOUR },
+  videoGenerationPro: { rate: 50, period: HOUR },
+  videoGenerationMax: { rate: 200, period: HOUR },
+  creditPurchase: { rate: 5, period: MINUTE },
+  apiCallPerUser: { rate: 200, period: MINUTE },
+  apiCallPerIp: { rate: 100, period: MINUTE },
+  authAttempt: { rate: 10, period: 15 * MINUTE },
+};
 
 /**
  * Rate limit error class
@@ -34,160 +82,21 @@ export const RATE_LIMIT_CONFIGS = {
 export class RateLimitError extends AppError {
   constructor(
     operation: string,
-    windowMs: number,
-    maxRequests: number,
-    resetTime: number
+    retryAfter?: number
   ) {
-    const resetTimeString = new Date(resetTime).toLocaleTimeString();
+    const resetMessage = retryAfter 
+      ? `Please try again in ${Math.ceil(retryAfter / 1000)} seconds.`
+      : "Please try again later.";
+    
     super(
       ErrorCode.RESOURCE_EXHAUSTED,
-      `Rate limit exceeded for ${operation}: ${maxRequests} requests per ${windowMs}ms`,
-      `Too many requests. Please try again after ${resetTimeString}.`,
+      `Rate limit exceeded for ${operation}`,
+      `Too many requests. ${resetMessage}`,
       ErrorSeverity.LOW,
-      { operation, windowMs, maxRequests, resetTime }
+      { operation, retryAfter }
     );
   }
 }
-
-/**
- * Check and update rate limit for a given identifier and operation
- */
-export const checkRateLimit = mutation({
-  args: {
-    identifier: v.string(),
-    identifierType: v.string(),
-    operation: v.string(),
-    maxRequests: v.number(),
-    windowMs: v.number(),
-    metadata: v.optional(v.any())
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const windowStart = Math.floor(now / args.windowMs) * args.windowMs;
-
-    // Find existing rate limit record for this window
-    const existingLimit = await ctx.db
-      .query("rateLimits")
-      .withIndex("by_identifier_and_operation", (q) => 
-        q.eq("identifier", args.identifier).eq("operation", args.operation)
-      )
-      .filter((q) => q.eq(q.field("windowStart"), windowStart))
-      .first();
-
-    if (existingLimit) {
-      // Check if limit is exceeded
-      if (existingLimit.requestCount >= args.maxRequests) {
-        const resetTime = windowStart + args.windowMs;
-        throw new RateLimitError(args.operation, args.windowMs, args.maxRequests, resetTime);
-      }
-
-      // Update the existing record
-      const newRequestCount = existingLimit.requestCount + 1;
-      await ctx.db.patch(existingLimit._id, {
-        requestCount: newRequestCount,
-        lastRequestAt: now,
-        updatedAt: now,
-        metadata: args.metadata
-      });
-
-      return {
-        allowed: true,
-        requestCount: newRequestCount,
-        maxRequests: args.maxRequests,
-        resetTime: windowStart + args.windowMs,
-        windowStart
-      };
-    } else {
-      // Create new rate limit record
-      await ctx.db.insert("rateLimits", {
-        identifier: args.identifier,
-        identifierType: args.identifierType,
-        operation: args.operation,
-        windowStart,
-        windowDurationMs: args.windowMs,
-        requestCount: 1,
-        lastRequestAt: now,
-        maxRequests: args.maxRequests,
-        metadata: args.metadata,
-        createdAt: now,
-        updatedAt: now
-      });
-
-      return {
-        allowed: true,
-        requestCount: 1,
-        maxRequests: args.maxRequests,
-        resetTime: windowStart + args.windowMs,
-        windowStart
-      };
-    }
-  },
-});
-
-/**
- * Get current rate limit status for an identifier and operation
- */
-export const getRateLimitStatus = query({
-  args: {
-    identifier: v.string(),
-    operation: v.string(),
-    windowMs: v.number()
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const windowStart = Math.floor(now / args.windowMs) * args.windowMs;
-
-    const rateLimit = await ctx.db
-      .query("rateLimits")
-      .withIndex("by_identifier_and_operation", (q) => 
-        q.eq("identifier", args.identifier).eq("operation", args.operation)
-      )
-      .filter((q) => q.eq(q.field("windowStart"), windowStart))
-      .first();
-
-    if (!rateLimit) {
-      return {
-        requestCount: 0,
-        maxRequests: 0,
-        resetTime: windowStart + args.windowMs,
-        windowStart
-      };
-    }
-
-    return {
-      requestCount: rateLimit.requestCount,
-      maxRequests: rateLimit.maxRequests,
-      resetTime: windowStart + args.windowMs,
-      windowStart
-    };
-  },
-});
-
-/**
- * Clean up old rate limit records (run via cron)
- */
-export const cleanupOldRateLimits = mutation({
-  args: {
-    olderThanHours: v.number()
-  },
-  handler: async (ctx, { olderThanHours }) => {
-    const cutoffTime = Date.now() - (olderThanHours * 60 * 60 * 1000);
-    
-    const oldRecords = await ctx.db
-      .query("rateLimits")
-      .filter((q) => q.lt(q.field("windowStart"), cutoffTime))
-      .collect();
-
-    let deletedCount = 0;
-    for (const record of oldRecords) {
-      await ctx.db.delete(record._id);
-      deletedCount++;
-    }
-
-    console.log(`Cleaned up ${deletedCount} old rate limit records older than ${olderThanHours} hours`);
-    return deletedCount;
-  },
-});
 
 /**
  * Helper function to apply video generation rate limits based on subscription tier
@@ -197,33 +106,44 @@ export async function applyVideoGenerationRateLimit(
   userId: string,
   subscriptionTier: string = "free"
 ) {
-  const tierKey = `${subscriptionTier}_tier` as keyof typeof RATE_LIMIT_CONFIGS.video_generation;
-  const config = RATE_LIMIT_CONFIGS.video_generation[tierKey] || RATE_LIMIT_CONFIGS.video_generation.free_tier;
+  let configKey: keyof typeof RATE_LIMIT_CONFIGS;
+  
+  switch (subscriptionTier) {
+    case "starter":
+      configKey = "videoGenerationStarter";
+      break;
+    case "pro":
+      configKey = "videoGenerationPro";
+      break;
+    case "max":
+      configKey = "videoGenerationMax";
+      break;
+    default:
+      configKey = "videoGeneration"; // Free tier
+  }
 
-  await ctx.runMutation(checkRateLimit, {
-    identifier: userId,
-    identifierType: "user",
-    operation: "video_generation",
-    maxRequests: config.maxRequests,
-    windowMs: config.windowMs,
-    metadata: { subscriptionTier }
-  });
+  const config = RATE_LIMIT_CONFIGS[configKey];
+  const status = await checkAndUpdateRateLimit(ctx, configKey, config, userId);
+  
+  if (!status.ok) {
+    throw new RateLimitError("video generation", status.retryAfter);
+  }
+
+  return status;
 }
 
 /**
  * Helper function to apply credit purchase rate limits
  */
 export async function applyCreditPurchaseRateLimit(ctx: any, userId: string) {
-  const config = RATE_LIMIT_CONFIGS.credit_purchase.all_tiers;
+  const config = RATE_LIMIT_CONFIGS.creditPurchase;
+  const status = await checkAndUpdateRateLimit(ctx, "creditPurchase", config, userId);
+  
+  if (!status.ok) {
+    throw new RateLimitError("credit purchase", status.retryAfter);
+  }
 
-  await ctx.runMutation(checkRateLimit, {
-    identifier: userId,
-    identifierType: "user",
-    operation: "credit_purchase",
-    maxRequests: config.maxRequests,
-    windowMs: config.windowMs,
-    metadata: { operation_type: "credit_purchase" }
-  });
+  return status;
 }
 
 /**
@@ -234,76 +154,112 @@ export async function applyIpRateLimit(
   ipAddress: string,
   operation: string = "api_call"
 ) {
-  const config = RATE_LIMIT_CONFIGS.api_call.per_ip;
+  const config = RATE_LIMIT_CONFIGS.apiCallPerIp;
+  const status = await checkAndUpdateRateLimit(ctx, "apiCallPerIp", config, ipAddress);
+  
+  if (!status.ok) {
+    throw new RateLimitError(`${operation} (IP-based)`, status.retryAfter);
+  }
 
-  await ctx.runMutation(checkRateLimit, {
-    identifier: ipAddress,
-    identifierType: "ip",
-    operation,
-    maxRequests: config.maxRequests,
-    windowMs: config.windowMs,
-    metadata: { operation_type: operation }
-  });
+  return status;
 }
 
 /**
- * Get rate limit statistics for monitoring
+ * Helper function to apply user-based API rate limits
  */
-export const getRateLimitStats = query({
-  args: {
-    timeRangeHours: v.optional(v.number())
-  },
-  handler: async (ctx, { timeRangeHours = 24 }) => {
-    const cutoffTime = Date.now() - (timeRangeHours * 60 * 60 * 1000);
+export async function applyUserRateLimit(
+  ctx: any,
+  userId: string,
+  operation: string = "api_call"
+) {
+  const config = RATE_LIMIT_CONFIGS.apiCallPerUser;
+  const status = await checkAndUpdateRateLimit(ctx, "apiCallPerUser", config, userId);
+  
+  if (!status.ok) {
+    throw new RateLimitError(`${operation} (user-based)`, status.retryAfter);
+  }
+
+  return status;
+}
+
+/**
+ * Helper function to apply authentication attempt rate limits
+ */
+export async function applyAuthAttemptRateLimit(
+  ctx: any,
+  ipAddress: string
+) {
+  const config = RATE_LIMIT_CONFIGS.authAttempt;
+  const status = await checkAndUpdateRateLimit(ctx, "authAttempt", config, ipAddress);
+  
+  if (!status.ok) {
+    throw new RateLimitError("authentication attempt", status.retryAfter);
+  }
+
+  return status;
+}
+
+/**
+ * Check current rate limit status without consuming a request
+ */
+export async function checkRateLimitStatus(
+  ctx: any,
+  operation: string,
+  key: string
+) {
+  const now = Date.now();
+  const config = RATE_LIMIT_CONFIGS[operation as keyof typeof RATE_LIMIT_CONFIGS];
+  if (!config) return { ok: true };
+  
+  const windowStart = Math.floor(now / config.period) * config.period;
+  const identifier = `${operation}:${key}`;
+
+  const existing = await ctx.db
+    .query("processedWebhooks")
+    .filter((q) => 
+      q.and(
+        q.eq(q.field("eventId"), identifier),
+        q.eq(q.field("source"), "rate_limit"),
+        q.gte(q.field("createdAt"), windowStart)
+      )
+    )
+    .first();
+
+  if (existing) {
+    const currentCount = existing.metadata?.count || 0;
+    const resetTime = windowStart + config.period;
     
-    const rateLimits = await ctx.db
-      .query("rateLimits")
-      .filter((q) => q.gte(q.field("createdAt"), cutoffTime))
-      .collect();
-
-    const stats = {
-      totalRequests: 0,
-      uniqueUsers: new Set<string>(),
-      uniqueIPs: new Set<string>(),
-      operationCounts: {} as Record<string, number>,
-      rateLimitedOperations: {} as Record<string, number>,
-      topUsers: {} as Record<string, number>,
-      topOperations: [] as Array<{ operation: string; count: number; rateLimited: number }>
-    };
-
-    for (const limit of rateLimits) {
-      stats.totalRequests += limit.requestCount;
-      
-      if (limit.identifierType === "user") {
-        stats.uniqueUsers.add(limit.identifier);
-        stats.topUsers[limit.identifier] = (stats.topUsers[limit.identifier] || 0) + limit.requestCount;
-      } else if (limit.identifierType === "ip") {
-        stats.uniqueIPs.add(limit.identifier);
-      }
-
-      stats.operationCounts[limit.operation] = (stats.operationCounts[limit.operation] || 0) + limit.requestCount;
-      
-      // Count rate limited requests (those at or near the limit)
-      if (limit.requestCount >= limit.maxRequests * 0.9) {
-        stats.rateLimitedOperations[limit.operation] = (stats.rateLimitedOperations[limit.operation] || 0) + 1;
-      }
-    }
-
-    // Convert to arrays for easier consumption
-    stats.topOperations = Object.entries(stats.operationCounts).map(([operation, count]) => ({
-      operation,
-      count,
-      rateLimited: stats.rateLimitedOperations[operation] || 0
-    })).sort((a, b) => b.count - a.count);
-
     return {
-      ...stats,
-      uniqueUsers: stats.uniqueUsers.size,
-      uniqueIPs: stats.uniqueIPs.size,
-      topUsers: Object.entries(stats.topUsers)
-        .map(([user, count]) => ({ user, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
+      ok: currentCount < config.rate,
+      retryAfter: resetTime - now
     };
-  },
-});
+  }
+  
+  return { ok: true };
+}
+
+/**
+ * Reset a specific rate limit (admin function)
+ */
+export async function resetRateLimit(
+  ctx: any,
+  operation: string,
+  key: string
+) {
+  const identifier = `${operation}:${key}`;
+  
+  // Find and delete all rate limit records for this identifier
+  const rateLimitRecords = await ctx.db
+    .query("processedWebhooks")
+    .filter((q) => 
+      q.and(
+        q.eq(q.field("eventId"), identifier),
+        q.eq(q.field("source"), "rate_limit")
+      )
+    )
+    .collect();
+
+  for (const record of rateLimitRecords) {
+    await ctx.db.delete(record._id);
+  }
+}
