@@ -3,11 +3,9 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Sparkles
 } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { UserMenu } from "./user-menu";
@@ -17,7 +15,6 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ className }: AppHeaderProps) {
-  const { user } = useUser();
   const currentUser = useQuery(api.users.getCurrentUser);
   const pathname = usePathname();
 

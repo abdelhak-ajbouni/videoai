@@ -146,8 +146,6 @@ export async function POST(request: NextRequest) {
     );
 
     let success = false;
-    let errorMessage: string | undefined;
-    let videoId: string | undefined;
 
     try {
       // Find the video by Replicate job ID using internal query
@@ -158,8 +156,6 @@ export async function POST(request: NextRequest) {
       if (!video) {
         throw new Error("Video not found");
       }
-
-      videoId = video._id;
 
       // Handle different webhook statuses
       switch (status) {
