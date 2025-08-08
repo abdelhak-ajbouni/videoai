@@ -5,43 +5,30 @@ const isProtectedRoute = createRouteMatcher([
   "/generate(.*)",
   "/explore(.*)",
   "/my-videos(.*)",
+  "/profile(.*)",
   "/library(.*)",
   "/settings(.*)",
   "/billing(.*)",
 ]);
 
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-]);
-
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, redirectToSignIn } = await auth();
-  
-  let response: NextResponse;
+  const { userId } = await auth();
+  // Redirect unauthenticated users from protected routes to landing page
+  if (isProtectedRoute(req) && !userId) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
 
-  // Allow public routes
-  if (isPublicRoute(req)) {
-    response = NextResponse.next();
-  }
-  // Protect authenticated routes
-  else if (isProtectedRoute(req)) {
-    if (!userId) {
-      return redirectToSignIn({ returnBackUrl: req.url });
-    }
-    response = NextResponse.next();
-  } else {
-    response = NextResponse.next();
-  }
+  const response = NextResponse.next();
 
   // Add security headers to all responses
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
 
   return response;
 });
