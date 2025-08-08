@@ -12,10 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   User,
-  Shield,
   Settings,
-  Eye,
-  EyeOff,
   Check,
   X,
   AlertTriangle,
@@ -39,23 +36,13 @@ export default function ProfilePage() {
 
   // Form states
   const [isEditing, setIsEditing] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-  });
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
   });
 
   // Show loading state while authentication and user data are being loaded
@@ -116,57 +103,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!passwordData.currentPassword) {
-      toast.error("Current password is required");
-      return;
-    }
-
-    if (!passwordData.newPassword) {
-      toast.error("New password is required");
-      return;
-    }
-
-    if (passwordData.newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long");
-      return;
-    }
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("New passwords don't match");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await user.updatePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
-
-      toast.success("Password updated successfully");
-      setIsChangingPassword(false);
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error) {
-      console.error("Error updating password:", error);
-      toast.error("Failed to update password. Please check your current password.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCancelPasswordChange = () => {
-    setIsChangingPassword(false);
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-  };
 
   const handleCancelSubscription = async () => {
     if (!subscription?.stripeSubscriptionId || !user?.id) {
@@ -345,159 +281,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Account Security */}
-          <Card className="bg-gray-900 border-gray-800/50">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5 text-white" />
-                  <span>Security</span>
-                </div>
-                {!isChangingPassword && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsChangingPassword(true)}
-                    className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white"
-                  >
-                    <Shield className="h-4 w-4 mr-2 text-white" />
-                    Change Password
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isChangingPassword ? (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label className="text-gray-300 font-medium">Password</Label>
-                    <div className="text-white text-lg">
-                      ••••••••••••
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-400">
-                    Last updated: {(() => {
-                      const date = user.passwordEnabled ? user.updatedAt : user.createdAt;
-                      if (!date) return 'Never';
-                      return formatDate(typeof date === 'number' ? date : date.getTime());
-                    })()}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword" className="text-gray-300">
-                      Current Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="currentPassword"
-                        type={showCurrentPassword ? "text" : "password"}
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        className="bg-gray-800 border-gray-700 text-white focus:border-blue-500 pr-10"
-                        placeholder="Enter your current password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      >
-                        {showCurrentPassword ? (
-                          <EyeOff className="h-4 w-4 text-white" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-white" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword" className="text-gray-300">
-                      New Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="newPassword"
-                        type={showNewPassword ? "text" : "password"}
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        className="bg-gray-800 border-gray-700 text-white focus:border-blue-500 pr-10"
-                        placeholder="Enter your new password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                      >
-                        {showNewPassword ? (
-                          <EyeOff className="h-4 w-4 text-white" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-white" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Password must be at least 8 characters long
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="text-gray-300">
-                      Confirm New Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        className="bg-gray-800 border-gray-700 text-white focus:border-blue-500 pr-10"
-                        placeholder="Confirm your new password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4 text-white" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-white" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-3">
-                    <Button
-                      onClick={handleChangePassword}
-                      disabled={isLoading}
-                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                      <Check className="h-4 w-4 mr-2 text-white" />
-                      Update Password
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleCancelPasswordChange}
-                      disabled={isLoading}
-                      className="border-gray-700 hover:bg-gray-800 text-gray-300"
-                    >
-                      <X className="h-4 w-4 mr-2 text-white" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Subscription Management */}
           <Card className="bg-gray-900 border-gray-800/50">
