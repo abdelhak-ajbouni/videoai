@@ -72,7 +72,10 @@ export default function Home() {
                 <span className="text-lg font-semibold text-white">Veymo.ai</span>
               </div>
               <div className="flex items-center space-x-4">
-                <SignUpButton mode="redirect" forceRedirectUrl="/generate">
+                <SignUpButton 
+                  mode="modal" 
+                  forceRedirectUrl="/generate"
+                >
                   <Button size="sm" className="bg-white/90 backdrop-blur-sm text-gray-900 hover:bg-white border border-white/20" aria-label="Get started with Veymo.ai">
                     Get Started
                   </Button>
@@ -133,7 +136,10 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center items-center mb-12 sm:mb-16">
-              <SignUpButton mode="redirect" forceRedirectUrl="/generate">
+              <SignUpButton 
+                mode="modal" 
+                forceRedirectUrl="/generate"
+              >
                 <Button size="lg" className="relative group overflow-hidden bg-gradient-to-r from-white via-gray-50 to-white text-gray-900 hover:from-gray-50 hover:via-white hover:to-gray-50 px-6 sm:px-8 lg:px-12 py-4 sm:py-5 lg:py-6 text-base sm:text-lg lg:text-xl font-bold rounded-xl sm:rounded-2xl border-2 border-white/20 shadow-2xl hover:shadow-white/30 transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-1 min-h-[56px] sm:min-h-auto touch-manipulation" aria-label="Create your first video with AI">
                   {/* Animated background gradient */}
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -222,7 +228,10 @@ export default function Home() {
             <p className="text-lg sm:text-xl text-gray-400 mb-6 sm:mb-8">
               Join thousands of creators using AI to bring their ideas to life
             </p>
-            <SignUpButton mode="redirect" forceRedirectUrl="/generate">
+            <SignUpButton 
+              mode="modal" 
+              forceRedirectUrl="/generate"
+            >
               <Button size="lg" className="text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 bg-white text-gray-900 hover:bg-gray-100 group min-h-[52px] touch-manipulation">
                 <Sparkles className="mr-2 h-4 sm:h-5 w-4 sm:w-5" />
                 Start Creating Now

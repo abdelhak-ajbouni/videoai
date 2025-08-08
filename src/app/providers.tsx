@@ -12,16 +12,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <ClerkProvider
         publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}
-        appearance={{
-          variables: {
-            colorPrimary: "#6366f1", // Updated to match our AI primary color
-            colorBackground: "var(--background)",
-            colorText: "var(--text-primary)",
-            colorInputBackground: "var(--surface)",
-            colorInputText: "var(--text-primary)",
-            borderRadius: "0.75rem", // Match our design system
-          },
-        }}
       >
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           {children}
