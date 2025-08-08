@@ -1,5 +1,4 @@
 "use client";
-
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -22,6 +21,7 @@ export default function MyVideosPage() {
   );
 
   const deleteVideo = useMutation(api.videos.deleteVideo);
+  const toggleFavorite = useMutation(api.videos.toggleVideoFavorite);
 
   // Ensure user profile exists on first load
   useEffect(() => {
@@ -90,7 +90,20 @@ export default function MyVideosPage() {
     }
   };
 
+  const handleToggleFavorite = async (video: Doc<"videos">) => {
+    try {
+      await toggleFavorite({ videoId: video._id });
+      toast.success("Video favorite status updated");
+    } catch {
+      toast.error("Failed to update favorite status");
+    }
+  };
+
   const handleDelete = async (video: Doc<"videos">) => {
+    if (!confirm(`Are you sure you want to delete this video? This action cannot be undone.`)) {
+      return;
+    }
+    
     try {
       await deleteVideo({ videoId: video._id });
       toast.success("Video deleted successfully");
@@ -113,7 +126,7 @@ export default function MyVideosPage() {
         </div>
 
         {/* Main Content */}
-        <div className="px-6 pb-8">
+        <div className="px-4 sm:px-6 pb-8">
           <VideoGallery
             videos={userVideos || []}
             isLoading={userVideos === undefined}
@@ -122,10 +135,13 @@ export default function MyVideosPage() {
             showGenerateButton={true}
             showFilters={true}
             showSorting={true}
+            showSearch={true}
             showDownloadButton={true}
             showDeleteButton={true}
+            showFavoriteButton={true}
             onDownload={handleDownload}
             onDelete={handleDelete}
+            onToggleFavorite={handleToggleFavorite}
             variant="my-videos"
           />
         </div>

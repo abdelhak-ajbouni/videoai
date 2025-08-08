@@ -41,32 +41,47 @@ export function AppHeader({ className }: AppHeaderProps) {
         <div className="flex items-center space-x-4">
           {/* Credit Balance & Subscription */}
           {currentUser && (
-            <div className="hidden sm:flex items-center space-x-1">
-              {/* Credits */}
-              <Link href="/pricing">
-                <div className="flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors"></div>
-                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+            <div className="flex items-center space-x-2">
+              {/* Mobile Credit Display */}
+              <div className="sm:hidden">
+                <Link href="/pricing">
+                  <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 transition-all duration-200 cursor-pointer group">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                    <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
                       {currentUser.credits?.toLocaleString() || '0'}
                     </span>
-                    <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">credits</span>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
 
-              {/* Divider */}
-              <div className="w-px h-6 bg-gray-700/50"></div>
+              {/* Desktop Credit Display */}
+              <div className="hidden sm:flex items-center space-x-1">
+                {/* Credits */}
+                <Link href="/pricing">
+                  <div className="flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors"></div>
+                      <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+                        {currentUser.credits?.toLocaleString() || '0'}
+                      </span>
+                      <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">credits</span>
+                    </div>
+                  </div>
+                </Link>
 
-              {/* Subscription */}
-              <Link href="/pricing">
-                <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
-                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors capitalize">
-                    {currentUser.subscriptionTier || 'Free'}
-                  </span>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 group-hover:bg-emerald-300 transition-colors"></div>
-                </div>
-              </Link>
+                {/* Divider */}
+                <div className="w-px h-6 bg-gray-700/50"></div>
+
+                {/* Subscription */}
+                <Link href="/pricing">
+                  <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 hover:bg-gray-800/80 border border-gray-700/50 hover:border-gray-600/60 transition-all duration-200 cursor-pointer group">
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors capitalize">
+                      {currentUser.subscriptionTier || 'Free'}
+                    </span>
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 group-hover:bg-emerald-300 transition-colors"></div>
+                  </div>
+                </Link>
+              </div>
             </div>
           )}
 

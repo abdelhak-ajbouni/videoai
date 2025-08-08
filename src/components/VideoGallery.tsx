@@ -1,10 +1,12 @@
 "use client";
 
 import { Doc } from "../../convex/_generated/dataModel";
-import { Video, Calendar, Eye, Filter, ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { Video, Filter, ArrowUpDown, Search } from "lucide-react";
+import { useState, useMemo } from "react";
 import { VideoModal } from "@/components/VideoModal";
+import { VideoCard } from "@/components/ui/video-card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -21,11 +23,14 @@ interface VideoGalleryProps {
   showGenerateButton?: boolean;
   showFilters?: boolean;
   showSorting?: boolean;
+  showSearch?: boolean;
   showDownloadButton?: boolean;
   showDeleteButton?: boolean;
+  showFavoriteButton?: boolean;
   onDownload?: (video: Doc<"videos">) => void;
   onDelete?: (video: Doc<"videos">) => void;
-  variant?: "my-videos" | "explore";
+  onToggleFavorite?: (video: Doc<"videos">) => void;
+  variant?: "my-videos" | "explore" | "gallery";
 }
 
 type SortOption = "newest" | "oldest" | "duration" | "cost";
@@ -39,16 +44,20 @@ export function VideoGallery({
   showGenerateButton = false,
   showFilters = false,
   showSorting = false,
+  showSearch = false,
   showDownloadButton = false,
   showDeleteButton = false,
+  showFavoriteButton = false,
   onDownload,
   onDelete,
+  onToggleFavorite,
   variant = "explore"
 }: VideoGalleryProps) {
   const router = useRouter();
   const [selectedVideo, setSelectedVideo] = useState<Doc<"videos"> | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleVideoClick = (video: Doc<"videos">) => {
     if (video.videoUrl) {
@@ -60,77 +69,54 @@ export function VideoGallery({
     setSelectedVideo(null);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+
+  // Filter and sort videos with search functionality
+  const filteredAndSortedVideos = useMemo(() => {
+    if (!videos) return [];
+
+    // Filter by search query
+    const filtered = videos.filter(video => {
+      const matchesSearch = searchQuery === "" || 
+        video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Filter by status/quality
+      let matchesFilter = true;
+      if (filterBy === "all") {
+        matchesFilter = true;
+      } else if (filterBy === "completed" || filterBy === "processing") {
+        matchesFilter = video.status === filterBy;
+      } else if (filterBy === "standard" || filterBy === "high" || filterBy === "ultra") {
+        matchesFilter = video.quality === filterBy;
+      }
+
+      // Always exclude failed videos for explore view
+      if (variant === "explore" && video.status === "failed") {
+        matchesFilter = false;
+      }
+
+      return matchesSearch && matchesFilter;
     });
-  };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return null; // Don't show badge for completed videos
-      case 'processing':
-        return (
-          <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded border border-blue-500/30">
-            Processing
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded border border-yellow-500/30">
-            Queued
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded border border-red-500/30">
-            Failed
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2 py-1 text-xs bg-gray-500/20 text-gray-400 rounded border border-gray-500/30">
-            {status}
-          </span>
-        );
-    }
-  };
+    // Sort videos
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return (b._creationTime || b.createdAt) - (a._creationTime || a.createdAt);
+        case "oldest":
+          return (a._creationTime || a.createdAt) - (b._creationTime || b.createdAt);
+        case "duration":
+          const durationA = parseInt(a.duration) || 0;
+          const durationB = parseInt(b.duration) || 0;
+          return durationB - durationA;
+        case "cost":
+          return b.creditsCost - a.creditsCost;
+        default:
+          return (b._creationTime || b.createdAt) - (a._creationTime || a.createdAt);
+      }
+    });
 
-  // Filter videos based on selected filter
-  const filteredVideos = videos.filter(video => {
-    // Always exclude failed videos
-    if (video.status === "failed") return false;
-
-    if (filterBy === "all") return true;
-    if (filterBy === "completed" || filterBy === "processing") {
-      return video.status === filterBy;
-    }
-    if (filterBy === "standard" || filterBy === "high" || filterBy === "ultra") {
-      return video.quality === filterBy;
-    }
-    return true;
-  });
-
-  // Sort videos based on selected sort option
-  const sortedVideos = [...filteredVideos].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return b._creationTime - a._creationTime;
-      case "oldest":
-        return a._creationTime - b._creationTime;
-      case "duration":
-        const durationA = parseInt(a.duration) || 0;
-        const durationB = parseInt(b.duration) || 0;
-        return durationB - durationA;
-      case "cost":
-        return b.creditsCost - a.creditsCost;
-      default:
-        return b._creationTime - a._creationTime;
-    }
-  });
+    return filtered;
+  }, [videos, searchQuery, filterBy, sortBy, variant]);
 
   if (isLoading) {
     return (
@@ -170,163 +156,124 @@ export function VideoGallery({
 
   return (
     <div className="space-y-6">
-      {/* Filters and Sorting */}
-      {(showFilters || showSorting) && (
-        <div className="flex items-center gap-4">
-          {showFilters && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-gray-700 bg-gray-800 hover:bg-gray-700">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter: {filterBy === "all" ? "All" : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                <DropdownMenuItem onClick={() => setFilterBy("all")} className="hover:bg-gray-700">
-                  All Videos
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterBy("completed")} className="hover:bg-gray-700">
-                  Completed
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterBy("processing")} className="hover:bg-gray-700">
-                  Processing
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterBy("standard")} className="hover:bg-gray-700">
-                  Standard Quality
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterBy("high")} className="hover:bg-gray-700">
-                  High Quality
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterBy("ultra")} className="hover:bg-gray-700">
-                  Ultra Quality
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+      {/* Search and Filters */}
+      {(showSearch || showFilters || showSorting) && (
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {showSearch && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search videos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-full sm:w-64 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500"
+                />
+              </div>
+            )}
 
-          {showSorting && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-gray-700 bg-gray-800 hover:bg-gray-700">
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  Sort: {sortBy === "newest" ? "Newest" : sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                <DropdownMenuItem onClick={() => setSortBy("newest")} className="hover:bg-gray-700">
-                  Newest First
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("oldest")} className="hover:bg-gray-700">
-                  Oldest First
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("duration")} className="hover:bg-gray-700">
-                  Duration
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("cost")} className="hover:bg-gray-700">
-                  Credits Cost
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+            <div className="flex gap-3">
+              {showFilters && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="border-gray-700 bg-gray-800 hover:bg-gray-700">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filter: {filterBy === "all" ? "All" : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                    <DropdownMenuItem onClick={() => setFilterBy("all")} className="hover:bg-gray-700">
+                      All Videos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFilterBy("completed")} className="hover:bg-gray-700">
+                      Completed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFilterBy("processing")} className="hover:bg-gray-700">
+                      Processing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFilterBy("standard")} className="hover:bg-gray-700">
+                      Standard Quality
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFilterBy("high")} className="hover:bg-gray-700">
+                      High Quality
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFilterBy("ultra")} className="hover:bg-gray-700">
+                      Ultra Quality
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {showSorting && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="border-gray-700 bg-gray-800 hover:bg-gray-700">
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      Sort: {sortBy === "newest" ? "Newest" : sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                    <DropdownMenuItem onClick={() => setSortBy("newest")} className="hover:bg-gray-700">
+                      Newest First
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("oldest")} className="hover:bg-gray-700">
+                      Oldest First
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("duration")} className="hover:bg-gray-700">
+                      Duration
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("cost")} className="hover:bg-gray-700">
+                      Credits Cost
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
 
           {/* Results counter */}
-          <span className="text-sm text-gray-400">
-            {sortedVideos.length} video{sortedVideos.length !== 1 ? 's' : ''}
+          <span className="text-sm text-gray-400 whitespace-nowrap">
+            {filteredAndSortedVideos.length} video{filteredAndSortedVideos.length !== 1 ? 's' : ''}
           </span>
         </div>
       )}
 
       {/* Video Gallery */}
-      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-        {sortedVideos.map((video) => (
-          <div
-            key={video._id}
-            className="group cursor-pointer break-inside-avoid mb-4"
-            onClick={() => handleVideoClick(video)}
-          >
-            {/* Video Preview */}
-            <div className="relative bg-gray-900 overflow-hidden rounded-lg">
-              {video.status === 'completed' && video.videoUrl ? (
-                <video
-                  className="w-full h-auto object-contain"
-                  muted
-                  loop
-                  preload="metadata"
-                  onMouseEnter={(e) => {
-                    e.stopPropagation();
-                    const videoEl = e.target as HTMLVideoElement;
-                    videoEl.currentTime = 0;
-                    videoEl.play().catch(() => {
-                      // Handle autoplay restrictions
-                    });
-                  }}
-                  onMouseLeave={(e) => {
-                    e.stopPropagation();
-                    const videoEl = e.target as HTMLVideoElement;
-                    videoEl.pause();
-                    videoEl.currentTime = 0;
-                  }}
-                >
-                  <source src={video.videoUrl} type="video/mp4" />
-                </video>
-              ) : (
-                <div className="w-full aspect-video flex items-center justify-center">
-                  <Video className="h-8 w-8 text-gray-600" />
-                </div>
-              )}
-
-              {/* Status Badge */}
-              {variant === "my-videos" && (
-                <div className="absolute top-3 left-3">
-                  {getStatusBadge(video.status)}
-                </div>
-              )}
-
-
-              {/* Duration Badge */}
-              {video.status === 'completed' && (
-                <div className="absolute bottom-3 right-3">
-                  <span className="px-2 py-1 text-sm font-medium bg-black/80 text-white rounded-md">
-                    {video.duration}s
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Video Info */}
-            <div className="p-3 space-y-2">
-              <p className="text-gray-400 text-sm line-clamp-3">
-                {video.prompt}
-              </p>
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                {variant === "my-videos" ? (
-                  <>
-                    <span className="flex items-center">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {formatDate(video._creationTime)}
-                    </span>
-                    <span className="text-gray-500">
-                      {video.creditsCost} credits
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-gray-500">
-                      {video.quality} • {video.duration}s
-                    </span>
-                    {video.viewCount && (
-                      <span className="flex items-center">
-                        <Eye className="h-3 w-3 mr-1" />
-                        {video.viewCount}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {variant === "my-videos" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedVideos.map((video) => (
+            <VideoCard
+              key={video._id}
+              video={video}
+              variant="my-videos"
+              showDownloadButton={showDownloadButton}
+              showDeleteButton={showDeleteButton}
+              showFavoriteButton={showFavoriteButton}
+              onPlay={handleVideoClick}
+              onDownload={onDownload}
+              onDelete={onDelete}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+          {filteredAndSortedVideos.map((video) => (
+            <VideoCard
+              key={video._id}
+              video={video}
+              variant="gallery"
+              showDownloadButton={showDownloadButton}
+              showDeleteButton={showDeleteButton}
+              showFavoriteButton={showFavoriteButton}
+              onPlay={handleVideoClick}
+              onDownload={onDownload}
+              onDelete={onDelete}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Video Modal */}
       <VideoModal

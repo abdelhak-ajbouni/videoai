@@ -240,7 +240,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-2 mt-4 sm:mt-0">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 mt-4 sm:mt-0">
               {/* Prompt */}
               <div className="space-y-3">
                 <Label htmlFor="prompt" className="text-sm font-medium text-white/90">
@@ -266,7 +266,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
               <div className="space-y-3">
                 <Label className="text-sm font-medium text-white/90">AI Model</Label>
                 <Select value={modelId} onValueChange={(value: string) => setModelId(value)}>
-                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-14">
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12 sm:h-14">
                     <div className="flex items-center space-x-4">
                       <Bot className="h-6 w-6 text-blue-400" />
                       <SelectValue placeholder="Select an AI model" />
@@ -291,12 +291,12 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
 
               {/* Model-Specific Options */}
               {currentModel && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {/* Duration */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium text-white/90">Duration</Label>
                     <Select value={duration.toString()} onValueChange={(value: string) => setDuration(parseInt(value))}>
-                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
+                      <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-11 sm:h-12">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -318,7 +318,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                         Resolution
                       </Label>
                       <Select value={resolution} onValueChange={(value: string) => value && setResolution(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-11 sm:h-12">
                           <SelectValue placeholder="Select resolution" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -356,7 +356,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Aspect Ratio</Label>
                       <Select value={aspectRatio} onValueChange={(value: string) => value && setAspectRatio(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-11 sm:h-12">
                           <SelectValue placeholder="select aspect ratio" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -380,7 +380,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-white/90">Camera Position</Label>
                       <Select value={cameraPosition} onValueChange={(value: string) => value && setCameraPosition(value)}>
-                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-12">
+                        <SelectTrigger className="bg-gray-800/50 border-gray-700/50 text-white hover:bg-gray-800/70 focus:border-gray-600 focus:ring-0 focus:outline-none h-11 sm:h-12">
                           <SelectValue placeholder="Select camera position" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-gray-700 shadow-2xl">
@@ -401,10 +401,10 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
 
                   {/* Loop Option (when supported by model) */}
                   {modelParameters?.supportsLoop && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 sm:col-span-2">
                       <Label className="text-sm font-medium text-white/90">Loop Video</Label>
                       <div
-                        className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-12 flex items-center"
+                        className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-11 sm:h-12 flex items-center"
                         onClick={() => setLoop(!loop)}
                       >
                         <div className="flex items-center space-x-3 w-full">
@@ -443,7 +443,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
               {/* Public Visibility Option */}
               <div className="space-y-3">
                 <div
-                  className={`group relative h-12 flex items-center bg-gray-800/30 hover:bg-gray-800/50`}
+                  className={`group relative h-11 sm:h-12 flex items-center p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer`}
                   onClick={() => {
                     if (currentUser?.subscriptionTier === "max") {
                       setIsPublic(!isPublic);
@@ -508,7 +508,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12"
+                className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium h-12 sm:h-14 text-base sm:text-lg touch-manipulation"
                 disabled={!prompt.trim() || !modelId || !hasEnoughCredits || isGenerating}
               >
                 {isGenerating ? (

@@ -18,10 +18,43 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Veymo.ai - AI-Powered Video Generation",
-  description: "Create stunning videos from text using advanced AI technology",
-  keywords: ["AI", "video generation", "artificial intelligence", "content creation"],
+  title: {
+    default: "Veymo.ai - AI-Powered Video Generation",
+    template: "%s | Veymo.ai"
+  },
+  description: "Create stunning videos from text using advanced AI technology. Professional video creation made simple with cutting-edge AI models. Generate high-quality videos in minutes.",
+  keywords: ["AI video generation", "text to video", "artificial intelligence", "content creation", "video AI", "automated video", "AI tools", "video generator"],
   authors: [{ name: "Veymo.ai Team" }],
+  creator: "Veymo.ai",
+  publisher: "Veymo.ai",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://veymo.ai",
+    title: "Veymo.ai - AI-Powered Video Generation",
+    description: "Create stunning videos from text using advanced AI technology. Professional video creation made simple with cutting-edge AI models.",
+    siteName: "Veymo.ai",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Veymo.ai - AI-Powered Video Generation",
+    description: "Create stunning videos from text using advanced AI technology.",
+    creator: "@veymoai",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: "your-google-site-verification-code",
+  },
 };
 
 export const viewport: Viewport = {
