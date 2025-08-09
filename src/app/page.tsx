@@ -1,9 +1,10 @@
 "use client";
 
 import { useUser, SignUpButton } from "@clerk/nextjs";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
@@ -66,8 +67,14 @@ export default function Home() {
           <nav className="relative container mx-auto px-6 py-6" role="navigation" aria-label="Main navigation">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center" role="img" aria-label="Veymo.ai logo">
-                  <Sparkles className="h-3 w-3 text-white" />
+                <div className="w-6 h-6 rounded-lg overflow-hidden" role="img" aria-label="Veymo.ai logo">
+                  <Image 
+                    src="/logo.png" 
+                    alt="Veymo.ai logo" 
+                    width={24} 
+                    height={24}
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <span className="text-lg font-semibold text-white">Veymo.ai</span>
               </div>

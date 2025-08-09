@@ -2,10 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
-import {
-  Sparkles
-} from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { UserMenu } from "./user-menu";
@@ -30,9 +28,15 @@ export function AppHeader({ className }: AppHeaderProps) {
     )}>
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
         {/* Logo */}
-        <Link href="/generate" className="flex items-center space-x-3 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
-            <Sparkles className="h-4 w-4 text-white" />
+        <Link href="/generate" className="flex items-center space-x-1 group">
+          <div className="w-8 h-8 rounded-xl shadow-lg group-hover:shadow-lg transition-all duration-300 overflow-hidden">
+            <Image 
+              src="/logo.png" 
+              alt="Veymo.ai logo" 
+              width={32} 
+              height={32}
+              className="w-full h-full object-contain"
+            />
           </div>
           <span className="text-lg font-semibold text-white/90 group-hover:text-white transition-colors">Veymo.ai</span>
         </Link>
