@@ -84,7 +84,6 @@ export function validateConvexEnvironment(): z.infer<typeof convexEnvSchema> {
   }
 
   convexEnv = result.data;
-  console.log("✅ Convex environment validation passed");
   return result.data;
 }
 

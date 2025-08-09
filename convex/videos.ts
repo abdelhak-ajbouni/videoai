@@ -1,25 +1,24 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, MutationCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
 import { createVideoSchema, formatValidationError } from "./lib/validation";
 import { isDevelopment, getSecureConfig } from "./lib/convexEnv";
-import { 
-  createAuthError, 
-  createNotFoundError, 
+import {
+  createAuthError,
+  createNotFoundError,
   createInsufficientCreditsError,
   createForbiddenError,
   handleError,
-  ExternalServiceError 
 } from "./lib/errors";
 import { applyVideoGenerationRateLimit } from "./lib/rateLimit";
 
 import { R2 } from "@convex-dev/r2";
 import { components } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { toast } from "sonner";
+import { UserIdentity } from "convex/server";
 
 const r2 = new R2(components.r2);
 
@@ -36,7 +35,6 @@ async function getR2VideoUrl(
         expiresIn: 3600 * 24 * 30, // 30 days expiration
       });
     } catch (error) {
-      console.error("Failed to generate R2 URL:", error);
       // Fallback to stored URL
       videoUrl = video.videoUrl;
     }
@@ -148,82 +146,81 @@ export const getLatestVideosFromOthers = query({
   },
 });
 
-// Mutation to create a new video generation request
-export const createVideo = mutation({
-  args: {
-    prompt: v.string(),
-    model: v.string(), // Accept any model ID string
-    duration: v.string(), // Keep as string for compatibility
-    // Generic parameters object - flexible for any model
-    generationSettings: v.optional(v.any()), // Contains all model-specific options
-    isPublic: v.optional(v.boolean()), // Video visibility setting
-  },
-  handler: async (ctx, args): Promise<string> => {
-    try {
-      const identity = await ctx.auth.getUserIdentity();
-      if (!identity) {
-        throw createAuthError("video creation");
-      }
+// Helper functions for createVideo mutation
 
-      // Get user profile to determine subscription tier for rate limiting
-      const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
-        clerkId: identity.subject,
-      });
-
-      if (!userProfile) {
-        throw new Error("User profile not found");
-      }
-
-      // Get subscription to check tier for rate limiting
-      const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
-        clerkId: identity.subject,
-      });
-
-      const subscriptionTier = subscription?.tier || "free";
-
-      // Apply rate limiting to prevent abuse
-      await applyVideoGenerationRateLimit(ctx, identity.subject);
-
-    // Validate all input parameters using Zod schemas
-    const validationResult = createVideoSchema.safeParse(args);
-    if (!validationResult.success) {
-      const error = formatValidationError(validationResult.error);
-      console.error(`Validation error for user ${identity.subject}:`, error);
-      throw new Error(`Invalid input: ${error.message}`);
+// Authenticate user and get profile data
+async function authenticateAndGetUserData(ctx: MutationCtx) {
+  try {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw createAuthError("video creation");
     }
 
-    // Use validated and sanitized data
-    const validatedArgs = validationResult.data;
+    const userProfile = await ctx.runQuery(api.userProfiles.getUserProfile, {
+      clerkId: identity.subject,
+    });
 
-    // ============================================================================
-    // USER AND SUBSCRIPTION VALIDATION
-    // ============================================================================
-    // (User profile and subscription already retrieved above for rate limiting)
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
 
-    // ============================================================================
-    // MODEL VALIDATION
-    // ============================================================================
+    const subscription = await ctx.runQuery(api.subscriptions.getSubscription, {
+      clerkId: identity.subject,
+    });
 
+    const subscriptionTier = subscription?.tier || "free";
+
+    return { identity, userProfile, subscriptionTier };
+  } catch (error) {
+    handleError(error, { function: "authenticateAndGetUserData" });
+  }
+}
+
+// Validate input and apply rate limiting
+async function validateInputAndRateLimit(
+  ctx: MutationCtx,
+  args: Doc<"videos">["generationSettings"],
+  identity: UserIdentity
+) {
+  // Apply rate limiting to prevent abuse
+  try {
+    await applyVideoGenerationRateLimit(ctx, identity.subject);
+  } catch (error) {
+    // Rate limiting errors should be handled as system errors
+    handleError(error, { function: "validateInputAndRateLimit - rate limit" });
+  }
+
+  // Validate all input parameters using Zod schemas
+  const validationResult = createVideoSchema.safeParse(args);
+  if (!validationResult.success) {
+    const error = formatValidationError(validationResult.error);
+    // Throw validation error directly - it will be caught by the main handler and shown to user
+    throw error;
+  }
+
+  return validationResult.data;
+}
+
+// Validate model and check permissions
+async function validateModelAndPermissions(
+  ctx: MutationCtx,
+  validatedArgs: Doc<"videos">["generationSettings"],
+  subscriptionTier: string
+) {
+  try {
     // Validate model exists and is active
     const model = await ctx.db
       .query("models")
       .withIndex("by_model_id", (q) => q.eq("modelId", validatedArgs.model))
       .first();
 
-      if (!model) {
-        throw createNotFoundError("Model", validatedArgs.model);
-      }
+    if (!model) {
+      throw createNotFoundError("Model", validatedArgs.model);
+    }
 
-      if (!model.isActive) {
-        throw createForbiddenError("use this model", "active model status");
-      }
-
-    // Prepare frontend parameters for validation
-    const frontendParams = {
-      prompt: validatedArgs.prompt,
-      duration: validatedArgs.duration,
-      ...(validatedArgs.generationSettings || {}),
-    };
+    if (!model.isActive) {
+      throw createForbiddenError("use this model", "active model status");
+    }
 
     // Check resolution access based on subscription tier
     if (validatedArgs.generationSettings?.resolution === "1080p") {
@@ -234,7 +231,19 @@ export const createVideo = mutation({
       }
     }
 
-    // Calculate credit cost based on model and duration
+    return model;
+  } catch (error) {
+    handleError(error, { function: "validateModelAndPermissions" });
+  }
+}
+
+// Calculate costs and validate credits
+async function calculateAndValidateCredits(
+  ctx: MutationCtx,
+  validatedArgs: Doc<"videos">["generationSettings"],
+  userProfile: Doc<"userProfiles">
+) {
+  try {
     const resolution = validatedArgs.generationSettings?.resolution;
     const creditsCost = await calculateCreditCost(
       ctx,
@@ -243,14 +252,23 @@ export const createVideo = mutation({
       resolution
     );
 
-      // Check if user has enough credits
-      if (userProfile.credits < creditsCost) {
-        throw createInsufficientCreditsError(creditsCost, userProfile.credits);
-      }
+    // Check if user has enough credits
+    if (userProfile.credits < creditsCost) {
+      throw createInsufficientCreditsError(creditsCost, userProfile.credits);
+    }
 
-    const now = Date.now();
+    return creditsCost;
+  } catch (error) {
+    handleError(error, { function: "calculateAndValidateCredits" });
+  }
+}
 
-    // Determine video privacy based on subscription tier and user preference
+// Determine video privacy settings
+function determineVideoPrivacy(
+  validatedArgs: Doc<"videos">["generationSettings"],
+  subscriptionTier: string
+) {
+  try {
     let finalIsPublic = true; // Default to public
 
     if (validatedArgs.isPublic !== undefined) {
@@ -268,6 +286,23 @@ export const createVideo = mutation({
       finalIsPublic = subscriptionTier !== "max";
     }
 
+    return finalIsPublic;
+  } catch (error) {
+    handleError(error, { function: "determineVideoPrivacy" });
+  }
+}
+
+// Create video record and parameters
+async function createVideoRecord(
+  ctx: MutationCtx,
+  validatedArgs: Doc<"videos">["generationSettings"],
+  identity: UserIdentity,
+  creditsCost: number,
+  finalIsPublic: boolean
+) {
+  try {
+    const now = Date.now();
+
     // Create video record
     const videoId: Id<"videos"> = await ctx.db.insert("videos", {
       clerkId: identity.subject,
@@ -276,24 +311,29 @@ export const createVideo = mutation({
       duration: validatedArgs.duration,
       status: "pending",
       creditsCost,
-      // Store frontend settings for reference
       generationSettings: validatedArgs.generationSettings,
-      // Initialize new metadata fields
       viewCount: 0,
       downloadCount: 0,
       shareCount: 0,
-      isPublic: finalIsPublic, // Based on user preference and subscription tier
+      isPublic: finalIsPublic,
       isFavorite: false,
       createdAt: now,
       updatedAt: now,
     });
 
     // Map and store model-specific parameters
+    const frontendParams = {
+      prompt: validatedArgs.prompt,
+      duration: validatedArgs.duration,
+      ...(validatedArgs.generationSettings || {}),
+    };
+
     const parameterMapping = await mapParametersForModel(
       ctx,
       validatedArgs.model,
       frontendParams
     );
+
     await ctx.db.insert("videoParameters", {
       videoId,
       modelId: validatedArgs.model,
@@ -302,42 +342,121 @@ export const createVideo = mutation({
       createdAt: now,
     });
 
+    return videoId;
+  } catch (error) {
+    handleError(error, { function: "createVideoRecord" });
+  }
+}
+
+// Handle credit deduction and transaction recording
+async function processCreditsAndStartGeneration(
+  ctx: MutationCtx,
+  videoId: Id<"videos">,
+  identity: UserIdentity,
+  userProfile: Doc<"userProfiles">,
+  creditsCost: number,
+  validatedArgs: Doc<"videos">["generationSettings"]
+) {
+  try {
+    // Deduct credits atomically using userProfiles
+    const newBalance = await ctx.runMutation(api.userProfiles.subtractCredits, {
+      clerkId: identity.subject,
+      amount: creditsCost,
+    });
+
+    // Record credit transaction with actual balance info
+    await ctx.db.insert("creditTransactions", {
+      clerkId: identity.subject,
+      type: "video_generation",
+      amount: -creditsCost,
+      description: `Video generation: ${validatedArgs.prompt}`,
+      videoId,
+      balanceBefore: userProfile.credits,
+      balanceAfter: newBalance,
+      createdAt: Date.now(),
+    });
+
+    // Schedule the video generation action
+    await ctx.scheduler.runAfter(0, api.videos.generateVideo, { videoId });
+
+    return videoId;
+  } catch (creditError) {
+    // If credit deduction fails, mark video as failed and cleanup
     try {
-      // Deduct credits atomically using userProfiles
-      const newBalance = await ctx.runMutation(api.userProfiles.subtractCredits, {
-        clerkId: identity.subject,
-        amount: creditsCost,
+      await ctx.db.patch(videoId, {
+        status: "failed",
+        errorMessage:
+          creditError instanceof Error
+            ? creditError.message
+            : "Failed to deduct credits",
+        updatedAt: Date.now(),
       });
+    } catch (patchError) {
+      // Silent error - video status update failed but credit error will still be thrown
+    }
+    throw creditError;
+  }
+}
 
-      // Record credit transaction with actual balance info
-      await ctx.db.insert("creditTransactions", {
-        clerkId: identity.subject,
-        type: "video_generation",
-        amount: -creditsCost,
-        description: `Video generation: ${validatedArgs.prompt}`,
+// Main mutation to create a new video generation request
+export const createVideo = mutation({
+  args: {
+    prompt: v.string(),
+    model: v.string(), // Accept any model ID string
+    duration: v.string(), // Keep as string for compatibility
+    // Generic parameters object - flexible for any model
+    generationSettings: v.optional(v.any()), // Contains all model-specific options
+    isPublic: v.optional(v.boolean()), // Video visibility setting
+  },
+  handler: async (ctx, args): Promise<string> => {
+    try {
+      // Step 1: Authentication and user data
+      const { identity, userProfile, subscriptionTier } =
+        await authenticateAndGetUserData(ctx);
+
+      // Step 2: Input validation and rate limiting
+      const validatedArgs = await validateInputAndRateLimit(
+        ctx,
+        args,
+        identity
+      );
+
+      // Step 3: Model validation and permissions
+      await validateModelAndPermissions(ctx, validatedArgs, subscriptionTier);
+
+      // Step 4: Calculate costs and validate credits
+      const creditsCost = await calculateAndValidateCredits(
+        ctx,
+        validatedArgs,
+        userProfile
+      );
+
+      // Step 5: Determine video privacy settings
+      const finalIsPublic = determineVideoPrivacy(
+        validatedArgs,
+        subscriptionTier
+      );
+
+      // Step 6: Create video record and parameters
+      const videoId = await createVideoRecord(
+        ctx,
+        validatedArgs,
+        identity,
+        creditsCost,
+        finalIsPublic
+      );
+
+      // Step 7: Process credits and start generation
+      return await processCreditsAndStartGeneration(
+        ctx,
         videoId,
-        balanceBefore: userProfile.credits,
-        balanceAfter: newBalance,
-        createdAt: now,
-      });
-
-      // Schedule the video generation action
-      await ctx.scheduler.runAfter(0, api.videos.generateVideo, { videoId });
-
-        return videoId;
-      } catch (creditError) {
-        // If credit deduction fails, mark video as failed and cleanup
-        if (videoId) {
-          await ctx.db.patch(videoId, {
-            status: "failed",
-            errorMessage: creditError instanceof Error ? creditError.message : "Failed to deduct credits",
-            updatedAt: Date.now(),
-          });
-        }
-        throw creditError;
-      }
+        identity,
+        userProfile,
+        creditsCost,
+        validatedArgs
+      );
     } catch (error) {
-      return handleError(error, { function: 'createVideo' });
+      return handleError(error, { function: "createVideo" })
     }
   },
 });
@@ -420,7 +539,6 @@ export const deleteVideo = mutation({
       try {
         await r2.deleteObject(ctx, video.r2FileKey);
       } catch (error) {
-        console.error("Failed to delete R2 file:", error);
         // Continue with video deletion even if R2 deletion fails
       }
     }
@@ -531,9 +649,7 @@ export const generateVideo = action({
         };
 
         // Simulate realistic generation timing based on duration
-        const simulationTime = calculateMockGenerationTime(
-          video.duration
-        );
+        const simulationTime = calculateMockGenerationTime(video.duration);
 
         // Schedule the mock generation process
         await ctx.scheduler.runAfter(1000, api.videos.mockGenerationStart, {
@@ -580,8 +696,6 @@ export const generateVideo = action({
 
       return prediction.id;
     } catch (error) {
-      console.error("Video generation failed:", error);
-
       // Update status to failed
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -612,7 +726,7 @@ export const refundCredits = mutation({
     const existingRefund = await ctx.db
       .query("creditTransactions")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", video.clerkId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("videoId"), args.videoId),
           q.eq(q.field("type"), "refund")
@@ -621,7 +735,6 @@ export const refundCredits = mutation({
       .first();
 
     if (existingRefund) {
-      console.log(`Refund already processed for video ${args.videoId}`);
       return; // Refund already processed, prevent duplicate
     }
 
@@ -634,7 +747,7 @@ export const refundCredits = mutation({
     }
 
     const now = Date.now();
-    
+
     try {
       // Refund credits atomically
       await ctx.runMutation(api.userProfiles.addCredits, {
@@ -654,9 +767,7 @@ export const refundCredits = mutation({
         createdAt: now,
       });
 
-      console.log(`Credits refunded for video ${args.videoId}: ${video.creditsCost} credits`);
     } catch (error) {
-      console.error(`Failed to refund credits for video ${args.videoId}:`, error);
       throw new Error("Failed to process refund");
     }
   },
@@ -747,8 +858,6 @@ export const pollReplicateStatus = action({
           });
       }
     } catch (error) {
-      console.error("Error polling Replicate status:", error);
-
       // Mark as failed after polling error
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -833,8 +942,6 @@ export const downloadAndStoreVideo = action({
 
       return key;
     } catch (error) {
-      console.error("Error downloading and storing video:", error);
-
       // Mark as failed and refund credits
       await ctx.runMutation(api.videos.updateVideoStatus, {
         videoId: args.videoId,
@@ -851,7 +958,6 @@ export const downloadAndStoreVideo = action({
     }
   },
 });
-
 
 // Enhanced search query with full-text search and advanced filtering
 export const searchVideos = query({
@@ -1388,16 +1494,12 @@ export const mockGenerationComplete = action({
         format: "mp4",
         codec: "h264",
         bitrate: mockVideos.bitrate,
-        processingDuration: calculateMockGenerationTime(
-          video.duration
-        ),
+        processingDuration: calculateMockGenerationTime(video.duration),
         generationMetrics: {
           queueTime: 1000, // 1 second queue time
-          processingTime:
-            calculateMockGenerationTime(video.duration) - 1000,
+          processingTime: calculateMockGenerationTime(video.duration) - 1000,
           downloadTime: 2000, // 2 seconds download time
-          totalTime:
-            calculateMockGenerationTime(video.duration) + 1000,
+          totalTime: calculateMockGenerationTime(video.duration) + 1000,
         },
       });
     } catch (error) {
@@ -1412,9 +1514,7 @@ export const mockGenerationComplete = action({
 });
 
 // Helper function to calculate realistic mock generation times
-function calculateMockGenerationTime(
-  duration: string
-): number {
+function calculateMockGenerationTime(duration: string): number {
   const durationNum = parseInt(duration);
 
   // Base time per second of video (in milliseconds)
@@ -1434,7 +1534,8 @@ function generateMockVideoUrls(duration: string) {
   // Calculate realistic file size (bitrate * duration / 8 for bytes)
   const fileSize = Math.floor((specs.bitrate * 1000 * durationNum) / 8);
 
-  const sampleVideo = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+  const sampleVideo =
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   return {
     videoUrl: sampleVideo,

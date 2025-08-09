@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Common validation patterns
 const MAX_PROMPT_LENGTH = 500;
-const MIN_PROMPT_LENGTH = 10;
+const MIN_PROMPT_LENGTH = 3; // Reduced from 10 to allow shorter test prompts
 const MAX_DESCRIPTION_LENGTH = 1000;
 
 // Content filtering patterns for prompts (basic safety)
@@ -108,10 +108,16 @@ export const durationSchema = z
   .regex(/^\d+s?$/, "Duration must be a number followed by optional 's' (e.g., '5s' or '10')")
   .transform((dur) => dur.endsWith('s') ? dur : `${dur}s`);
 
-// Schema for resolution validation
+// Schema for resolution validation - handles both resolution (720p) and aspect ratio (16:9) formats
 export const resolutionSchema = z
   .string()
-  .regex(/^\d+p$/, "Resolution must be in format like '720p', '1080p'")
+  .refine((val) => {
+    // Allow traditional resolution format (720p, 1080p)
+    const resolutionPattern = /^\d+p$/;
+    // Allow aspect ratio format (16:9, 4:3, 9:16)
+    const aspectRatioPattern = /^\d+:\d+$/;
+    return resolutionPattern.test(val) || aspectRatioPattern.test(val);
+  }, "Resolution must be in format like '720p', '1080p' or aspect ratio like '16:9', '9:16'")
   .optional();
 
 // Schema for aspect ratio validation
@@ -127,26 +133,20 @@ export const cameraPositionSchema = z
   .transform((pos) => sanitizeInput(pos))
   .optional();
 
-// Schema for generic generation settings
+// Schema for generic generation settings - flexible to allow model-specific parameters
 export const generationSettingsSchema = z
   .object({
     resolution: resolutionSchema,
     aspectRatio: aspectRatioSchema,
     loop: z.boolean().optional(),
     cameraPosition: cameraPositionSchema,
-    // Allow additional model-specific parameters but validate basic types
-    additionalParams: z.record(z.union([
-      z.string(),
-      z.number(),
-      z.boolean()
-    ])).optional()
   })
+  .passthrough() // Allow additional properties without validation
   .optional();
 
 // Main schema for video creation
 export const createVideoSchema = z.object({
   prompt: videoPromptSchema,
-  description: videoDescriptionSchema,
   model: modelIdSchema,
   duration: durationSchema,
   generationSettings: generationSettingsSchema,

@@ -132,7 +132,7 @@ export class ValidationError extends AppError {
     super(
       ErrorCode.VALIDATION_FAILED, 
       message, 
-      userMessage,
+      userMessage || message, // Use the validation message as user message
       ErrorSeverity.LOW,
       { field }
     );
