@@ -517,11 +517,9 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                     Generating Video...
                   </>
                 ) : (
-                  <div className="flex items-center justify-center w-full relative">
-                    <div className="flex items-center">
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Video  ({creditsCost} credits)
-                    </div>
+                  <div className="flex items-center justify-center text-sm w-full relative">
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Video  ({creditsCost} credits)
                   </div>
                 )}
               </Button>
