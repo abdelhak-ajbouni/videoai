@@ -97,7 +97,7 @@ export function CurrentVideoPlayer({ currentVideo, status }: CurrentVideoPlayerP
           {status === 'completed' && currentVideo?.videoUrl && (
             <div className="relative w-full h-full">
               <video
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 controls
                 preload="metadata"
                 onLoadedMetadata={(e) => {

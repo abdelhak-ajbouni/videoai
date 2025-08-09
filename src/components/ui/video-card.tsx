@@ -133,26 +133,6 @@ export function VideoCard({
               </span>
             </div>
 
-            {/* Video Analytics */}
-            {video.status === "completed" && (
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                <div className="flex items-center space-x-4">
-                  <span className="flex items-center">
-                    <Eye className="h-3 w-3 mr-1" />
-                    {video.viewCount || 0} views
-                  </span>
-                  <span className="flex items-center">
-                    <Download className="h-3 w-3 mr-1" />
-                    {video.downloadCount || 0} downloads
-                  </span>
-                  {video.fileSize && (
-                    <span>
-                      {Math.round((video.fileSize || 0) / 1024 / 1024 * 10) / 10} MB
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Error Message */}
             {video.status === "failed" && video.errorMessage && (
@@ -217,7 +197,7 @@ export function VideoCard({
   // Gallery/masonry variant (for explore page)
   return (
     <div
-      className="group cursor-pointer break-inside-avoid mb-4 hover:scale-[1.02] transition-transform duration-200"
+      className="group cursor-pointer break-inside-avoid mb-4"
       onClick={() => onPlay?.(video)}
     >
       {/* Video Preview */}
@@ -257,33 +237,6 @@ export function VideoCard({
             {getStatusBadge(video.status)}
           </div>
         )}
-
-        {/* Duration Badge */}
-        {video.status === 'completed' && (
-          <div className="absolute bottom-3 right-3">
-            <span className="px-2 py-1 text-sm font-medium bg-black/80 text-white rounded-md">
-              {video.duration}s
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Video Info */}
-      <div className="p-3 space-y-2">
-        <p className="text-gray-400 text-sm line-clamp-3">
-          {video.prompt}
-        </p>
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <span className="text-gray-500">
-            {video.quality} • {video.duration}s
-          </span>
-          {video.viewCount && (
-            <span className="flex items-center">
-              <Eye className="h-3 w-3 mr-1" />
-              {video.viewCount}
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );

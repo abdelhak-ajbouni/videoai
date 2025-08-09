@@ -3,6 +3,8 @@
 import { Doc } from "../../convex/_generated/dataModel";
 import { Video, Filter, ArrowUpDown, Search } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { VideoModal } from "@/components/VideoModal";
 import { VideoCard } from "@/components/ui/video-card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +36,7 @@ interface VideoGalleryProps {
 }
 
 type SortOption = "newest" | "oldest" | "duration" | "cost";
-type FilterOption = "all" | "completed" | "processing" | "failed" | "standard" | "high" | "ultra";
+type FilterOption = "all" | string; // string to allow for dynamic model IDs
 
 export function VideoGallery({
   videos,
@@ -58,6 +60,9 @@ export function VideoGallery({
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Get available models for filter options
+  const activeModels = useQuery(api.models.getActiveModels);
 
   const handleVideoClick = (video: Doc<"videos">) => {
     if (video.videoUrl) {
@@ -79,14 +84,12 @@ export function VideoGallery({
       const matchesSearch = searchQuery === "" || 
         video.prompt.toLowerCase().includes(searchQuery.toLowerCase());
       
-      // Filter by status/quality
+      // Filter by model
       let matchesFilter = true;
       if (filterBy === "all") {
         matchesFilter = true;
-      } else if (filterBy === "completed" || filterBy === "processing") {
-        matchesFilter = video.status === filterBy;
-      } else if (filterBy === "standard" || filterBy === "high" || filterBy === "ultra") {
-        matchesFilter = video.quality === filterBy;
+      } else {
+        matchesFilter = video.model === filterBy;
       }
 
       // Always exclude failed videos for explore view
@@ -178,28 +181,22 @@ export function VideoGallery({
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="border-gray-700 bg-gray-800 hover:bg-gray-700">
                       <Filter className="h-4 w-4 mr-2" />
-                      Filter: {filterBy === "all" ? "All" : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}
+                      Filter: {filterBy === "all" ? "All Models" : activeModels?.find(m => m.modelId === filterBy)?.name || filterBy}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-gray-800 border-gray-700">
                     <DropdownMenuItem onClick={() => setFilterBy("all")} className="hover:bg-gray-700">
-                      All Videos
+                      All Models
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterBy("completed")} className="hover:bg-gray-700">
-                      Completed
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterBy("processing")} className="hover:bg-gray-700">
-                      Processing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterBy("standard")} className="hover:bg-gray-700">
-                      Standard Quality
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterBy("high")} className="hover:bg-gray-700">
-                      High Quality
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterBy("ultra")} className="hover:bg-gray-700">
-                      Ultra Quality
-                    </DropdownMenuItem>
+                    {activeModels?.map((model: Doc<"models">) => (
+                      <DropdownMenuItem 
+                        key={model.modelId}
+                        onClick={() => setFilterBy(model.modelId)} 
+                        className="hover:bg-gray-700"
+                      >
+                        {model.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -238,42 +235,23 @@ export function VideoGallery({
         </div>
       )}
 
-      {/* Video Gallery */}
-      {variant === "my-videos" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedVideos.map((video) => (
-            <VideoCard
-              key={video._id}
-              video={video}
-              variant="my-videos"
-              showDownloadButton={showDownloadButton}
-              showDeleteButton={showDeleteButton}
-              showFavoriteButton={showFavoriteButton}
-              onPlay={handleVideoClick}
-              onDownload={onDownload}
-              onDelete={onDelete}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-          {filteredAndSortedVideos.map((video) => (
-            <VideoCard
-              key={video._id}
-              video={video}
-              variant="gallery"
-              showDownloadButton={showDownloadButton}
-              showDeleteButton={showDeleteButton}
-              showFavoriteButton={showFavoriteButton}
-              onPlay={handleVideoClick}
-              onDownload={onDownload}
-              onDelete={onDelete}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
-      )}
+      {/* Video Gallery - Masonry Layout */}
+      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+        {filteredAndSortedVideos.map((video) => (
+          <VideoCard
+            key={video._id}
+            video={video}
+            variant="gallery"
+            showDownloadButton={showDownloadButton}
+            showDeleteButton={showDeleteButton}
+            showFavoriteButton={showFavoriteButton}
+            onPlay={handleVideoClick}
+            onDownload={onDownload}
+            onDelete={onDelete}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
+      </div>
 
       {/* Video Modal */}
       <VideoModal

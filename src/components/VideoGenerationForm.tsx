@@ -223,20 +223,6 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
         onVideoCreated(videoId);
       }
 
-      // Reset form
-      setPrompt("");
-      // Reset to default model or keep current model
-      const defaultModel = activeModels?.find((model: Doc<"models">) => model.isDefault);
-      setModelId(defaultModel ? defaultModel.modelId : modelId);
-      // Reset to default duration (will be updated by useEffect when model changes)
-      setDuration(5);
-      // Reset model-specific options to empty (will be set by useEffect when model changes)
-      setResolution("");
-      setAspectRatio("");
-      setLoop(false);
-      setCameraFixed(false);
-      setCameraPosition("");
-
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to start video generation");
     } finally {
@@ -419,7 +405,7 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                   {/* Camera Fixed Option (when supported by model) */}
                   {modelParameters?.supportsCameraFixed && (
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium text-white/90">Fixed Camera</Label>
+                      <Label className="text-sm font-medium text-white/90">Camera</Label>
                       <div
                         className="group relative p-3 rounded-lg bg-gray-800/30 border border-gray-600 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer h-11 sm:h-12 flex items-center"
                         onClick={() => setCameraFixed(!cameraFixed)}
@@ -445,9 +431,9 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 flex-1">
-                            <Video className="h-4 w-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
-                            <span className="text-sm text-white/90">
-                              Keep camera position fixed
+                            
+                            <span className="text-sm text-blue-400">
+                              Fixed position
                             </span>
                           </div>
                         </div>
