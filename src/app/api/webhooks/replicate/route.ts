@@ -3,26 +3,47 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 import crypto from "crypto";
 import { replicateWebhookSchema } from "../../../../../convex/lib/validation";
-import { getSecureConfig } from "../../../../../convex/lib/convexEnv";
+import { env } from "../../../../../lib/env";
 
-const config = getSecureConfig();
-const convex = new ConvexHttpClient(config.convex.siteUrl);
+const convex = new ConvexHttpClient(env.NEXT_PUBLIC_CONVEX_URL);
+
+const getWebhookSecret = async () => {
+  try {
+    const response = await fetch(
+      "https://api.replicate.com/v1/webhooks/default/secret",
+      {
+        headers: {
+          Authorization: `Bearer ${env.REPLICATE_API_TOKEN}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(
+        "Failed to fetch Replicate webhook secret:",
+        response.statusText
+      );
+      return false;
+    }
+
+    const data = await response.json();
+    return data.key;
+  } catch (error) {
+    console.error("Error fetching Replicate webhook secret:", error);
+    return null;
+  }
+};
 
 /**
  * Verifies the Replicate webhook signature according to official documentation
  * https://replicate.com/docs/topics/webhooks/verify-webhook
  */
-function verifyReplicateSignature(
+async function verifyReplicateSignature(
   payload: string,
-  webhookId: string | null,
-  webhookTimestamp: string | null,
-  webhookSignature: string | null
-): boolean {
-  if (!webhookId || !webhookTimestamp || !webhookSignature) {
-    console.error("Missing required Replicate webhook headers");
-    return false;
-  }
-
+  webhookId: string,
+  webhookTimestamp: string,
+  webhookSignature: string
+): Promise<boolean> {
   // Validate timestamp to prevent replay attacks (5 minutes tolerance)
   const timestampMs = parseInt(webhookTimestamp) * 1000;
   const currentTime = Date.now();
@@ -34,51 +55,41 @@ function verifyReplicateSignature(
     return false;
   }
 
-  const webhookSecret = config.replicate.webhookSecret;
+  // Get the default webhook secret from Replicate API
+  const webhookSecret = await getWebhookSecret();
+
   if (!webhookSecret) {
-    console.error("Missing Replicate webhook secret");
+    console.error("No webhook secret returned from Replicate API");
     return false;
   }
 
-  // Remove 'whsec_' prefix if present (as per Replicate docs)
-  const cleanSecret = webhookSecret.replace(/^whsec_/, "");
+  // Construct signed content as per Replicate specification
+  const signedContent = `${webhookId}.${webhookTimestamp}.${payload}`;
+
+  // Get the secret key (remove 'whsec_' prefix)
+  const secretKey = webhookSecret.split("_")[1];
+  const secretBytes = Buffer.from(secretKey, "base64");
 
   try {
-    // Construct signed content as per Replicate specification
-    const signedContent = `${webhookId}.${webhookTimestamp}.${payload}`;
-
     // Generate expected signature using HMAC-SHA256
-    const expectedSignature = crypto
-      .createHmac("sha256", cleanSecret)
-      .update(signedContent, "utf8")
+    const computedSignature = crypto
+      .createHmac("sha256", secretBytes)
+      .update(signedContent)
       .digest("base64");
 
-    // Parse signatures from header (format: "v1,signature1 v1,signature2")
-    const signatures = webhookSignature.split(" ");
+    const expectedSignatures = webhookSignature
+      .split(" ")
+      .map((sig) => sig.split(",")[1]);
 
-    // Check if any of the provided signatures match
-    for (const sig of signatures) {
-      const [version, signature] = sig.split(",");
-      if (version === "v1") {
-        try {
-          // Use timing-safe comparison to prevent timing attacks
-          if (
-            crypto.timingSafeEqual(
-              Buffer.from(signature, "base64"),
-              Buffer.from(expectedSignature, "base64")
-            )
-          ) {
-            return true;
-          }
-        } catch {
-          // Continue to next signature if comparison fails
-          continue;
-        }
-      }
-    }
+    // Use constant-time comparison to prevent timing attacks
+    const isValid = expectedSignatures.some((expectedSig) =>
+      crypto.timingSafeEqual(
+        Buffer.from(expectedSig),
+        Buffer.from(computedSignature)
+      )
+    );
 
-    console.error("No valid signatures found in webhook header");
-    return false;
+    return isValid;
   } catch (error) {
     console.error("Error verifying Replicate signature:", error);
     return false;
@@ -86,9 +97,6 @@ function verifyReplicateSignature(
 }
 
 export async function POST(request: NextRequest) {
-  let replicateJobId: string | undefined;
-  let status: string | undefined;
-
   try {
     // Get the raw body and required headers for signature verification
     const rawBody = await request.text();
@@ -96,15 +104,20 @@ export async function POST(request: NextRequest) {
     const webhookTimestamp = request.headers.get("webhook-timestamp");
     const webhookSignature = request.headers.get("webhook-signature");
 
+    if (!webhookId || !webhookTimestamp || !webhookSignature) {
+      console.error("Missing required Replicate webhook headers");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Verify webhook signature according to Replicate specification
-    if (
-      !verifyReplicateSignature(
-        rawBody,
-        webhookId,
-        webhookTimestamp,
-        webhookSignature
-      )
-    ) {
+    const isValid = await verifyReplicateSignature(
+      rawBody,
+      webhookId,
+      webhookTimestamp,
+      webhookSignature
+    );
+
+    if (!isValid) {
       console.error("Invalid Replicate webhook signature");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -121,8 +134,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate webhook payload structure
     const validationResult = replicateWebhookSchema.safeParse(body);
+
     if (!validationResult.success) {
       console.error("Invalid webhook payload:", validationResult.error.issues);
       return NextResponse.json(
@@ -132,14 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract the prediction data from the validated webhook
-    const webhookData = validationResult.data;
-    replicateJobId = webhookData.id;
-    status = webhookData.status;
-    const output = webhookData.output;
-
-    if (!replicateJobId) {
-      return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
-    }
+    const { id: replicateJobId, status, output } = validationResult.data;
 
     console.log(
       `Processing Replicate webhook: ${status} for job ${replicateJobId}`

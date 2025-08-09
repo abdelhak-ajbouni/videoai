@@ -30,10 +30,10 @@ export function AppHeader({ className }: AppHeaderProps) {
         {/* Logo */}
         <Link href="/generate" className="flex items-center space-x-1 group">
           <div className="w-8 h-8 rounded-xl shadow-lg group-hover:shadow-lg transition-all duration-300 overflow-hidden">
-            <Image 
-              src="/logo.png" 
-              alt="Veymo.ai logo" 
-              width={32} 
+            <Image
+              src="/logo.png"
+              alt="Veymo.ai logo"
+              width={32}
               height={32}
               className="w-full h-full object-contain"
             />

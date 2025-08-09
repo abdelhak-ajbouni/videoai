@@ -29,10 +29,6 @@ const convexEnvSchema = z.object({
       (token) => token.startsWith("r8_"),
       "REPLICATE_API_TOKEN must be a valid Replicate API token"
     ),
-  REPLICATE_WEBHOOK_SECRET: z
-    .string()
-    .min(1, "REPLICATE_WEBHOOK_SECRET is required")
-    .optional(), // Make it optional since it might not be needed in all environments
 
   // Application configuration (available in Convex environment)
   NEXT_PUBLIC_APP_URL: z
@@ -122,7 +118,6 @@ export function getSecureConfig() {
     },
     replicate: {
       apiToken: getConvexEnv("REPLICATE_API_TOKEN"),
-      webhookSecret: getConvexEnv("REPLICATE_WEBHOOK_SECRET"),
     },
     clerk: {
       jwtIssuerDomain: getConvexEnv("CLERK_JWT_ISSUER_DOMAIN"),

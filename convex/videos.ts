@@ -5,7 +5,7 @@ import { calculateCreditCost } from "./pricing";
 import { createReplicateClient } from "./lib/replicateClient";
 import { mapParametersForModel } from "./modelParameterHelpers";
 import { createVideoSchema, formatValidationError } from "./lib/validation";
-import { isDevelopment, getSecureConfig } from "./lib/convexEnv";
+import { getSecureConfig } from "./lib/convexEnv";
 import {
   createAuthError,
   createNotFoundError,
@@ -456,7 +456,7 @@ export const createVideo = mutation({
         validatedArgs
       );
     } catch (error) {
-      return handleError(error, { function: "createVideo" })
+      return handleError(error, { function: "createVideo" });
     }
   },
 });
@@ -621,70 +621,32 @@ export const generateVideo = action({
         };
       }
 
-      // Check for development mode
-      const isDevelopmentMode = isDevelopment();
+      // Production mode: Use real Replicate API
+      const createOptions: any = {
+        model: model.replicateModelId,
+        input: input,
+      };
 
-      let prediction: any;
+      // Only set webhook in production environment (not localhost)
+      const siteUrl = getSecureConfig().convex.siteUrl;
+      if (siteUrl && !siteUrl.includes("localhost")) {
+        createOptions.webhook = `${siteUrl}/api/webhooks/replicate`;
+        createOptions.webhook_events_filter = [
+          "start",
+          "output",
+          "logs",
+          "completed",
+        ];
+      }
 
-      if (isDevelopmentMode) {
-        // Create realistic mock prediction response
-        prediction = {
-          id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          model: model.replicateModelId,
-          version: "dev-mock-version",
-          input: input,
-          status: "starting",
-          created_at: new Date().toISOString(),
-          started_at: null,
-          completed_at: null,
-          urls: {
-            get: `https://api.replicate.com/v1/predictions/dev_${Date.now()}`,
-            cancel: `https://api.replicate.com/v1/predictions/dev_${Date.now()}/cancel`,
-          },
-          error: null,
-          logs: null,
-          output: null,
-          webhook: `${getSecureConfig().convex.siteUrl}/api/webhooks/replicate`,
-          webhook_events_filter: ["start", "output", "logs", "completed"],
-        };
+      const prediction = await replicate.predictions.create(createOptions);
 
-        // Simulate realistic generation timing based on duration
-        const simulationTime = calculateMockGenerationTime(video.duration);
-
-        // Schedule the mock generation process
-        await ctx.scheduler.runAfter(1000, api.videos.mockGenerationStart, {
+      // If no webhook, schedule polling to check status
+      if (!createOptions.webhook) {
+        await ctx.scheduler.runAfter(5000, api.videos.pollReplicateStatus, {
           videoId: args.videoId,
           replicateJobId: prediction.id,
-          totalTime: simulationTime,
         });
-      } else {
-        // Production mode: Use real Replicate API
-        const createOptions: any = {
-          model: model.replicateModelId,
-          input: input,
-        };
-
-        // Only set webhook in production environment (not localhost)
-        const siteUrl = getSecureConfig().convex.siteUrl;
-        if (siteUrl && !siteUrl.includes("localhost")) {
-          createOptions.webhook = `${siteUrl}/api/webhooks/replicate`;
-          createOptions.webhook_events_filter = [
-            "start",
-            "output",
-            "logs",
-            "completed",
-          ];
-        }
-
-        prediction = await replicate.predictions.create(createOptions);
-
-        // If no webhook, schedule polling to check status
-        if (!createOptions.webhook) {
-          await ctx.scheduler.runAfter(5000, api.videos.pollReplicateStatus, {
-            videoId: args.videoId,
-            replicateJobId: prediction.id,
-          });
-        }
       }
 
       // Update video with Replicate job ID
@@ -766,7 +728,6 @@ export const refundCredits = mutation({
         balanceAfter: userProfile.credits + video.creditsCost,
         createdAt: now,
       });
-
     } catch (error) {
       throw new Error("Failed to process refund");
     }

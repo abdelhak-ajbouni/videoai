@@ -18,7 +18,6 @@ export const env = {
 
   // AI Integration
   REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN!,
-  REPLICATE_WEBHOOK_SECRET: process.env.REPLICATE_WEBHOOK_SECRET!,
 
   // Application URLs
   NEXT_PUBLIC_APP_URL:
