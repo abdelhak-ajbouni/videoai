@@ -153,11 +153,6 @@ export const createVideo = mutation({
   args: {
     prompt: v.string(),
     model: v.string(), // Accept any model ID string
-    quality: v.union(
-      v.literal("standard"),
-      v.literal("high"),
-      v.literal("ultra")
-    ),
     duration: v.string(), // Keep as string for compatibility
     // Generic parameters object - flexible for any model
     generationSettings: v.optional(v.any()), // Contains all model-specific options
@@ -227,15 +222,8 @@ export const createVideo = mutation({
     const frontendParams = {
       prompt: validatedArgs.prompt,
       duration: validatedArgs.duration,
-      quality: validatedArgs.quality,
       ...(validatedArgs.generationSettings || {}),
     };
-
-    // Quality validation removed - all models support all quality levels
-    // Pricing is handled via quality multipliers in the pricing system
-
-    // Check quality access based on subscription
-    const hasQualityAccess = checkQualityAccess(subscriptionTier, validatedArgs.quality);
 
     // Check resolution access based on subscription tier
     if (validatedArgs.generationSettings?.resolution === "1080p") {
@@ -245,13 +233,8 @@ export const createVideo = mutation({
         );
       }
     }
-    if (!hasQualityAccess) {
-      throw new Error(
-        "Your subscription plan doesn't support this quality tier"
-      );
-    }
 
-    // Calculate credit cost based on model, quality and duration
+    // Calculate credit cost based on model and duration
     const resolution = validatedArgs.generationSettings?.resolution;
     const creditsCost = await calculateCreditCost(
       ctx,
@@ -290,7 +273,6 @@ export const createVideo = mutation({
       clerkId: identity.subject,
       prompt: validatedArgs.prompt,
       model: validatedArgs.model,
-      quality: validatedArgs.quality,
       duration: validatedArgs.duration,
       status: "pending",
       creditsCost,
@@ -548,9 +530,8 @@ export const generateVideo = action({
           webhook_events_filter: ["start", "output", "logs", "completed"],
         };
 
-        // Simulate realistic generation timing based on quality/duration
+        // Simulate realistic generation timing based on duration
         const simulationTime = calculateMockGenerationTime(
-          video.quality,
           video.duration
         );
 
@@ -823,10 +804,7 @@ export const downloadAndStoreVideo = action({
       const format = "mp4"; // Most common format from Replicate
       const codec = "h264"; // Most common codec
 
-      const dimensions =
-        video?.quality === "high"
-          ? { width: 1920, height: 1080 }
-          : { width: 1280, height: 720 };
+      const dimensions = { width: 1280, height: 720 };
 
       // Update video with metadata and mark as completed
       // No need to store signed URLs since we generate them dynamically
@@ -874,22 +852,6 @@ export const downloadAndStoreVideo = action({
   },
 });
 
-// Helper function to check quality access based on subscription
-function checkQualityAccess(
-  subscriptionTier: string,
-  quality: string
-): boolean {
-  switch (quality) {
-    case "standard":
-      return true; // Available to all
-    case "high":
-      return ["starter", "pro", "max"].includes(subscriptionTier);
-    case "ultra":
-      return ["max"].includes(subscriptionTier);
-    default:
-      return false;
-  }
-}
 
 // Enhanced search query with full-text search and advanced filtering
 export const searchVideos = query({
@@ -903,9 +865,6 @@ export const searchVideos = query({
         v.literal("failed"),
         v.literal("canceled")
       )
-    ),
-    quality: v.optional(
-      v.union(v.literal("standard"), v.literal("high"), v.literal("ultra"))
     ),
     dateFrom: v.optional(v.number()),
     dateTo: v.optional(v.number()),
@@ -956,11 +915,6 @@ export const searchVideos = query({
 
       // Status filter
       if (args.status && video.status !== args.status) {
-        return false;
-      }
-
-      // Quality filter
-      if (args.quality && video.quality !== args.quality) {
         return false;
       }
 
@@ -1415,8 +1369,8 @@ export const mockGenerationComplete = action({
         return;
       }
 
-      // Generate realistic mock video URLs based on quality
-      const mockVideos = generateMockVideoUrls(video.quality, video.duration);
+      // Generate realistic mock video URLs
+      const mockVideos = generateMockVideoUrls(video.duration);
 
       // Mark video as completed with mock URL
       await ctx.runMutation(api.videos.updateVideoStatus, {
@@ -1435,16 +1389,15 @@ export const mockGenerationComplete = action({
         codec: "h264",
         bitrate: mockVideos.bitrate,
         processingDuration: calculateMockGenerationTime(
-          video.quality,
           video.duration
         ),
         generationMetrics: {
           queueTime: 1000, // 1 second queue time
           processingTime:
-            calculateMockGenerationTime(video.quality, video.duration) - 1000,
+            calculateMockGenerationTime(video.duration) - 1000,
           downloadTime: 2000, // 2 seconds download time
           totalTime:
-            calculateMockGenerationTime(video.quality, video.duration) + 1000,
+            calculateMockGenerationTime(video.duration) + 1000,
         },
       });
     } catch (error) {
@@ -1460,55 +1413,31 @@ export const mockGenerationComplete = action({
 
 // Helper function to calculate realistic mock generation times
 function calculateMockGenerationTime(
-  quality: string,
   duration: string
 ): number {
   const durationNum = parseInt(duration);
 
   // Base time per second of video (in milliseconds)
-  const baseTimePerSecond = {
-    standard: 2000, // 2 seconds processing per 1 second of video
-    high: 4000, // 4 seconds processing per 1 second of video
-    ultra: 8000, // 8 seconds processing per 1 second of video
-  };
-
-  const baseTime =
-    baseTimePerSecond[quality as keyof typeof baseTimePerSecond] || 2000;
+  const baseTimePerSecond = 2000; // 2 seconds processing per 1 second of video
 
   // Add some randomness (±20%)
   const randomFactor = 0.8 + Math.random() * 0.4;
 
-  return Math.floor(baseTime * durationNum * randomFactor);
+  return Math.floor(baseTimePerSecond * durationNum * randomFactor);
 }
 
 // Helper function to generate realistic mock video URLs and metadata
-function generateMockVideoUrls(quality: string, duration: string) {
-  const qualityMap = {
-    standard: { width: 1280, height: 720, bitrate: 2000 },
-    high: { width: 1920, height: 1080, bitrate: 5000 },
-    ultra: { width: 3840, height: 2160, bitrate: 15000 },
-  };
-
-  const specs =
-    qualityMap[quality as keyof typeof qualityMap] || qualityMap.standard;
+function generateMockVideoUrls(duration: string) {
+  const specs = { width: 1280, height: 720, bitrate: 2000 };
   const durationNum = parseInt(duration);
 
   // Calculate realistic file size (bitrate * duration / 8 for bytes)
   const fileSize = Math.floor((specs.bitrate * 1000 * durationNum) / 8);
 
-  // Use different sample videos based on quality for more realistic testing
-  const sampleVideos = {
-    standard:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    high: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4",
-    ultra:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-  };
+  const sampleVideo = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   return {
-    videoUrl:
-      sampleVideos[quality as keyof typeof sampleVideos] ||
-      sampleVideos.standard,
+    videoUrl: sampleVideo,
     fileSize,
     dimensions: { width: specs.width, height: specs.height },
     bitrate: specs.bitrate,

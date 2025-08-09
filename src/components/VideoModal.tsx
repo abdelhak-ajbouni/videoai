@@ -125,9 +125,6 @@ export function VideoModal({
                   {video.duration}s
                 </span>
                 <span className="px-2 py-1 bg-gray-800 rounded text-gray-300">
-                  {video.quality}
-                </span>
-                <span className="px-2 py-1 bg-gray-800 rounded text-gray-300">
                   {video.creditsCost} credits
                 </span>
                 <span className="text-gray-600">

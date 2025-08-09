@@ -13,7 +13,6 @@ import {
   Calendar,
   Timer,
   Heart,
-  Eye,
   Video
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";

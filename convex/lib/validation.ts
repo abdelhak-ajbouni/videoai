@@ -101,10 +101,6 @@ export const modelIdSchema = z
   .max(100, "Model ID too long")
   .regex(/^[a-zA-Z0-9\/_-]+$/, "Invalid model ID format");
 
-// Schema for quality validation
-export const qualitySchema = z.enum(["standard", "high", "ultra"], {
-  errorMap: () => ({ message: "Quality must be standard, high, or ultra" })
-});
 
 // Schema for duration validation
 export const durationSchema = z
@@ -152,7 +148,6 @@ export const createVideoSchema = z.object({
   prompt: videoPromptSchema,
   description: videoDescriptionSchema,
   model: modelIdSchema,
-  quality: qualitySchema,
   duration: durationSchema,
   generationSettings: generationSettingsSchema,
   isPublic: z.boolean().optional().default(false)

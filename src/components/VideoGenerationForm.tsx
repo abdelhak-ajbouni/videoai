@@ -206,7 +206,6 @@ export function VideoGenerationForm({ onVideoCreated }: VideoGenerationFormProps
       const videoId = await createVideo({
         prompt: prompt.trim(),
         model: modelId,
-        quality: "standard",
         duration: duration.toString(),
         generationSettings: {
           resolution: resolution || undefined,

@@ -21,11 +21,6 @@ export default defineSchema({
 
     // Generation settings
     model: v.string(), // Accept any model ID string
-    quality: v.union(
-      v.literal("standard"),
-      v.literal("high"),
-      v.literal("ultra")
-    ),
     duration: v.string(), // Accept any duration string
 
     // Generic generation settings (model-specific params moved to modelParameters table)

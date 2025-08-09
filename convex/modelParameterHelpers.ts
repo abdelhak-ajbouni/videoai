@@ -31,7 +31,6 @@ export interface FrontendParameters {
   loop?: boolean;
   startImageUrl?: string;
   endImageUrl?: string;
-  quality?: string;
 }
 
 // Interface for parameter mapping results
