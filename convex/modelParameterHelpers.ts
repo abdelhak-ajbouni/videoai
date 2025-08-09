@@ -12,6 +12,7 @@ export interface ApiParameters {
   resolution?: string;
   aspectRatio?: string; // Use camelCase consistently
   loop?: boolean;
+  camera_fixed?: boolean;
   start_image?: string;
   end_image?: string;
   image?: string;
@@ -26,6 +27,7 @@ export interface FrontendParameters {
   resolution?: string;
   aspectRatio?: string;
   cameraPosition?: string;
+  cameraFixed?: boolean;
   loop?: boolean;
   startImageUrl?: string;
   endImageUrl?: string;
@@ -36,7 +38,6 @@ export interface FrontendParameters {
 export interface ParameterMapping {
   apiParameters: ApiParameters; // Parameters to send to Replicate API
   frontendParameters: FrontendParameters; // Original frontend form values
-  mappingLog: string[]; // Log of parameter transformations
 }
 
 /**
@@ -77,6 +78,7 @@ export const getModelParametersForForm = query({
 
       supportedCameraPositions: params.cameraPosition?.allowedValues || [],
       supportsLoop: !!params.loop,
+      supportsCameraFixed: !!params.cameraFixed,
       defaultValues: {
         duration: params.duration?.defaultValue,
         resolution: params.resolution?.defaultValue,
@@ -84,6 +86,7 @@ export const getModelParametersForForm = query({
 
         cameraPosition: params.cameraPosition?.defaultValue,
         loop: params.loop?.defaultValue,
+        cameraFixed: params.cameraFixed?.defaultValue,
       },
       constraints: modelParams.constraints || {},
     };
@@ -116,13 +119,12 @@ export const getVideoParameters = query({
 });
 
 /**
- * Reusable function to apply parameter mappings and log transformations
+ * Reusable function to apply parameter mappings
  */
 function applyParameterMappings(
   mappings: Record<string, string>,
   frontendParams: FrontendParameters,
-  apiParameters: ApiParameters,
-  mappingLog: string[]
+  apiParameters: ApiParameters
 ): void {
   for (const [frontendKey, apiKey] of Object.entries(mappings)) {
     const frontendValue =
@@ -135,26 +137,23 @@ function applyParameterMappings(
           const durationValue = parseInt(frontendValue as string);
           (apiParameters as unknown as Record<string, unknown>)[apiKey] =
             durationValue;
-          mappingLog.push(
-            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${durationValue}`
-          );
           break;
 
         case "loop":
           const loopValue = Boolean(frontendValue);
           (apiParameters as unknown as Record<string, unknown>)[apiKey] =
             loopValue;
-          mappingLog.push(
-            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${loopValue}`
-          );
+          break;
+
+        case "cameraFixed":
+          const cameraFixedValue = Boolean(frontendValue);
+          (apiParameters as unknown as Record<string, unknown>)[apiKey] =
+            cameraFixedValue;
           break;
 
         default:
           (apiParameters as unknown as Record<string, unknown>)[apiKey] =
             frontendValue;
-          mappingLog.push(
-            `Mapped ${frontendKey}: ${frontendValue} -> ${apiKey}: ${frontendValue}`
-          );
       }
     }
   }
@@ -168,12 +167,9 @@ export async function mapParametersForModel(
   modelId: string,
   frontendParams: FrontendParameters
 ): Promise<ParameterMapping> {
-  const mappingLog: string[] = [];
   const apiParameters: ApiParameters = {
     prompt: frontendParams.prompt,
   };
-
-  mappingLog.push(`Starting parameter mapping for model: ${modelId}`);
 
   // Get model with capabilities from database
   const model = await ctx.db
@@ -182,22 +178,15 @@ export async function mapParametersForModel(
     .first();
 
   if (!model) {
-    mappingLog.push("Model not found, using basic mapping");
     // Fallback to basic duration mapping
     if (frontendParams.duration) {
       apiParameters.duration = parseInt(frontendParams.duration.toString());
-      mappingLog.push(
-        `Mapped duration: ${frontendParams.duration} -> ${apiParameters.duration}`
-      );
     }
     return {
       apiParameters,
       frontendParameters: frontendParams,
-      mappingLog,
     };
   }
-
-  mappingLog.push(`Found model with type: ${model.modelType}`);
 
   // Get model parameters from the new modelParameters table
   const modelParams = await ctx.db
@@ -210,8 +199,7 @@ export async function mapParametersForModel(
     applyParameterMappings(
       modelParams.mappingRules,
       frontendParams,
-      apiParameters,
-      mappingLog
+      apiParameters
     );
   }
 
@@ -219,16 +207,11 @@ export async function mapParametersForModel(
   if (model.modelType === "google_veo") {
     // Add random seed for variation in Veo models
     apiParameters.seed = Math.floor(Math.random() * 1000000);
-    mappingLog.push(`Generated seed: ${apiParameters.seed}`);
-    mappingLog.push("Duration fixed at 8s for Veo model (no parameter needed)");
   }
-
-  mappingLog.push(`Final API parameters: ${JSON.stringify(apiParameters)}`);
 
   return {
     apiParameters,
     frontendParameters: frontendParams,
-    mappingLog,
   };
 }
 
@@ -240,7 +223,7 @@ export const storeVideoParameters = mutation({
     videoId: v.id("videos"),
     modelId: v.string(),
     parameters: v.any(),
-    parameterMapping: v.optional(v.any()),
+    frontendParameters: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -249,7 +232,7 @@ export const storeVideoParameters = mutation({
       videoId: args.videoId,
       modelId: args.modelId,
       parameters: args.parameters,
-      parameterMapping: args.parameterMapping,
+      parameterMapping: args.frontendParameters,
       createdAt: now,
     });
   },

@@ -316,10 +316,7 @@ export const createVideo = mutation({
       videoId,
       modelId: validatedArgs.model,
       parameters: parameterMapping.apiParameters,
-      parameterMapping: {
-        frontendParameters: parameterMapping.frontendParameters,
-        mappingLog: parameterMapping.mappingLog,
-      },
+      parameterMapping: parameterMapping.frontendParameters,
       createdAt: now,
     });
 

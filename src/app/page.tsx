@@ -3,7 +3,7 @@
 import { useUser, SignUpButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { Sparkles, Zap, ArrowRight, Video, Globe } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
